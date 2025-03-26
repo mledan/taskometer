@@ -1,14 +1,3 @@
-## What this does (in your own words)
-
-## What this does (according to GitHub Copilot)
-
-copilot:summary
-
-copilot:walkthrough
+## What this does
 
 ## Relevant issue
-
-## A poem
-
-copilot:poem
-
