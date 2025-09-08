@@ -1,0 +1,38 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-color);
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+}
+
+.todosView,
+.taskTypesView,
+.calendarView {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.todosView {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.taskTypesView {
+  background: var(--input-color);
+  border-radius: 3px;
+  padding: 20px;
+}
+
+.calendarView {
+  height: calc(100vh - 180px);
+  background: var(--input-color);
+  border-radius: 3px;
+  padding: 20px;
+}

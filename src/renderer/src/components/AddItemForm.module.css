@@ -1,5 +1,8 @@
 .form {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   input {
     margin: 0 0 10px 0;
     padding: 20px 70px 20px 20px;
@@ -40,4 +43,39 @@
       animation: click 0.5s;
     }
   }
+}
+
+.mainInput {
+  position: relative;
+  width: 100%;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  padding: 10px;
+  background: var(--input-color);
+  border-radius: 3px;
+}
+
+.options select,
+.options input {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-color);
+  color: var(--font-color);
+  font-size: 14px;
+  width: 100%;
+  margin: 0;
+  height: auto;
+}
+
+.options input[type="number"] {
+  width: 100%;
+}
+
+.options input[type="date"] {
+  width: 100%;
 }

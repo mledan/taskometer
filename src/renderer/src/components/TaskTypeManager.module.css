@@ -1,0 +1,118 @@
+.container {
+  padding: 20px;
+  background: var(--bg-color);
+  border-radius: 3px;
+}
+
+.container h2 {
+  color: var(--font-color);
+  margin-bottom: 20px;
+}
+
+.addForm {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.addForm input {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 14px;
+}
+
+.addForm button {
+  padding: 8px 16px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.addForm button:hover {
+  opacity: 0.9;
+}
+
+.typeList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.typeItem {
+  background: var(--input-color);
+  border-radius: 3px;
+  padding: 15px;
+}
+
+.viewMode,
+.editMode {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.editMode input {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-color);
+  color: var(--font-color);
+  font-size: 14px;
+}
+
+.typeName {
+  font-weight: bold;
+  color: var(--font-color);
+}
+
+.duration {
+  color: var(--font-color-secondary);
+}
+
+.viewMode button,
+.editMode button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.viewMode button:first-of-type,
+.editMode button {
+  background: var(--accent-color);
+  color: white;
+}
+
+.viewMode button:last-of-type {
+  background: var(--error-color);
+  color: white;
+}
+
+.daySelector {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.dayLabel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--font-color-secondary);
+}
+
+.dayLabel input[type="checkbox"] {
+  margin: 0;
+}

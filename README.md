@@ -1,40 +1,47 @@
-# todometer
+# taskometer
 
-A simple, meter-based to-do list built with Electron and React.
+A web-based task meter for tracking your progress, built with React. This is a web-adapted version of [todometer](https://github.com/cassidoo/todometer) by [Cassidy Williams](https://github.com/cassidoo).
 
 ![todometer](assets/screenshot.png)
 
-## Download
+## Features
 
-Nab the latest version from the [Releases](https://github.com/cassidoo/todometer/releases) page!
+- 📊 Visual meter-based task tracking
+- 🌐 Access from any browser
+- 📱 Mobile-friendly interface
+- 🔔 Web notifications for reminders
+- 💾 Browser-based storage
 
 ## Development
 
 - Clone the repo:
 
 ```bash
-$ git clone https://github.com/cassidoo/todometer.git
+$ git clone https://github.com/mledan/taskometer.git
 ```
 
 - Go to the project directory and install dependencies:
 
 ```bash
-$ cd todometer && npm install
+$ cd taskometer && npm install
 ```
 
-To show the Electron application window with your current build:
+To start the development server:
 
 ```bash
 $ npm run dev
 ```
 
-To build a production version:
+To build for production:
 
 ```bash
-$ npm install
-$ npm run postinstall
-$ npm run pre-electron-pack
-$ npm run electron-pack
+$ npm run build
+```
+
+To preview the production build:
+
+```bash
+$ npm run preview
 ```
 
 ## Contributing

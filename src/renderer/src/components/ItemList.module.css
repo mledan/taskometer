@@ -1,3 +1,23 @@
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 10px 0 15px 0;
+}
+
+.toolbar .primary {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 3px;
+  background: var(--accent-color);
+  color: white;
+  cursor: pointer;
+}
+
+.toolbar .primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .alldone {
 	display: flex;
 	justify-content: center;

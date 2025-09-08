@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer } from "react";
 import { loadState, saveState } from "./local-storage.js";
 import { format } from "date-fns";
+import { scheduleTasks } from './utils/scheduler.js';
 
 export const AppContext = createContext();
 
@@ -34,7 +35,51 @@ const appStateReducer = (state, action) => {
 		weekday: format(nd, "EEEE"),
 	};
 
-	switch (action.type) {
+switch (action.type) {
+		case "SCHEDULE_TASKS": {
+			const { scheduled, unscheduled } = scheduleTasks(
+				action.tasks,
+				state.items,
+				state.taskTypes
+			);
+
+			// Update scheduled tasks
+			const updatedItems = state.items.map(item => {
+				const scheduledItem = scheduled.find(s => s.key === item.key);
+				return scheduledItem || item;
+			});
+
+			const newState = { ...state, items: updatedItems };
+			saveState(newState);
+			return newState;
+		}
+		case "ADD_TASK_TYPE": {
+			const newState = {
+				...state,
+				taskTypes: [...state.taskTypes, action.taskType],
+			};
+			saveState(newState);
+			return newState;
+		}
+		case "UPDATE_TASK_TYPE": {
+			const newTaskTypes = state.taskTypes.map((type) =>
+				type.id === action.taskType.id ? { ...type, ...action.taskType } : type
+			);
+			const newState = { ...state, taskTypes: newTaskTypes };
+			saveState(newState);
+			return newState;
+		}
+		case "DELETE_TASK_TYPE": {
+			// Don't allow deletion of the default type
+			if (action.taskTypeId === 'default') return state;
+			
+			const newTaskTypes = state.taskTypes.filter(
+				(type) => type.id !== action.taskTypeId
+			);
+			const newState = { ...state, taskTypes: newTaskTypes };
+			saveState(newState);
+			return newState;
+		}
 		case "ADD_ITEM": {
 			const newState = { ...state, items: state.items.concat(action.item) };
 			saveState(newState);
@@ -43,9 +88,8 @@ const appStateReducer = (state, action) => {
 		case "UPDATE_ITEM": {
 			const newItems = state.items.map((i) => {
 				if (i.key === action.item.key) {
-					return Object.assign({}, i, {
-						status: action.item.status,
-					});
+					// Preserve all fields from the action item, not just status
+					return { ...i, ...action.item };
 				}
 				return i;
 			});
@@ -82,13 +126,21 @@ const appStateReducer = (state, action) => {
 };
 
 export function AppStateProvider({ children }) {
-	let initialState = loadState();
+let initialState = loadState();
 
 	if (initialState === undefined) {
 		let nd = new Date();
 
 		initialState = {
 			items: [],
+			taskTypes: [
+				{
+					id: 'default',
+					name: 'Default',
+					defaultDuration: 30,
+					allowedDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+				}
+			],
 			date: {
 				day: format(nd, "dd"),
 				dayDisplay: format(nd, "d"),

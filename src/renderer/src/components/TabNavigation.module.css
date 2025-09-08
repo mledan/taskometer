@@ -1,0 +1,27 @@
+.navigation {
+  display: flex;
+  gap: 2px;
+  padding: 10px;
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 3px;
+  background: var(--input-color);
+  color: var(--font-color);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.tab:hover {
+  background: var(--hover-color);
+}
+
+.tab.active {
+  background: var(--accent-color);
+  color: white;
+}

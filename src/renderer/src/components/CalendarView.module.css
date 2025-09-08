@@ -1,0 +1,132 @@
+.container {
+  background: var(--bg-color);
+  border-radius: 3px;
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+}
+
+.navigation button {
+  padding: 8px 16px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.navigation button:hover {
+  opacity: 0.9;
+}
+
+.navigation span {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--font-color);
+}
+
+.calendar {
+  display: flex;
+  height: calc(100vh - 250px);
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+}
+
+.timeColumn {
+  min-width: 60px;
+  border-right: 1px solid var(--border-color);
+  background: var(--input-color);
+}
+
+.timeSlot {
+  padding: 5px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--font-color-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.daysContainer {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  width: 100%;
+  min-width: 800px;
+}
+
+.dayColumn {
+  border-right: 1px solid var(--border-color);
+  min-width: 150px;
+}
+
+.dayColumn:last-child {
+  border-right: none;
+}
+
+.dayHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px;
+  background: var(--input-color);
+  border-bottom: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.dayName {
+  font-weight: bold;
+  color: var(--font-color);
+}
+
+.dayDate {
+  font-size: 12px;
+  color: var(--font-color-secondary);
+}
+
+.daySlots {
+  position: relative;
+}
+
+.slot {
+  position: relative;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-color);
+}
+
+.slot:hover {
+  background: var(--hover-color);
+}
+
+.task {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  padding: 4px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: white;
+  overflow: hidden;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  z-index: 1;
+}
+
+.task:hover {
+  opacity: 0.9;
+}
+
+.taskTitle {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

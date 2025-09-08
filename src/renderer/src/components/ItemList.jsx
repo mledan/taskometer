@@ -19,10 +19,27 @@ function ItemList() {
 	const dispatch = useAppReducer();
 	const { pending, paused, completed } = useItems();
 
+	const unscheduledPending = pending.filter((i) => !i.scheduledTime);
+
+	function scheduleAllPending() {
+		if (unscheduledPending.length === 0) return;
+		dispatch({ type: 'SCHEDULE_TASKS', tasks: unscheduledPending });
+	}
+
 	return (
 		<div className="item-list">
 			<Progress />
 			<AddItemForm />
+
+			<div className={styles.toolbar}>
+				<button
+					onClick={scheduleAllPending}
+					disabled={unscheduledPending.length === 0}
+					className={styles.primary}
+				>
+					Schedule all pending {unscheduledPending.length > 0 ? `(${unscheduledPending.length})` : ''}
+				</button>
+			</div>
 			{pending.length > 0 ? (
 				<>
 					{pending.map((item) => {
