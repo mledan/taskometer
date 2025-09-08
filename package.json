@@ -13,7 +13,8 @@
 		"dev": "vite",
 		"build": "vite build",
 		"preview": "vite preview",
-		"test": "vitest"
+		"test": "vitest",
+		"clean": "rm -rf dist"
 	},
 	"dependencies": {
 		"@reach/accordion": "^0.8.0",
