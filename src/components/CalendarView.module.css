@@ -15,6 +15,19 @@
   padding: 10px;
 }
 
+.dateTimeInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.currentTime {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--accent-color);
+}
+
 .navigation button {
   padding: 8px 16px;
   background: var(--accent-color);
@@ -122,6 +135,25 @@
 
 .task:hover {
   opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.taskCompleted {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.taskPaused {
+  opacity: 0.7;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+}
+
+.currentTimeIndicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px solid var(--accent-color);
+  z-index: 2;
 }
 
 .taskTitle {

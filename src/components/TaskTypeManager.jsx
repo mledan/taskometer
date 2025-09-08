@@ -7,6 +7,7 @@ function TaskTypeManager() {
   const { taskTypes = [] } = useAppState();
   const [newTypeName, setNewTypeName] = useState('');
   const [newDefaultDuration, setNewDefaultDuration] = useState(30);
+  const [newColor, setNewColor] = useState('#3b82f6');
   const [editingType, setEditingType] = useState(null);
 
   // Days of the week for scheduling restrictions
@@ -21,11 +22,13 @@ function TaskTypeManager() {
       name: newTypeName,
       defaultDuration: newDefaultDuration,
       allowedDays: daysOfWeek, // Default to all days allowed
+      color: newColor,
     };
 
     dispatch({ type: 'ADD_TASK_TYPE', taskType: newType });
     setNewTypeName('');
     setNewDefaultDuration(30);
+    setNewColor('#3b82f6');
   }
 
   function updateTaskType(typeId, updates) {
@@ -72,6 +75,12 @@ function TaskTypeManager() {
           max="480"
           placeholder="Default duration (min)"
         />
+        <input
+          type="color"
+          value={newColor}
+          onChange={(e) => setNewColor(e.target.value)}
+          title="Task type color"
+        />
         <button type="submit">Add Type</button>
       </form>
 
@@ -93,6 +102,12 @@ function TaskTypeManager() {
                   onChange={(e) => updateTaskType(type.id, { ...type, defaultDuration: parseInt(e.target.value) || 30 })}
                   min="5"
                   max="480"
+                />
+                <input
+                  type="color"
+                  value={type.color || '#3b82f6'}
+                  onChange={(e) => updateTaskType(type.id, { ...type, color: e.target.value })}
+                  title="Task type color"
                 />
                 <button onClick={() => setEditingType(null)}>Save</button>
               </div>

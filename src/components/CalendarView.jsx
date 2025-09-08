@@ -8,8 +8,43 @@ const TIME_SLOT_HEIGHT = 30; // pixels per 30-minute slot
 
 function CalendarView() {
   const { items = [], taskTypes = [] } = useAppState();
+  const dispatch = useAppReducer();
   const [selectedWeek, setSelectedWeek] = useState(startOfWeek(new Date()));
   const [timeSlots, setTimeSlots] = useState([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  function handleTaskClick(task) {
+    if (task.status === 'completed') {
+      dispatch({
+        type: 'UPDATE_ITEM',
+        item: { ...task, status: 'pending' }
+      });
+    } else {
+      const taskStartTime = new Date(task.scheduledTime);
+      const now = new Date();
+      
+      if (taskStartTime < now && task.status === 'pending') {
+        dispatch({
+          type: 'UPDATE_ITEM',
+          item: { ...task, status: 'paused' }
+        });
+      } else {
+        dispatch({
+          type: 'UPDATE_ITEM',
+          item: { ...task, status: 'completed' }
+        });
+      }
+    }
+  }
+
+  // Update current time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Generate week days
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -60,6 +95,7 @@ function CalendarView() {
 
     const startTime = new Date(task.scheduledTime);
     const endTime = new Date(startTime.getTime() + task.duration * 60000);
+    const now = new Date();
 
     const startSlotIndex = startTime.getHours() * 2 + (startTime.getMinutes() >= 30 ? 1 : 0);
     const durationSlots = Math.ceil(task.duration / 30);
@@ -67,9 +103,11 @@ function CalendarView() {
     return {
       title: task.text,
       type: taskType.name,
-      color: taskType.color,
+      color: taskType.color || 'var(--accent-color)', // Fallback color
       height: durationSlots * TIME_SLOT_HEIGHT,
       top: startSlotIndex * TIME_SLOT_HEIGHT,
+      isPast: startTime < now,
+      status: task.status
     };
   }
 
@@ -87,7 +125,10 @@ function CalendarView() {
       {/* Week navigation */}
       <div className={styles.navigation}>
         <button onClick={previousWeek}>&larr; Previous Week</button>
-        <span>{format(selectedWeek, 'MMMM yyyy')}</span>
+        <div className={styles.dateTimeInfo}>
+          <span>{format(selectedWeek, 'MMMM yyyy')}</span>
+          <span className={styles.currentTime}>{format(currentTime, 'h:mm a')}</span>
+        </div>
         <button onClick={nextWeek}>Next Week &rarr;</button>
       </div>
 
@@ -116,6 +157,13 @@ function CalendarView() {
 
               {/* Time slots for this day */}
               <div className={styles.daySlots}>
+                {/* Current time indicator for today */}
+                {format(day.date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && (
+                  <div
+                    className={styles.currentTimeIndicator}
+                    style={{ top: `${(currentTime.getHours() * 2 + (currentTime.getMinutes() >= 30 ? 1 : 0)) * TIME_SLOT_HEIGHT}px` }}
+                  />
+                )}
                 {timeSlots.map(slot => {
                   const tasksInSlot = getTasksForSlot(day.date, slot);
                   return (
@@ -125,20 +173,30 @@ function CalendarView() {
                       style={{ height: `${slot.height}px` }}
                     >
                       {tasksInSlot.map(task => {
-                        const { title, type, color, height, top } = getTaskDisplayProps(task);
+                        const { title, type, color, height, top, status } = getTaskDisplayProps(task);
                         return (
                           <div
                             key={task.key}
-                            className={styles.task}
+                            className={`${styles.task} 
+                              ${status === 'completed' ? styles.taskCompleted : ''}
+                              ${status === 'paused' ? styles.taskPaused : ''}`
+                            }
                             style={{
                               backgroundColor: color,
                               height: `${height}px`,
                               top: `${top}px`,
                             }}
-                            title={`${title} (${type})`}
+                            title={`${title} (${type}) - ${status}`}
+                            onClick={() => handleTaskClick(task)}
                           >
-                            <span className={styles.taskTitle}>{title}</span>
+                            <span className={styles.taskTitle}>{title} - {type}</span>
                           </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
                         );
                       })}
                     </div>
