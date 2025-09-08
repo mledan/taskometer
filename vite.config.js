@@ -8,10 +8,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    assetsDir: 'assets',
+    emptyOutDir: true,
     rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-      },
+      input: 'index.html',
     },
   },
   resolve: {
@@ -19,6 +19,7 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
+  publicDir: 'public',
   server: {
     port: 3000,
     open: true
