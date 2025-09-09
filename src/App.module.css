@@ -11,11 +11,21 @@
   padding: 20px;
 }
 
+.content:has(.calendarView),
+.content:has(.historyView) {
+  padding: 0;
+}
+
 .todosView,
-.taskTypesView,
-.calendarView {
+.taskTypesView {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.calendarView,
+.historyView {
+  width: 100%;
+  margin: 0;
 }
 
 .todosView {
@@ -31,8 +41,7 @@
 }
 
 .calendarView {
-  height: calc(100vh - 180px);
+  height: 100%;
   background: var(--input-color);
-  border-radius: 3px;
-  padding: 20px;
+  padding: 0;
 }

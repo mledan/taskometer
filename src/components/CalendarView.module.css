@@ -1,11 +1,11 @@
 .container {
   background: var(--bg-color);
-  border-radius: 3px;
   padding: 20px;
-  height: 100%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
+  width: 100%;
 }
 
 .navigation {
@@ -49,10 +49,11 @@
 
 .calendar {
   display: flex;
-  height: calc(100vh - 250px);
+  flex: 1;
   overflow: auto;
   border: 1px solid var(--border-color);
   border-radius: 3px;
+  width: 100%;
 }
 
 .timeColumn {
@@ -73,12 +74,12 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   width: 100%;
-  min-width: 800px;
+  flex: 1;
 }
 
 .dayColumn {
   border-right: 1px solid var(--border-color);
-  min-width: 150px;
+  min-width: 120px;
 }
 
 .dayColumn:last-child {
