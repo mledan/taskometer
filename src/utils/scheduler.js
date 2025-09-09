@@ -18,7 +18,17 @@ export function findFirstAvailableSlot(task, existingItems, taskTypes, startFrom
   if (!taskType) return null;
 
   // If specific day is requested, use that as the start date
-  const searchStart = task.specificDay ? new Date(task.specificDay) : startFrom;
+  let searchStart;
+  if (task.specificDay) {
+    searchStart = new Date(task.specificDay);
+    // If specific time is also provided, use it
+    if (task.specificTime) {
+      const [hours, minutes] = task.specificTime.split(':').map(Number);
+      searchStart.setHours(hours, minutes, 0, 0);
+    }
+  } else {
+    searchStart = startFrom;
+  }
   
   // If delay is requested, add it to the start time
   if (task.schedulingPreference === 'delay' && task.delayMinutes) {
@@ -33,8 +43,18 @@ export function findFirstAvailableSlot(task, existingItems, taskTypes, startFrom
     // Check if this day is allowed for this task type
     const dayName = format(currentDate, 'EEEE');
     if (taskType.allowedDays.includes(dayName)) {
-      // Start searching from work day start
-      currentDate.setHours(WORK_DAY_START, 0, 0, 0);
+      // For immediate scheduling, use current time if we're on the first attempt
+      // For specific day/time scheduling, time is already set
+      if (task.schedulingPreference === 'immediate' && attempts === 0) {
+        // Keep current time for immediate scheduling
+        const now = new Date();
+        currentDate.setHours(now.getHours(), now.getMinutes(), 0, 0);
+      } else if (task.specificDay && task.specificTime && attempts === 0) {
+        // Time is already set from specificTime, don't change it
+      } else if (attempts > 0) {
+        // Start from work day start for subsequent attempts
+        currentDate.setHours(WORK_DAY_START, 0, 0, 0);
+      }
 
       while (currentDate.getHours() < WORK_DAY_END) {
         const slotEnd = addMinutes(currentDate, task.duration);

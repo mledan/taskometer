@@ -5,6 +5,7 @@ export const VIEWS = {
   TODOS: 'todos',
   TASK_TYPES: 'taskTypes',
   CALENDAR: 'calendar',
+  HISTORY: 'history',
 };
 
 function TabNavigation({ activeView, onViewChange }) {
@@ -27,6 +28,12 @@ function TabNavigation({ activeView, onViewChange }) {
         onClick={() => onViewChange(VIEWS.CALENDAR)}
       >
         Calendar
+      </button>
+      <button
+        className={`${styles.tab} ${activeView === VIEWS.HISTORY ? styles.active : ''}`}
+        onClick={() => onViewChange(VIEWS.HISTORY)}
+      >
+        History
       </button>
     </nav>
   );

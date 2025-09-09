@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAppState } from '../AppContext.jsx';
+import { useAppState, useAppReducer } from '../AppContext.jsx';
 import { format, addDays, startOfWeek, isWithinInterval } from 'date-fns';
 import styles from './CalendarView.module.css';
 
@@ -13,29 +13,73 @@ function CalendarView() {
   const [timeSlots, setTimeSlots] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  function handleTaskClick(task) {
-    if (task.status === 'completed') {
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+
+  function handleTaskClick(e, task) {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedTask(task);
+    setShowContextMenu(true);
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+  }
+
+  function handleCompleteTask() {
+    if (selectedTask) {
       dispatch({
         type: 'UPDATE_ITEM',
-        item: { ...task, status: 'pending' }
+        item: { ...selectedTask, status: 'completed' }
       });
-    } else {
-      const taskStartTime = new Date(task.scheduledTime);
-      const now = new Date();
-      
-      if (taskStartTime < now && task.status === 'pending') {
-        dispatch({
-          type: 'UPDATE_ITEM',
-          item: { ...task, status: 'paused' }
-        });
-      } else {
-        dispatch({
-          type: 'UPDATE_ITEM',
-          item: { ...task, status: 'completed' }
-        });
-      }
+      setShowContextMenu(false);
     }
   }
+
+  function handlePauseTask() {
+    if (selectedTask) {
+      dispatch({
+        type: 'UPDATE_ITEM',
+        item: { ...selectedTask, status: 'paused' }
+      });
+      setShowContextMenu(false);
+    }
+  }
+
+  function handleRescheduleTask() {
+    if (selectedTask) {
+      // Clear the scheduled time so it can be rescheduled
+      dispatch({
+        type: 'UPDATE_ITEM',
+        item: { ...selectedTask, scheduledTime: null }
+      });
+      setShowContextMenu(false);
+    }
+  }
+
+  function handleDeleteTask() {
+    if (selectedTask) {
+      dispatch({
+        type: 'DELETE_ITEM',
+        item: selectedTask
+      });
+      setShowContextMenu(false);
+    }
+  }
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside() {
+      setShowContextMenu(false);
+    }
+
+    if (showContextMenu) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showContextMenu]);
 
   // Update current time every minute
   useEffect(() => {
@@ -187,16 +231,10 @@ function CalendarView() {
                               top: `${top}px`,
                             }}
                             title={`${title} (${type}) - ${status}`}
-                            onClick={() => handleTaskClick(task)}
+                            onClick={(e) => handleTaskClick(e, task)}
                           >
                             <span className={styles.taskTitle}>{title} - {type}</span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
                         );
                       })}
                     </div>
@@ -207,6 +245,24 @@ function CalendarView() {
           ))}
         </div>
       </div>
+
+      {/* Context Menu */}
+      {showContextMenu && (
+        <div
+          className={styles.contextMenu}
+          style={{
+            position: 'fixed',
+            left: `${contextMenuPosition.x}px`,
+            top: `${contextMenuPosition.y}px`,
+            zIndex: 1000,
+          }}
+        >
+          <button onClick={handleCompleteTask}>✓ Complete</button>
+          <button onClick={handlePauseTask}>⏸ Pause</button>
+          <button onClick={handleRescheduleTask}>🔄 Reschedule</button>
+          <button onClick={handleDeleteTask}>🗑 Delete</button>
+        </div>
+      )}
     </div>
   );
 }

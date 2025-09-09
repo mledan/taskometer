@@ -3,6 +3,7 @@ import TodoDate from "./components/TodoDate.jsx";
 import ItemList from "./components/ItemList.jsx";
 import TaskTypeManager from "./components/TaskTypeManager.jsx";
 import CalendarView from "./components/CalendarView.jsx";
+import History from "./components/History.jsx";
 import TabNavigation, { VIEWS } from "./components/TabNavigation.jsx";
 import Notifications from "./components/Notifications.jsx";
 import { AppStateProvider } from "./AppContext.jsx";
@@ -33,6 +34,12 @@ function App() {
 					{activeView === VIEWS.CALENDAR && (
 						<div className={styles.calendarView}>
 							<CalendarView />
+						</div>
+					)}
+
+					{activeView === VIEWS.HISTORY && (
+						<div className={styles.historyView}>
+							<History />
 						</div>
 					)}
 				</div>

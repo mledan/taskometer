@@ -97,14 +97,35 @@ switch (action.type) {
 			saveState(newState);
 			return newState;
 		}
-		case "DELETE_ITEM": {
-			const newState = {
-				...state,
-				items: state.items.filter((item) => item.key !== action.item.key),
-			};
-			saveState(newState);
-			return newState;
+	case "DELETE_ITEM": {
+		// Save deleted item to history before removing
+		const deletedItem = state.items.find(item => item.key === action.item.key);
+		if (deletedItem) {
+			const savedHistory = localStorage.getItem('taskometer-history');
+			let history = [];
+			if (savedHistory) {
+				try {
+					history = JSON.parse(savedHistory);
+				} catch (e) {
+					console.error('Failed to parse history:', e);
+				}
+			}
+			// Add deleted item to history
+			history.push({
+				...deletedItem,
+				removedAt: new Date().toISOString(),
+				action: 'removed'
+			});
+			localStorage.setItem('taskometer-history', JSON.stringify(history));
 		}
+		
+		const newState = {
+			...state,
+			items: state.items.filter((item) => item.key !== action.item.key),
+		};
+		saveState(newState);
+		return newState;
+	}
 		case "RESET_ALL": {
 			const newItems = state.items
 				.filter((item) => item.status !== "completed")

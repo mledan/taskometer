@@ -15,6 +15,7 @@ function AddItemForm() {
 	const [priority, setPriority] = useState("medium");
 	const [delayMinutes, setDelayMinutes] = useState(0);
 	const [specificDay, setSpecificDay] = useState(null);
+	const [specificTime, setSpecificTime] = useState('09:00');
 
 	function addItem(e) {
 const newItem = {
@@ -28,6 +29,7 @@ const newItem = {
 			scheduledTime: null,
 			delayMinutes: schedulingPreference === 'delay' ? delayMinutes : 0,
 			specificDay: schedulingPreference === 'specific' ? specificDay : null,
+			specificTime: schedulingPreference === 'specific' ? specificTime : null,
 		};
 		if (newItem.text.trim()) {
 			dispatch({ type: "ADD_ITEM", item: newItem });
@@ -96,12 +98,19 @@ return (
 				)}
 
 				{schedulingPreference === 'specific' && (
-					<input 
-						type="date" 
-						value={specificDay || ''} 
-						onChange={(e) => setSpecificDay(e.target.value)}
-						min={new Date().toISOString().split('T')[0]}
-					/>
+					<>
+						<input 
+							type="date" 
+							value={specificDay || ''} 
+							onChange={(e) => setSpecificDay(e.target.value)}
+							min={new Date().toISOString().split('T')[0]}
+						/>
+						<input 
+							type="time" 
+							value={specificTime} 
+							onChange={(e) => setSpecificTime(e.target.value)}
+						/>
+					</>
 				)}
 			</div>
 		</form>
