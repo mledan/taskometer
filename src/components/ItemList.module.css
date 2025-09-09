@@ -2,6 +2,8 @@
   display: flex;
   justify-content: flex-end;
   margin: 10px 0 15px 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .toolbar .primary {
@@ -80,6 +82,17 @@
 			opacity: 0.9;
 		}
 	}
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .toolbar {
+    justify-content: center;
+  }
+  
+  .toggle {
+    font-size: 1.2em;
+  }
 }
 
 @keyframes slidedown {

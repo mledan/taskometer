@@ -76,6 +76,38 @@
   width: 100%;
 }
 
-.options input[type="date"] {
+.options input[type="date"],
+.options input[type="time"] {
   width: 100%;
+}
+
+/* Mobile responsive design */
+@media (max-width: 768px) {
+  .options {
+    grid-template-columns: 1fr;
+  }
+  
+  .form input {
+    padding: 15px 60px 15px 15px;
+    height: 60px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .form button {
+    top: 15px;
+    right: 15px;
+  }
+}
+
+/* Ultra-wide screen optimization */
+@media (min-width: 2560px) {
+  .options {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  
+  .options select,
+  .options input {
+    font-size: 16px;
+    padding: 10px;
+  }
 }

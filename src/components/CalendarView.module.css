@@ -1,11 +1,13 @@
 .container {
   background: var(--bg-color);
   padding: 20px;
-  height: 100vh;
+  min-height: calc(100vh - 80px);
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 15px;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .navigation {
@@ -13,6 +15,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .dateTimeInfo {
@@ -79,7 +83,8 @@
 
 .dayColumn {
   border-right: 1px solid var(--border-color);
-  min-width: 120px;
+  min-width: 100px;
+  flex: 1;
 }
 
 .dayColumn:last-child {
@@ -191,4 +196,70 @@
   background: var(--accent-color);
   color: white;
   border-radius: 3px;
+}
+
+/* Mobile responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+    gap: 10px;
+  }
+  
+  .navigation {
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .navigation button {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+  
+  .dateTimeInfo {
+    order: -1;
+    width: 100%;
+  }
+  
+  .calendar {
+    overflow-x: auto;
+    overflow-y: auto;
+  }
+  
+  .daysContainer {
+    min-width: 600px;
+  }
+  
+  .dayColumn {
+    min-width: 80px;
+  }
+  
+  .timeColumn {
+    min-width: 50px;
+  }
+  
+  .timeSlot {
+    font-size: 10px;
+    padding: 3px;
+  }
+  
+  .task {
+    font-size: 10px;
+    padding: 2px;
+  }
+}
+
+/* Ultra-wide screen optimization */
+@media (min-width: 2560px) {
+  .dayColumn {
+    min-width: 200px;
+  }
+  
+  .task {
+    font-size: 14px;
+    padding: 6px;
+  }
+  
+  .timeSlot {
+    font-size: 14px;
+  }
 }

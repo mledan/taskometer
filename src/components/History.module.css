@@ -1,8 +1,10 @@
 .container {
   background: var(--bg-color);
-  border-radius: 3px;
   padding: 20px;
+  min-height: calc(100vh - 80px);
   height: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .header {
@@ -169,4 +171,59 @@
 
 .historyList::-webkit-scrollbar-thumb:hover {
   background: var(--accent-color);
+}
+
+/* Mobile responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .controls {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .historyItem {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .itemInfo {
+    width: 100%;
+  }
+  
+  .actions {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .metadata {
+    flex-wrap: wrap;
+  }
+}
+
+/* Ultra-wide screen optimization */
+@media (min-width: 2560px) {
+  .container {
+    padding: 40px;
+  }
+  
+  .historyItem {
+    padding: 20px;
+  }
+  
+  .text {
+    font-size: 18px;
+  }
+  
+  .metadata {
+    font-size: 14px;
+  }
 }

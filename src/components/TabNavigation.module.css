@@ -4,6 +4,10 @@
   padding: 10px;
   background: var(--bg-color);
   border-bottom: 1px solid var(--border-color);
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .tab {
@@ -24,4 +28,28 @@
 .tab.active {
   background: var(--accent-color);
   color: white;
+}
+
+/* Mobile responsive design */
+@media (max-width: 768px) {
+  .navigation {
+    padding: 5px;
+    gap: 1px;
+  }
+  
+  .tab {
+    padding: 8px 12px;
+    font-size: 12px;
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+}
+
+/* Ultra-wide screen optimization */
+@media (min-width: 2560px) {
+  .tab {
+    padding: 12px 30px;
+    font-size: 16px;
+  }
 }
