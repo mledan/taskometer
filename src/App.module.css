@@ -48,10 +48,10 @@
 .todosView,
 .taskTypesView,
 .calendarView,
-.historyView {
+.historyView,
+.schedulesView {
   width: 100%;
   margin: 0;
-  box-sizing: border-box;
 }
 
 /* Mobile responsive padding */
@@ -93,6 +93,14 @@
 }
 
 .historyView {
+  flex: 1;
+  display: flex;
+  background: var(--input-color);
+  padding: 0;
+  width: 100%;
+}
+
+.schedulesView {
   flex: 1;
   display: flex;
   background: var(--input-color);
