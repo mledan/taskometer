@@ -2,6 +2,8 @@
   padding: 20px;
   background: var(--bg-color);
   border-radius: 3px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .container h2 {

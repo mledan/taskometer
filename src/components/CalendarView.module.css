@@ -1,8 +1,7 @@
 .container {
   background: var(--bg-color);
   padding: 20px;
-  min-height: calc(100vh - 80px);
-  height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 15px;
