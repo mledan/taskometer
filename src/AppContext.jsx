@@ -1,7 +1,9 @@
 import { createContext, useContext, useReducer } from "react";
-import { loadState, saveState } from "./local-storage.js";
 import { format } from "date-fns";
-import { scheduleTasks } from './utils/scheduler.js';
+import { saveState, loadState } from "./local-storage";
+import { scheduleTasks } from './utils/scheduler';
+import { ACTIVITY_TYPES, getActiveSchedule } from './utils/scheduleTemplates';
+import { findOptimalTimeSlot, batchScheduleTasks } from './utils/intelligentScheduler';
 
 export const AppContext = createContext();
 
@@ -36,7 +38,29 @@ const appStateReducer = (state, action) => {
 	};
 
 switch (action.type) {
-		case "SCHEDULE_TASKS": {
+	case "SCHEDULE_TASKS": {
+		// Use intelligent scheduler if we have an active schedule
+		const activeSchedule = getActiveSchedule();
+		
+		if (activeSchedule) {
+			// Use intelligent routing
+			const scheduledTasks = batchScheduleTasks(
+				action.tasks,
+				activeSchedule,
+				state.items
+			);
+			
+			// Update items with scheduled times
+			const updatedItems = state.items.map(item => {
+				const scheduledItem = scheduledTasks.find(s => s.key === item.key);
+				return scheduledItem || item;
+			});
+			
+			const newState = { ...state, items: updatedItems };
+			saveState(newState);
+			return newState;
+		} else {
+			// Fall back to old scheduler
 			const { scheduled, unscheduled } = scheduleTasks(
 				action.tasks,
 				state.items,
@@ -53,6 +77,7 @@ switch (action.type) {
 			saveState(newState);
 			return newState;
 		}
+	}
 		case "ADD_TASK_TYPE": {
 			const newState = {
 				...state,
@@ -80,23 +105,66 @@ switch (action.type) {
 			saveState(newState);
 			return newState;
 		}
-		case "ADD_ITEM": {
-			const newState = { ...state, items: state.items.concat(action.item) };
-			saveState(newState);
-			return newState;
+	case "ADD_ITEM": {
+		// Check if we should use intelligent scheduling
+		const activeSchedule = getActiveSchedule();
+		let scheduledItem = action.item;
+		
+		if (activeSchedule && !action.item.scheduledFor && !action.item.specificTime) {
+			// Use intelligent scheduler to find optimal time slot
+			const optimalSlot = findOptimalTimeSlot(
+				action.item,
+				activeSchedule,
+				state.items
+			);
+			
+			if (optimalSlot) {
+				scheduledItem = {
+					...action.item,
+					scheduledFor: optimalSlot.scheduledFor,
+					specificTime: optimalSlot.specificTime
+				};
+			}
 		}
-		case "UPDATE_ITEM": {
-			const newItems = state.items.map((i) => {
-				if (i.key === action.item.key) {
-					// Preserve all fields from the action item, not just status
-					return { ...i, ...action.item };
-				}
-				return i;
-			});
-			const newState = { ...state, items: newItems };
-			saveState(newState);
-			return newState;
+		
+		const newState = { ...state, items: state.items.concat(scheduledItem) };
+		saveState(newState);
+		return newState;
+	}
+	case "UPDATE_ITEM": {
+		const activeSchedule = getActiveSchedule();
+		let updatedItem = action.item;
+		
+		// If item needs rescheduling and we have an active schedule
+		if (activeSchedule && action.item.status === 'pending' && 
+			!action.item.scheduledFor && !action.item.specificTime) {
+			// Use intelligent scheduler to find optimal time slot
+			const optimalSlot = findOptimalTimeSlot(
+				action.item,
+				activeSchedule,
+				state.items.filter(i => i.key !== action.item.key) // Exclude the item being updated
+			);
+			
+			if (optimalSlot) {
+				updatedItem = {
+					...action.item,
+					scheduledFor: optimalSlot.scheduledFor,
+					specificTime: optimalSlot.specificTime
+				};
+			}
 		}
+		
+		const newItems = state.items.map((i) => {
+			if (i.key === action.item.key) {
+				// Preserve all fields from the updated item
+				return { ...i, ...updatedItem };
+			}
+			return i;
+		});
+		const newState = { ...state, items: newItems };
+		saveState(newState);
+		return newState;
+	}
 	case "DELETE_ITEM": {
 		// Save deleted item to history before removing
 		const deletedItem = state.items.find(item => item.key === action.item.key);
@@ -154,13 +222,17 @@ let initialState = loadState();
 
 		initialState = {
 			items: [],
+			activeSchedule: getActiveSchedule(),
 			taskTypes: [
-				{
-					id: 'default',
-					name: 'Default',
+				// Convert ACTIVITY_TYPES to task types format
+				...Object.values(ACTIVITY_TYPES).map(activity => ({
+					id: activity.id,
+					name: activity.name,
 					defaultDuration: 30,
 					allowedDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-				}
+					color: activity.color,
+					icon: activity.icon
+				}))
 			],
 			date: {
 				day: format(nd, "dd"),
