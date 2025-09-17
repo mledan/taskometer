@@ -9,7 +9,7 @@ function AddItemForm() {
 	let inputRef = useRef();
 
 	// State for form fields
-	const [taskType, setTaskType] = useState("default");
+  const [taskType, setTaskType] = useState("work");
 	const [schedulingPreference, setSchedulingPreference] = useState("immediate");
 	const [duration, setDuration] = useState(30);
 	const [priority, setPriority] = useState("medium");

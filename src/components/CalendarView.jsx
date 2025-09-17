@@ -45,6 +45,18 @@ function CalendarView() {
     }
   }
 
+  function handleSnooze(minutes) {
+    if (selectedTask && selectedTask.scheduledTime) {
+      const newStart = new Date(selectedTask.scheduledTime);
+      newStart.setMinutes(newStart.getMinutes() + minutes);
+      dispatch({
+        type: 'UPDATE_ITEM',
+        item: { ...selectedTask, scheduledTime: newStart.toISOString() }
+      });
+      setShowContextMenu(false);
+    }
+  }
+
   function handleRescheduleTask() {
     if (selectedTask) {
       // Clear the scheduled time so it can be rescheduled
@@ -261,6 +273,14 @@ function CalendarView() {
           <button onClick={handlePauseTask}>⏸ Pause</button>
           <button onClick={handleRescheduleTask}>🔄 Reschedule</button>
           <button onClick={handleDeleteTask}>🗑 Delete</button>
+          {selectedTask?.scheduledTime && (
+            <div className={styles.contextMenuGroup}>
+              <span style={{ padding: '6px 8px', display: 'block', color: '#666' }}>Snooze</span>
+              <button onClick={() => handleSnooze(15)}>+15 min</button>
+              <button onClick={() => handleSnooze(30)}>+30 min</button>
+              <button onClick={() => handleSnooze(60)}>+1 hr</button>
+            </div>
+          )}
         </div>
       )}
     </div>

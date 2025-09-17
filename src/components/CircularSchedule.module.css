@@ -1,0 +1,77 @@
+.circularContainer {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, var(--bg-2) 60%, transparent 60%), conic-gradient(var(--border) 0deg 360deg);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.ring {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--bg-1);
+}
+
+.tickLabel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+.segment {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  mask: radial-gradient(circle at center, transparent 0 56%, black 56% 100%);
+}
+
+.legend {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.centerLabel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.nowHand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 45%;
+  background: var(--accent, #4f46e5);
+  transform-origin: bottom center;
+  transform: translateX(-50%) rotate(0deg);
+  opacity: 0.7;
+}
+
+

@@ -29,6 +29,64 @@ export const ACTIVITY_TYPES = {
 // Famous schedule templates
 export const FAMOUS_SCHEDULES = [
   {
+    id: 'general_9to5',
+    name: 'General 9–5 Day',
+    description: 'Classic office schedule with balanced meals and leisure.',
+    author: 'Community',
+    tags: ['work', 'balanced', 'daily'],
+    period: SCHEDULE_PERIODS.DAILY,
+    timeBlocks: [
+      { start: '06:30', end: '07:30', type: 'meals', label: 'Breakfast' },
+      { start: '07:30', end: '09:00', type: 'buffer', label: 'Commute / Prep' },
+      { start: '09:00', end: '12:00', type: 'work', label: 'Deep work' },
+      { start: '12:00', end: '13:00', type: 'meals', label: 'Lunch' },
+      { start: '13:00', end: '17:00', type: 'work', label: 'Meetings & tasks' },
+      { start: '17:00', end: '18:00', type: 'buffer', label: 'Commute / Errands' },
+      { start: '18:00', end: '19:00', type: 'meals', label: 'Dinner' },
+      { start: '19:00', end: '21:00', type: 'recreation', label: 'Leisure / Play' },
+      { start: '21:00', end: '22:00', type: 'mindfulness', label: 'Wind down' },
+      { start: '22:00', end: '06:30', type: 'sleep', label: 'Sleep' }
+    ]
+  },
+  {
+    id: 'general_shift_worker',
+    name: 'Shift Worker (Late)',
+    description: 'Later start with evening work block and late dinner.',
+    author: 'Community',
+    tags: ['work', 'shift', 'daily'],
+    period: SCHEDULE_PERIODS.DAILY,
+    timeBlocks: [
+      { start: '08:30', end: '09:30', type: 'meals', label: 'Breakfast' },
+      { start: '09:30', end: '11:00', type: 'buffer', label: 'Personal / Errands' },
+      { start: '11:00', end: '15:00', type: 'work', label: 'Work block 1' },
+      { start: '15:00', end: '16:00', type: 'meals', label: 'Lunch' },
+      { start: '16:00', end: '20:00', type: 'work', label: 'Work block 2' },
+      { start: '20:00', end: '21:00', type: 'meals', label: 'Dinner' },
+      { start: '21:00', end: '23:00', type: 'recreation', label: 'Leisure' },
+      { start: '23:00', end: '08:30', type: 'sleep', label: 'Sleep' }
+    ]
+  },
+  {
+    id: 'general_student',
+    name: 'Student Routine',
+    description: 'Study-focused day with classes, exercise, and social time.',
+    author: 'Community',
+    tags: ['learning', 'balanced', 'daily'],
+    period: SCHEDULE_PERIODS.DAILY,
+    timeBlocks: [
+      { start: '07:30', end: '08:00', type: 'meals', label: 'Breakfast' },
+      { start: '08:00', end: '12:00', type: 'learning', label: 'Classes / Study' },
+      { start: '12:00', end: '13:00', type: 'meals', label: 'Lunch' },
+      { start: '13:00', end: '15:00', type: 'learning', label: 'Labs / Assignments' },
+      { start: '15:00', end: '16:00', type: 'exercise', label: 'Workout' },
+      { start: '16:00', end: '18:00', type: 'learning', label: 'Study Group' },
+      { start: '18:00', end: '19:00', type: 'meals', label: 'Dinner' },
+      { start: '19:00', end: '21:00', type: 'creative', label: 'Hobby / Project' },
+      { start: '21:00', end: '22:30', type: 'mindfulness', label: 'Wind down / Reading' },
+      { start: '22:30', end: '07:30', type: 'sleep', label: 'Sleep' }
+    ]
+  },
+  {
     id: 'benjamin_franklin',
     name: "Benjamin Franklin's Daily Routine",
     description: "Early to bed, early to rise. Structured day with morning planning and evening reflection.",

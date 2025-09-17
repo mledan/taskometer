@@ -4,9 +4,13 @@ import {
   getSchedulesFromLocalStorage, 
   setActiveSchedule,
   getActiveSchedule,
-  ACTIVITY_TYPES 
+  ACTIVITY_TYPES,
+  saveScheduleToLocalStorage 
 } from '../utils/scheduleTemplates.js';
 import styles from './ScheduleLibrary.module.css';
+import CircularSchedule from './CircularSchedule.jsx';
+import ScheduleBuilder from './ScheduleBuilder.jsx';
+import ScheduleDiscussion from './ScheduleDiscussion.jsx';
 
 function ScheduleLibrary() {
   const [schedules, setSchedules] = useState([]);
@@ -14,6 +18,7 @@ function ScheduleLibrary() {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [showBuilder, setShowBuilder] = useState(false);
 
   useEffect(() => {
     // Load schedules from localStorage and famous templates
@@ -47,8 +52,7 @@ function ScheduleLibrary() {
   function handleActivateSchedule(scheduleId) {
     setActiveSchedule(scheduleId);
     setActiveScheduleId(scheduleId);
-    // Refresh the page to apply new schedule
-    window.location.reload();
+    // No full reload; future scheduling reads active schedule from storage
   }
 
   function renderTimeBlock(block) {
@@ -82,6 +86,10 @@ function ScheduleLibrary() {
         <div className={styles.cardHeader}>
           <h3>{schedule.name}</h3>
           {isActive && <span className={styles.activeLabel}>Active</span>}
+        </div>
+        <div className={styles.cardPreview}
+             aria-label={`Preview of ${schedule.name} as a 24-hour circle`}>
+          <CircularSchedule timeBlocks={schedule.timeBlocks} showLegend={false} title={''} />
         </div>
         <p className={styles.author}>by {schedule.author}</p>
         <p className={styles.description}>{schedule.description}</p>
@@ -120,6 +128,9 @@ function ScheduleLibrary() {
       <div className={styles.header}>
         <h2>Schedule Library</h2>
         <p>Choose a schedule template that fits your lifestyle</p>
+        <div>
+          <button className={styles.activateButton} onClick={() => setShowBuilder(true)}>Create Schedule</button>
+        </div>
       </div>
 
       <div className={styles.controls}>
@@ -180,10 +191,15 @@ function ScheduleLibrary() {
             
             <div className={styles.timelineContainer}>
               <h3>Daily Timeline</h3>
-              <div className={styles.timeline}>
-                {selectedSchedule.timeBlocks.map(block => renderTimeBlock(block))}
+              <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+                <CircularSchedule timeBlocks={selectedSchedule.timeBlocks} showLegend={true} title={'24h view'} />
+                <div className={styles.timeline}>
+                  {selectedSchedule.timeBlocks.map(block => renderTimeBlock(block))}
+                </div>
               </div>
             </div>
+
+            <ScheduleDiscussion scheduleId={selectedSchedule.id} />
 
             <div className={styles.modalActions}>
               <button 
@@ -202,9 +218,36 @@ function ScheduleLibrary() {
               >
                 Customize
               </button>
+              {selectedSchedule.isCustom && selectedSchedule.author !== 'Community' && (
+                <button
+                  onClick={() => {
+                    const updated = { ...selectedSchedule, author: 'Community', communityUploadedAt: new Date().toISOString() };
+                    saveScheduleToLocalStorage(updated);
+                    const custom = getSchedulesFromLocalStorage();
+                    setSchedules([...FAMOUS_SCHEDULES, ...custom]);
+                    setSelectedSchedule(updated);
+                    alert('Uploaded to Community');
+                  }}
+                  className={styles.activateButton}
+                >
+                  Upload to Community
+                </button>
+              )}
             </div>
           </div>
         </div>
+      )}
+
+      {showBuilder && (
+        <ScheduleBuilder 
+          onClose={() => setShowBuilder(false)}
+          onCreated={(sched) => {
+            setShowBuilder(false);
+            const custom = getSchedulesFromLocalStorage();
+            setSchedules([...FAMOUS_SCHEDULES, ...custom]);
+            setSelectedSchedule(sched);
+          }}
+        />
       )}
     </div>
   );
