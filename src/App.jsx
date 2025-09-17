@@ -5,6 +5,7 @@ import TaskTypeManager from "./components/TaskTypeManager.jsx";
 import CalendarView from "./components/CalendarView.jsx";
 import History from "./components/History.jsx";
 import ScheduleLibrary from "./components/ScheduleLibrary.jsx";
+import Community from "./components/Community.jsx";
 import TabNavigation, { VIEWS } from "./components/TabNavigation.jsx";
 import Notifications from "./components/Notifications.jsx";
 import { AppStateProvider } from "./AppContext.jsx";
@@ -41,6 +42,12 @@ function App() {
 					{activeView === VIEWS.SCHEDULES && (
 						<div className={styles.schedulesView}>
 							<ScheduleLibrary />
+						</div>
+					)}
+
+					{activeView === VIEWS.COMMUNITY && (
+						<div className={styles.schedulesView}>
+							<Community />
 						</div>
 					)}
 

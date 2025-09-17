@@ -6,6 +6,7 @@ export const VIEWS = {
   TASK_TYPES: 'taskTypes',
   CALENDAR: 'calendar',
   SCHEDULES: 'schedules',
+  COMMUNITY: 'community',
   HISTORY: 'history',
 };
 
@@ -35,6 +36,12 @@ function TabNavigation({ activeView, onViewChange }) {
         onClick={() => onViewChange(VIEWS.SCHEDULES)}
       >
         Schedules
+      </button>
+      <button
+        className={`${styles.tab} ${activeView === VIEWS.COMMUNITY ? styles.active : ''}`}
+        onClick={() => onViewChange(VIEWS.COMMUNITY)}
+      >
+        Community
       </button>
       <button
         className={`${styles.tab} ${activeView === VIEWS.HISTORY ? styles.active : ''}`}

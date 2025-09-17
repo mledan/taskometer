@@ -11,11 +11,35 @@ import styles from './ScheduleLibrary.module.css';
 import CircularSchedule from './CircularSchedule.jsx';
 import ScheduleBuilder from './ScheduleBuilder.jsx';
 import ScheduleDiscussion from './ScheduleDiscussion.jsx';
+import { getLikes, toggleLike } from '../utils/community.js';
+
+function CardDescription({ text = '' }) {
+  const [expanded, setExpanded] = useState(false);
+  const limit = 140;
+  if (!text) return null;
+  const isLong = text.length > limit;
+  const display = expanded || !isLong ? text : text.slice(0, limit) + '…';
+  return (
+    <p className={styles.description}>
+      {display}
+      {isLong && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+          className={styles.previewButton}
+          style={{ marginLeft: 8 }}
+        >
+          {expanded ? 'Less' : 'More'}
+        </button>
+      )}
+    </p>
+  );
+}
 
 function ScheduleLibrary() {
   const [schedules, setSchedules] = useState([]);
   const [activeScheduleId, setActiveScheduleId] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('default');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showBuilder, setShowBuilder] = useState(false);
@@ -30,6 +54,13 @@ function ScheduleLibrary() {
     const active = getActiveSchedule();
     if (active) {
       setActiveScheduleId(active.id);
+    }
+    // Deep link support: ?schedule=ID opens modal
+    const params = new URLSearchParams(window.location.search);
+    const targetId = params.get('schedule');
+    if (targetId) {
+      const match = allSchedules.find(s => s.id === targetId);
+      if (match) setSelectedSchedule(match);
     }
   }, []);
 
@@ -47,6 +78,13 @@ function ScheduleLibrary() {
     if (filter === 'community' && !schedule.author.includes('Community')) return false;
     
     return true;
+  }).map(s => ({ ...s, _likes: getLikes(s.id) }));
+
+  const sortedSchedules = [...filteredSchedules].sort((a, b) => {
+    if (sortBy === 'most_liked') {
+      return (b._likes?.count || 0) - (a._likes?.count || 0);
+    }
+    return 0;
   });
 
   function handleActivateSchedule(scheduleId) {
@@ -76,6 +114,7 @@ function ScheduleLibrary() {
 
   function renderScheduleCard(schedule) {
     const isActive = schedule.id === activeScheduleId;
+    const likes = schedule._likes || { count: 0, liked: false };
     
     return (
       <div 
@@ -92,11 +131,32 @@ function ScheduleLibrary() {
           <CircularSchedule timeBlocks={schedule.timeBlocks} showLegend={false} title={''} />
         </div>
         <p className={styles.author}>by {schedule.author}</p>
-        <p className={styles.description}>{schedule.description}</p>
+        <CardDescription text={schedule.description} />
         <div className={styles.tags}>
           {schedule.tags?.map(tag => (
-            <span key={tag} className={styles.tag}>#{tag}</span>
+            <button
+              key={tag}
+              className={styles.tag}
+              onClick={(e) => { e.stopPropagation(); setFilter('all'); setSearchTerm('#' + tag.toLowerCase()); }}
+              title={`Filter by #${tag}`}
+            >
+              #{tag}
+            </button>
           ))}
+        </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 8 }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleLike(schedule.id);
+              // Trigger refresh to reflect updated like counts
+              setSchedules(prev => [...prev]);
+            }}
+            className={styles.previewButton}
+            title={likes.liked ? 'Unlike' : 'Like'}
+          >
+            {likes.liked ? '❤️' : '🤍'} {likes.count}
+          </button>
         </div>
         <div className={styles.cardActions}>
           <button 
@@ -166,11 +226,15 @@ function ScheduleLibrary() {
           >
             My Schedules
           </button>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ marginLeft: 12 }}>
+            <option value="default">Sort: Default</option>
+            <option value="most_liked">Sort: Most Liked</option>
+          </select>
         </div>
       </div>
 
       <div className={styles.scheduleGrid}>
-        {filteredSchedules.map(schedule => renderScheduleCard(schedule))}
+        {sortedSchedules.map(schedule => renderScheduleCard(schedule))}
       </div>
 
       {/* Schedule Preview Modal */}
@@ -184,6 +248,19 @@ function ScheduleLibrary() {
                 onClick={() => setSelectedSchedule(null)}
               >
                 ×
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <button
+                className={styles.previewButton}
+                onClick={() => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('schedule', selectedSchedule.id);
+                  navigator.clipboard.writeText(url.toString());
+                  alert('Link copied to clipboard');
+                }}
+              >
+                Copy link
               </button>
             </div>
             <p className={styles.modalAuthor}>by {selectedSchedule.author}</p>
