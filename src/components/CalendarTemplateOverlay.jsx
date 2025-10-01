@@ -21,8 +21,13 @@ const CalendarTemplateOverlay = ({ currentWeekStart, onTemplateApplied }) => {
 
   useEffect(() => {
     // Initialize date range to current week
-    const weekStart = new Date(currentWeekStart);
-    const weekEnd = new Date(currentWeekStart);
+    // Use currentWeekStart if valid, otherwise use current date
+    const baseDate = currentWeekStart && !isNaN(new Date(currentWeekStart).getTime()) 
+      ? new Date(currentWeekStart) 
+      : new Date();
+    
+    const weekStart = new Date(baseDate);
+    const weekEnd = new Date(baseDate);
     weekEnd.setDate(weekEnd.getDate() + 6);
     
     setDateRange({

@@ -315,7 +315,7 @@ function CalendarView() {
         </div>
       )}
       <CalendarSync />
-      <CalendarTemplateOverlay />
+      <CalendarTemplateOverlay currentWeekStart={selectedWeek} />
     </div>
   );
 }
