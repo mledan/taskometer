@@ -100,7 +100,7 @@ function CalendarView() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000);
+    }, 60000); // Update every minute
 
     return () => clearInterval(timer);
   }, []);
@@ -167,16 +167,19 @@ function CalendarView() {
     const endTime = new Date(startTime.getTime() + task.duration * 60000);
     const now = new Date();
 
-    const startSlotIndex = startTime.getHours() * 2 + (startTime.getMinutes() >= 30 ? 1 : 0);
-    const durationSlots = Math.ceil(task.duration / 30);
+    // More precise positioning based on exact minutes
+    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+    const topPosition = (startMinutes / 30) * TIME_SLOT_HEIGHT;
+    const heightInPixels = (task.duration / 30) * TIME_SLOT_HEIGHT;
 
     return {
       title: task.text,
       type: taskType.name,
       color: taskType.color || 'var(--accent-color)', // Fallback color
-      height: durationSlots * TIME_SLOT_HEIGHT,
-      top: startSlotIndex * TIME_SLOT_HEIGHT,
+      height: heightInPixels,
+      top: topPosition,
       isPast: startTime < now,
+      isCurrent: startTime <= now && endTime >= now,
       status: task.status
     };
   }
@@ -235,9 +238,16 @@ function CalendarView() {
                 {/* Current time indicator for today */}
                 {format(day.date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && (
                   <div
-                    className={styles.currentTimeIndicator}
-                    style={{ top: `${(currentTime.getHours() * 2 + (currentTime.getMinutes() >= 30 ? 1 : 0)) * TIME_SLOT_HEIGHT}px` }}
-                  />
+                    className={styles.currentTimeWrapper}
+                    style={{ 
+                      top: `${(currentTime.getHours() * 60 + currentTime.getMinutes()) * (TIME_SLOT_HEIGHT / 30)}px` 
+                    }}
+                  >
+                    <div className={styles.currentTimeIndicator}>
+                      <span className={styles.timeMarkerLabel}>You are here</span>
+                    </div>
+                    <div className={styles.currentTimeDot} />
+                  </div>
                 )}
                 {timeSlots.map(slot => {
                   const tasksInSlot = getTasksForSlot(day.date, slot);
@@ -248,13 +258,15 @@ function CalendarView() {
                       style={{ height: `${slot.height}px` }}
                     >
                       {tasksInSlot.map(task => {
-                        const { title, type, color, height, top, status } = getTaskDisplayProps(task);
+                        const { title, type, color, height, top, status, isCurrent, isPast } = getTaskDisplayProps(task);
                         return (
                           <div
                             key={task.key}
                             className={`${styles.task} 
                               ${status === 'completed' ? styles.taskCompleted : ''}
-                              ${status === 'paused' ? styles.taskPaused : ''}`
+                              ${status === 'paused' ? styles.taskPaused : ''}
+                              ${isCurrent ? styles.taskCurrent : ''}
+                              ${isPast && status !== 'completed' ? styles.taskPast : ''}`
                             }
                             style={{
                               backgroundColor: color,
