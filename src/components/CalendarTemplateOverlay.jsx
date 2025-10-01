@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../contexts/AppContext';
+import { useAppState, useAppReducer } from '../AppContext';
 import { ENHANCED_FAMOUS_SCHEDULES, BLOCK_CATEGORIES, applyTemplateToDateRange } from '../utils/enhancedTemplates';
 import '../styles/CalendarTemplateOverlay.css';
 
 const CalendarTemplateOverlay = ({ currentWeekStart, onTemplateApplied }) => {
-  const { state, dispatch } = useApp();
+  const state = useAppState();
+  const dispatch = useAppReducer();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [dateRange, setDateRange] = useState({
