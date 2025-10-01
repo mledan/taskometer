@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAppState, useAppReducer } from '../AppContext.jsx';
-import { format, addDays, startOfWeek, isWithinInterval } from 'date-fns';
+import { format, addDays, startOfWeek, isWithinInterval, isSameDay } from 'date-fns';
+import { toLocalTime, formatLocalTime } from '../utils/timeDisplay.js';
 import styles from './CalendarView.module.css';
 
 const HOURS_IN_DAY = 24;
@@ -117,8 +118,16 @@ function CalendarView() {
     const slots = [];
     for (let hour = 0; hour < HOURS_IN_DAY; hour++) {
       for (let minute of [0, 30]) {
+        // Store both 24-hour format for calculations and display format for UI
+        const hour24 = hour.toString().padStart(2, '0');
+        const minute24 = minute.toString().padStart(2, '0');
+        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        const ampm = hour < 12 ? 'AM' : 'PM';
+        const displayTime = minute === 0 ? `${displayHour} ${ampm}` : '';
+        
         slots.push({
-          time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
+          time: `${hour24}:${minute24}`,  // Keep 24-hour format for calculations
+          displayTime: displayTime,  // Human-readable format for display
           height: TIME_SLOT_HEIGHT,
         });
       }
@@ -130,15 +139,17 @@ function CalendarView() {
   function getTasksForSlot(day, timeSlot) {
     const slotTime = new Date(day);
     const [hours, minutes] = timeSlot.time.split(':').map(Number);
-    slotTime.setHours(hours, minutes);
+    slotTime.setHours(hours, minutes, 0, 0);
 
     return items
       .filter(item => item.scheduledTime && item.status !== 'completed')
       .filter(item => {
-        const taskStart = new Date(item.scheduledTime);
+        // Convert UTC stored time to local time for comparison
+        const taskStart = toLocalTime(item.scheduledTime);
         const taskEnd = new Date(taskStart.getTime() + item.duration * 60000);
 
-        return isWithinInterval(slotTime, { start: taskStart, end: taskEnd });
+        // Check if task is on the same day AND overlaps with this time slot
+        return isSameDay(taskStart, day) && isWithinInterval(slotTime, { start: taskStart, end: taskEnd });
       });
   }
 
@@ -149,7 +160,8 @@ function CalendarView() {
       color: 'var(--accent-color)'
     };
 
-    const startTime = new Date(task.scheduledTime);
+    // Convert UTC stored time to local time for display
+    const startTime = toLocalTime(task.scheduledTime);
     const endTime = new Date(startTime.getTime() + task.duration * 60000);
     const now = new Date();
 
@@ -191,15 +203,20 @@ function CalendarView() {
       <div className={styles.calendar}>
         {/* Time slots column */}
         <div className={styles.timeColumn}>
-          {timeSlots.map(slot => (
-            <div
-              key={slot.time}
-              className={styles.timeSlot}
-              style={{ height: `${slot.height}px` }}
-            >
-              {slot.time}
-            </div>
-          ))}
+          {/* Empty header to align with day headers */}
+          <div className={styles.timeHeader}></div>
+          {/* Time slots */}
+          <div className={styles.timeSlots}>
+            {timeSlots.map(slot => (
+              <div
+                key={slot.time}
+                className={styles.timeSlot}
+                style={{ height: `${slot.height}px` }}
+              >
+                {slot.displayTime}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Days columns */}

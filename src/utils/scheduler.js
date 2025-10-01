@@ -1,4 +1,5 @@
 import { addMinutes, isSameDay, format } from 'date-fns';
+import { toLocalTime, toUTCFromLocal } from './timeDisplay.js';
 
 // Constants for scheduling
 const WORK_DAY_START = 9; // 9 AM
@@ -20,11 +21,15 @@ export function findFirstAvailableSlot(task, existingItems, taskTypes, startFrom
   // If specific day is requested, use that as the start date
   let searchStart;
   if (task.specificDay) {
-    searchStart = new Date(task.specificDay);
-    // If specific time is also provided, use it
+    // If specific time is also provided, combine date and time properly
     if (task.specificTime) {
-      const [hours, minutes] = task.specificTime.split(':').map(Number);
-      searchStart.setHours(hours, minutes, 0, 0);
+      // Create a proper UTC time from the local date and time
+      const utcString = toUTCFromLocal(task.specificDay, task.specificTime);
+      searchStart = new Date(utcString);
+    } else {
+      // Just use the date with default time
+      searchStart = new Date(task.specificDay);
+      searchStart.setHours(WORK_DAY_START, 0, 0, 0);
     }
   } else {
     searchStart = startFrom;
@@ -68,6 +73,7 @@ export function findFirstAvailableSlot(task, existingItems, taskTypes, startFrom
         const hasConflict = existingItems.some(item => {
           if (item.status === 'completed' || !item.scheduledTime) return false;
 
+          // Ensure we're comparing times properly (both should be in same timezone context)
           const itemStart = new Date(item.scheduledTime);
           const itemEnd = addMinutes(itemStart, item.duration);
 
@@ -105,6 +111,7 @@ export function hasSchedulingConflicts(startTime, duration, existingItems) {
   return existingItems.some(item => {
     if (item.status === 'completed' || !item.scheduledTime) return false;
 
+    // Ensure proper comparison of UTC times
     const itemStart = new Date(item.scheduledTime);
     const itemEnd = addMinutes(itemStart, item.duration);
 

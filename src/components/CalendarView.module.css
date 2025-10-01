@@ -63,6 +63,21 @@
   min-width: 60px;
   border-right: 1px solid var(--border-color);
   background: var(--input-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.timeHeader {
+  height: 61px; /* Match the height of day headers */
+  border-bottom: 1px solid var(--border-color);
+  background: var(--input-color);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.timeSlots {
+  flex: 1;
 }
 
 .timeSlot {

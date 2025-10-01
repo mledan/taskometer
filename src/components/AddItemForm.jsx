@@ -52,7 +52,9 @@ return (
 			</div>
 			
 			<div className={styles.options}>
-				<select 
+				<label title="What kind of task is this? This helps route it into matching schedule blocks.">
+					Type
+					<select 
 					value={taskType} 
 					onChange={(e) => {
 						setTaskType(e.target.value);
@@ -60,26 +62,33 @@ return (
 						const typeConfig = taskTypes.find(t => t.id === e.target.value);
 						setDuration(typeConfig?.defaultDuration || 30);
 					}}
-				>
+					>
 					{taskTypes.map(type => (
 						<option key={type.id} value={type.id}>{type.name}</option>
 					))}
-				</select>
+					</select>
+				</label>
 
-				<select value={schedulingPreference} onChange={(e) => setSchedulingPreference(e.target.value)}>
-					<option value="immediate">Schedule Immediately</option>
-					<option value="delay">Delay Start</option>
-					<option value="specific">Specific Day</option>
-				</select>
+				<label title="When should we schedule this? Immediate uses now; Delay shifts start; Specific sets a date/time.">
+					Scheduling
+					<select value={schedulingPreference} onChange={(e) => setSchedulingPreference(e.target.value)}>
+						<option value="immediate">Schedule Immediately</option>
+						<option value="delay">Delay Start</option>
+						<option value="specific">Specific Day</option>
+					</select>
+				</label>
 
-				<input 
-					type="number" 
-					value={duration} 
-					onChange={(e) => setDuration(parseInt(e.target.value) || 30)}
-					min="5"
-					max="480"
-					placeholder="Duration (min)"
-				/>
+				<label title="How long should this take? Default comes from the chosen type.">
+					Duration (minutes)
+					<input 
+						type="number" 
+						value={duration} 
+						onChange={(e) => setDuration(parseInt(e.target.value) || 30)}
+						min="5"
+						max="480"
+						placeholder="30"
+					/>
+				</label>
 
 				<select value={priority} onChange={(e) => setPriority(e.target.value)}>
 					<option value="low">Low Priority</option>
@@ -88,28 +97,37 @@ return (
 				</select>
 
 				{schedulingPreference === 'delay' && (
-					<input 
-						type="number" 
-						value={delayMinutes} 
-						onChange={(e) => setDelayMinutes(parseInt(e.target.value) || 0)}
-						min="0"
-						placeholder="Delay (min)"
-					/>
+					<label title="Delay the start by these minutes from now.">
+						Delay (minutes)
+						<input 
+							type="number" 
+							value={delayMinutes} 
+							onChange={(e) => setDelayMinutes(parseInt(e.target.value) || 0)}
+							min="0"
+							placeholder="15"
+						/>
+					</label>
 				)}
 
 				{schedulingPreference === 'specific' && (
 					<>
-						<input 
-							type="date" 
-							value={specificDay || ''} 
-							onChange={(e) => setSpecificDay(e.target.value)}
-							min={new Date().toISOString().split('T')[0]}
-						/>
-						<input 
-							type="time" 
-							value={specificTime} 
-							onChange={(e) => setSpecificTime(e.target.value)}
-						/>
+						<label title="Pick the calendar day to schedule on.">
+							Specific day
+							<input 
+								type="date" 
+								value={specificDay || ''} 
+								onChange={(e) => setSpecificDay(e.target.value)}
+								min={new Date().toISOString().split('T')[0]}
+							/>
+						</label>
+						<label title="Set the local time of day to start.">
+							Specific time
+							<input 
+								type="time" 
+								value={specificTime} 
+								onChange={(e) => setSpecificTime(e.target.value)}
+							/>
+						</label>
 					</>
 				)}
 			</div>

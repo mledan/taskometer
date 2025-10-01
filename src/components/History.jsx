@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppState, useAppReducer } from '../AppContext.jsx';
 import { format } from 'date-fns';
+import { formatLocalTime } from '../utils/timeDisplay.js';
 import styles from './History.module.css';
 
 function History() {
@@ -117,7 +118,7 @@ function History() {
   function formatTimestamp(timestamp) {
     if (!timestamp) return 'N/A';
     try {
-      return format(new Date(timestamp), 'MMM d, yyyy h:mm a');
+      return formatLocalTime(timestamp, 'MMM d, yyyy h:mm a');
     } catch {
       return 'Invalid date';
     }

@@ -46,9 +46,18 @@ function ScheduleBuilder({ onClose, onCreated }) {
           </div>
           <div style={{ flex: '1 1 320px', minWidth: 320 }}>
             <div style={{ display: 'grid', gap: 8 }}>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Schedule name" />
-              <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
-              <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags (comma-separated)" />
+              <label title="Give your schedule a recognizable name.">
+                Name
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="My Ideal Day" />
+              </label>
+              <label title="Describe the intent or constraints of this schedule.">
+                Description
+                <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Balanced work, exercise, and family" />
+              </label>
+              <label title="Comma-separated tags help others find your schedule.">
+                Tags
+                <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="work, balanced, remote" />
+              </label>
 
               <div style={{ marginTop: 8, fontWeight: 600 }}>Time Blocks</div>
               {blocks.map((b, i) => (
@@ -61,14 +70,26 @@ function ScheduleBuilder({ onClose, onCreated }) {
               ))}
 
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                <input style={{ width: 90 }} type="time" value={newBlock.start} onChange={(e) => setNewBlock({ ...newBlock, start: e.target.value })} />
-                <input style={{ width: 90 }} type="time" value={newBlock.end} onChange={(e) => setNewBlock({ ...newBlock, end: e.target.value })} />
-                <select value={newBlock.type} onChange={(e) => setNewBlock({ ...newBlock, type: e.target.value })}>
+                <label title="Start time in your local time" style={{ display: 'flex', flexDirection: 'column' }}>
+                  Start
+                  <input style={{ width: 110 }} type="time" value={newBlock.start} onChange={(e) => setNewBlock({ ...newBlock, start: e.target.value })} />
+                </label>
+                <label title="End time in your local time" style={{ display: 'flex', flexDirection: 'column' }}>
+                  End
+                  <input style={{ width: 110 }} type="time" value={newBlock.end} onChange={(e) => setNewBlock({ ...newBlock, end: e.target.value })} />
+                </label>
+                <label title="Category used for intelligent task routing" style={{ display: 'flex', flexDirection: 'column' }}>
+                  Type
+                  <select value={newBlock.type} onChange={(e) => setNewBlock({ ...newBlock, type: e.target.value })}>
                   {activityOptions.map(o => (
                     <option key={o.id} value={o.id}>{o.name}</option>
                   ))}
-                </select>
-                <input placeholder="Label" value={newBlock.label} onChange={(e) => setNewBlock({ ...newBlock, label: e.target.value })} />
+                  </select>
+                </label>
+                <label title="Short label that appears in the list view" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                  Label
+                  <input placeholder="e.g., Deep work, Lunch" value={newBlock.label} onChange={(e) => setNewBlock({ ...newBlock, label: e.target.value })} />
+                </label>
                 <button onClick={addBlock}>Add</button>
               </div>
 

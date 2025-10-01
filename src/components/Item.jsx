@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAppReducer, useAppState } from "../AppContext.jsx";
 import { format, addMinutes } from 'date-fns';
+import { toLocalTime, formatLocalTime, getLocalDateString, getLocalTimeString, toUTCFromLocal } from '../utils/timeDisplay.js';
 import styles from "./Item.module.css";
 
 // Individual todo item
@@ -10,12 +11,12 @@ function Item({ item }) {
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState(
     item.scheduledTime ? 
-      new Date(item.scheduledTime).toISOString().split('T')[0] : 
+      getLocalDateString(item.scheduledTime) : 
       new Date().toISOString().split('T')[0]
   );
   const [rescheduleTime, setRescheduleTime] = useState(
     item.scheduledTime ? 
-      format(new Date(item.scheduledTime), 'HH:mm') : 
+      getLocalTimeString(item.scheduledTime) : 
       '09:00'
   );
   let text = item.text;
@@ -50,12 +51,12 @@ function Item({ item }) {
   }
 
   function submitReschedule() {
-    const newScheduledTime = new Date(`${rescheduleDate}T${rescheduleTime}`);
     const updatedItem = {
       ...item,
       schedulingPreference: 'specific',
       scheduledTime: null, // Clear existing time to force reschedule
       specificDay: rescheduleDate,
+      specificTime: rescheduleTime,
     };
 
     dispatch({ 
@@ -78,7 +79,7 @@ function Item({ item }) {
         {item.scheduledTime && !isRescheduling && (
           <div className={styles.scheduleInfo}>
             <span className={styles.scheduleTime}>
-              {format(new Date(item.scheduledTime), 'MMM d, h:mm a')}
+              {formatLocalTime(item.scheduledTime, 'MMM d, h:mm a')}
             </span>
             <span className={styles.duration}>
               ({item.duration} min)

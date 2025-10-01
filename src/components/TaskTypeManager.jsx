@@ -61,26 +61,34 @@ function TaskTypeManager() {
       
       {/* Add new task type form */}
       <form onSubmit={addTaskType} className={styles.addForm}>
-        <input
-          type="text"
-          value={newTypeName}
-          onChange={(e) => setNewTypeName(e.target.value)}
-          placeholder="New task type name"
-        />
-        <input
-          type="number"
-          value={newDefaultDuration}
-          onChange={(e) => setNewDefaultDuration(parseInt(e.target.value) || 30)}
-          min="5"
-          max="480"
-          placeholder="Default duration (min)"
-        />
-        <input
-          type="color"
-          value={newColor}
-          onChange={(e) => setNewColor(e.target.value)}
-          title="Task type color"
-        />
+        <label>
+          Name
+          <input
+            type="text"
+            value={newTypeName}
+            onChange={(e) => setNewTypeName(e.target.value)}
+            placeholder="e.g., Work, Exercise, Reading"
+          />
+        </label>
+        <label title="Used when no duration is provided on a task">
+          Default duration (minutes)
+          <input
+            type="number"
+            value={newDefaultDuration}
+            onChange={(e) => setNewDefaultDuration(parseInt(e.target.value) || 30)}
+            min="5"
+            max="480"
+            placeholder="30"
+          />
+        </label>
+        <label title="Color used to display tasks of this type">
+          Type color
+          <input
+            type="color"
+            value={newColor}
+            onChange={(e) => setNewColor(e.target.value)}
+          />
+        </label>
         <button type="submit">Add Type</button>
       </form>
 
@@ -91,24 +99,32 @@ function TaskTypeManager() {
             {editingType === type.id ? (
               // Edit mode
               <div className={styles.editMode}>
-                <input
-                  type="text"
-                  value={type.name}
-                  onChange={(e) => updateTaskType(type.id, { ...type, name: e.target.value })}
-                />
-                <input
-                  type="number"
-                  value={type.defaultDuration}
-                  onChange={(e) => updateTaskType(type.id, { ...type, defaultDuration: parseInt(e.target.value) || 30 })}
-                  min="5"
-                  max="480"
-                />
-                <input
-                  type="color"
-                  value={type.color || '#3b82f6'}
-                  onChange={(e) => updateTaskType(type.id, { ...type, color: e.target.value })}
-                  title="Task type color"
-                />
+                <label>
+                  Name
+                  <input
+                    type="text"
+                    value={type.name}
+                    onChange={(e) => updateTaskType(type.id, { ...type, name: e.target.value })}
+                  />
+                </label>
+                <label title="Used when no duration is provided on a task">
+                  Default duration (minutes)
+                  <input
+                    type="number"
+                    value={type.defaultDuration}
+                    onChange={(e) => updateTaskType(type.id, { ...type, defaultDuration: parseInt(e.target.value) || 30 })}
+                    min="5"
+                    max="480"
+                  />
+                </label>
+                <label title="Color used to display tasks of this type">
+                  Type color
+                  <input
+                    type="color"
+                    value={type.color || '#3b82f6'}
+                    onChange={(e) => updateTaskType(type.id, { ...type, color: e.target.value })}
+                  />
+                </label>
                 <button onClick={() => setEditingType(null)}>Save</button>
               </div>
             ) : (

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getComments, addComment } from '../utils/community.js';
+import { formatLocalTime } from '../utils/timeDisplay.js';
 
 function ScheduleDiscussion({ scheduleId }) {
   const [comments, setComments] = useState([]);
@@ -29,7 +30,7 @@ function ScheduleDiscussion({ scheduleId }) {
         {comments.map(c => (
           <div key={c.id} style={{ padding: 8, border: '1px solid #e5e7eb', borderRadius: 8 }}>
             <div style={{ fontSize: 12, color: '#6b7280' }}>
-              {c.author} • {new Date(c.createdAt).toLocaleString()}
+              {c.author} • {formatLocalTime(c.createdAt, 'MMM d, yyyy h:mm a')}
             </div>
             <div>{c.text}</div>
           </div>
