@@ -31,11 +31,13 @@
 		"@testing-library/jest-dom": "^5.16.5",
 		"@testing-library/react": "^13.4.0",
 		"@vitejs/plugin-react": "^2.1.0",
+		"autoprefixer": "^10.4.21",
 		"eslint": "^8.26.0",
 		"eslint-plugin-react": "^7.31.10",
 		"jsdom": "^20.0.1",
-		"postcss": "^8.4.21",
+		"postcss": "^8.5.6",
 		"postcss-nested": "^6.0.0",
+		"postcss-nesting": "^13.0.2",
 		"vite": "^3.1.8",
 		"vitest": "^0.24.3"
 	}

@@ -156,8 +156,8 @@ export function findFirstAvailableSlot(task, existingItems, taskTypes, startFrom
         // For immediate scheduling, use the actual current time
         const now = new Date();
         const beforeChange = currentDate.toISOString();
-        // Replace currentDate with actual current time to avoid timezone issues
-        currentDate = new Date(now);
+        // Simply use the current time as is - don't try to transfer hours/minutes
+        currentDate = now;
         
         debugLog('FIND_SLOT:IMMEDIATE', 'Using current time for immediate scheduling', {
           now: now.toISOString(),
@@ -174,11 +174,7 @@ export function findFirstAvailableSlot(task, existingItems, taskTypes, startFrom
       } else if (attempts > 0) {
         // Start from work day start for subsequent attempts
         const beforeChange = currentDate.toISOString();
-        // Create a new date for the current day at work start time
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-        const date = currentDate.getDate();
-        currentDate = new Date(year, month, date, WORK_DAY_START, 0, 0, 0);
+        currentDate.setHours(WORK_DAY_START, 0, 0, 0);
         
         debugLog('FIND_SLOT:WORK_START', `Moving to work day start (attempt ${attempts + 1})`, {
           before: beforeChange,
@@ -260,10 +256,8 @@ export function findFirstAvailableSlot(task, existingItems, taskTypes, startFrom
 
     // Move to next day
     const beforeNextDay = currentDate.toISOString();
-    // Create a new date for the next day at work start time
-    const nextDay = new Date(currentDate);
-    nextDay.setDate(nextDay.getDate() + 1);
-    currentDate = new Date(nextDay.getFullYear(), nextDay.getMonth(), nextDay.getDate(), WORK_DAY_START, 0, 0, 0);
+    currentDate.setDate(currentDate.getDate() + 1);
+    currentDate.setHours(WORK_DAY_START, 0, 0, 0); // Reset to work start for next day
     attempts++;
     
     debugLog('FIND_SLOT:NEXT_DAY', `Moving to next day (attempt ${attempts + 1}/${maxAttempts})`, {

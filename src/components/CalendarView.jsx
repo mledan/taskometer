@@ -162,15 +162,32 @@ function CalendarView() {
       color: 'var(--accent-color)'
     };
 
-    // Convert UTC stored time to local time for display
-    const startTime = toLocalTime(task.scheduledTime);
+    // Parse the stored time - try creating Date directly from ISO string
+    const startTime = new Date(task.scheduledTime);
     const endTime = new Date(startTime.getTime() + task.duration * 60000);
     const now = new Date();
 
-    // More precise positioning based on exact minutes
-    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-    const topPosition = (startMinutes / 30) * TIME_SLOT_HEIGHT;
+    // Debug logging
+    console.log('Task positioning debug:', {
+      taskName: task.text,
+      storedScheduledTime: task.scheduledTime,
+      directParsedTime: startTime.toString(),
+      startTimeHours: startTime.getHours(),
+      startTimeMinutes: startTime.getMinutes(),
+      currentTime: now.toString(),
+      currentHours: now.getHours(),
+      currentMinutes: now.getMinutes()
+    });
+
+    // Use the same calculation as "You are here" marker
+    const topPosition = (startTime.getHours() * 60 + startTime.getMinutes()) * (TIME_SLOT_HEIGHT / 30);
     const heightInPixels = (task.duration / 30) * TIME_SLOT_HEIGHT;
+    
+    console.log('Position calculation:', {
+      startMinutes: startTime.getHours() * 60 + startTime.getMinutes(),
+      topPosition,
+      heightInPixels
+    });
 
     return {
       title: task.text,
