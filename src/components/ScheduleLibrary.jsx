@@ -7,6 +7,12 @@ import {
   ACTIVITY_TYPES,
   saveScheduleToLocalStorage 
 } from '../utils/scheduleTemplates.js';
+import { 
+  ENHANCED_FAMOUS_SCHEDULES,
+  BLOCK_CATEGORIES,
+  applyTemplateToDateRange,
+  autoSlotTaskIntoTemplate
+} from '../utils/enhancedTemplates.js';
 import styles from './ScheduleLibrary.module.css';
 import CircularSchedule from './CircularSchedule.jsx';
 import ScheduleBuilder from './ScheduleBuilder.jsx';
@@ -47,7 +53,7 @@ function ScheduleLibrary() {
   useEffect(() => {
     // Load schedules from localStorage and famous templates
     const customSchedules = getSchedulesFromLocalStorage();
-    const allSchedules = [...FAMOUS_SCHEDULES, ...customSchedules];
+    const allSchedules = [...FAMOUS_SCHEDULES, ...ENHANCED_FAMOUS_SCHEDULES, ...customSchedules];
     setSchedules(allSchedules);
     
     // Get active schedule
