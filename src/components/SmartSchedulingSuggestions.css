@@ -1,0 +1,326 @@
+.smart-scheduling-suggestions {
+  background: var(--card-background, #ffffff);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.suggestions-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color, #e0e0e0);
+}
+
+.suggestions-icon {
+  font-size: 24px;
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.7; 
+    transform: scale(1.1);
+  }
+}
+
+.suggestions-header h3 {
+  margin: 0;
+  color: var(--text-primary, #333);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.no-suggestions {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary, #666);
+  font-style: italic;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.suggestion-item {
+  background: var(--item-background, #f9f9f9);
+  border: 1px solid var(--border-light, #e0e0e0);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.suggestion-item:hover {
+  background: var(--item-hover, #f0f0f0);
+  border-color: var(--primary-color, #4CAF50);
+  transform: translateX(4px);
+}
+
+.suggestion-item.selected {
+  background: var(--item-selected, #e8f5e9);
+  border-color: var(--primary-color, #4CAF50);
+  border-width: 2px;
+  padding: 11px;
+}
+
+.suggestion-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.suggestion-time {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suggestion-time .date {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+}
+
+.suggestion-time .time {
+  font-size: 16px;
+  color: var(--primary-color, #4CAF50);
+  font-weight: 500;
+}
+
+.suggestion-confidence {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 100px;
+}
+
+.confidence-bar {
+  height: 6px;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  width: 100%;
+  background: #e0e0e0;
+  position: relative;
+  overflow: hidden;
+}
+
+.confidence-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.confidence-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary, #666);
+  font-weight: 500;
+}
+
+.suggestion-details {
+  margin-bottom: 8px;
+}
+
+.suggestion-details .reason {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  color: var(--text-primary, #333);
+  font-weight: 500;
+}
+
+.suggestion-details .workload {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+}
+
+.accept-suggestion-btn {
+  background: var(--primary-color, #4CAF50);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.accept-suggestion-btn:hover {
+  background: var(--primary-dark, #45a049);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+}
+
+.accept-suggestion-btn:active {
+  transform: translateY(0);
+}
+
+.patterns-insight {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light, #e0e0e0);
+}
+
+.patterns-insight h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--text-primary, #333);
+  font-weight: 600;
+}
+
+.patterns-insight p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .smart-scheduling-suggestions {
+  background: #2c2c2c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .suggestions-header {
+  border-bottom-color: #444;
+}
+
+[data-theme="dark"] .suggestions-header h3 {
+  color: #e0e0e0;
+}
+
+[data-theme="dark"] .suggestion-item {
+  background: #1e1e1e;
+  border-color: #444;
+}
+
+[data-theme="dark"] .suggestion-item:hover {
+  background: #2a2a2a;
+}
+
+[data-theme="dark"] .suggestion-item.selected {
+  background: #1a3a1a;
+  border-color: #4CAF50;
+}
+
+[data-theme="dark"] .suggestion-time .date,
+[data-theme="dark"] .suggestion-details .reason,
+[data-theme="dark"] .patterns-insight h4 {
+  color: #e0e0e0;
+}
+
+[data-theme="dark"] .confidence-label,
+[data-theme="dark"] .suggestion-details .workload,
+[data-theme="dark"] .patterns-insight p {
+  color: #aaa;
+}
+
+[data-theme="dark"] .confidence-bar {
+  background: #333;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .smart-scheduling-suggestions {
+    padding: 12px;
+    margin: 12px 0;
+  }
+
+  .suggestions-header h3 {
+    font-size: 16px;
+  }
+
+  .suggestion-item {
+    padding: 10px;
+  }
+
+  .suggestion-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .suggestion-confidence {
+    align-items: flex-start;
+    width: 100%;
+  }
+  
+  .confidence-bar {
+    width: 100%;
+  }
+}
+
+/* Compact mode */
+.compact-mode .smart-scheduling-suggestions {
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.compact-mode .suggestion-item {
+  padding: 8px;
+}
+
+.compact-mode .suggestions-header h3 {
+  font-size: 16px;
+}
+
+.compact-mode .suggestion-time .date,
+.compact-mode .suggestion-time .time {
+  font-size: 13px;
+}
+
+/* Animation for new suggestions */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.suggestion-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+.suggestion-item:nth-child(1) { animation-delay: 0.1s; }
+.suggestion-item:nth-child(2) { animation-delay: 0.2s; }
+.suggestion-item:nth-child(3) { animation-delay: 0.3s; }
+.suggestion-item:nth-child(4) { animation-delay: 0.4s; }
+.suggestion-item:nth-child(5) { animation-delay: 0.5s; }

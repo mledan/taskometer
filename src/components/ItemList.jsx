@@ -20,10 +20,16 @@ function ItemList() {
 	const { pending, paused, completed } = useItems();
 
 	const unscheduledPending = pending.filter((i) => !i.scheduledTime);
+	const scheduledPending = pending.filter((i) => i.scheduledTime);
 
 	function scheduleAllPending() {
 		if (unscheduledPending.length === 0) return;
 		dispatch({ type: 'SCHEDULE_TASKS', tasks: unscheduledPending });
+	}
+
+	function rescheduleAll() {
+		if (pending.length === 0) return;
+		dispatch({ type: 'RESCHEDULE_ALL_TASKS' });
 	}
 
 	return (
@@ -38,6 +44,14 @@ function ItemList() {
 					className={styles.primary}
 				>
 					Schedule all pending {unscheduledPending.length > 0 ? `(${unscheduledPending.length})` : ''}
+				</button>
+				<button
+					onClick={rescheduleAll}
+					disabled={pending.length === 0}
+					className={styles.secondary}
+					title="Clear all scheduled times and reschedule tasks"
+				>
+					Reschedule all {scheduledPending.length > 0 ? `(${scheduledPending.length} scheduled)` : ''}
 				</button>
 			</div>
 			{pending.length > 0 ? (

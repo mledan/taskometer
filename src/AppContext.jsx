@@ -38,6 +38,67 @@ const appStateReducer = (state, action) => {
 	};
 
 switch (action.type) {
+	case "RESCHEDULE_ALL_TASKS": {
+		// Get all pending tasks (not completed or cancelled)
+		const pendingTasks = state.items
+			.filter(item => item.status === 'pending' || item.status === 'paused')
+			.map(item => ({
+				...item,
+				scheduledFor: null,
+				specificTime: null,
+				specificDay: null
+			}));
+		
+		// Use intelligent scheduler if we have an active schedule
+		const activeSchedule = getActiveSchedule();
+		
+		if (activeSchedule) {
+			// Use intelligent routing
+			const scheduledTasks = batchScheduleTasks(
+				pendingTasks,
+				activeSchedule,
+				[] // Pass empty array since we're rescheduling everything
+			);
+			
+			// Update items with new scheduled times
+			const updatedItems = state.items.map(item => {
+				const scheduledItem = scheduledTasks.find(s => s.key === item.key);
+				return scheduledItem || item;
+			});
+			
+			const newState = { ...state, items: updatedItems };
+			saveState(newState);
+			return newState;
+		} else {
+			// Fall back to old scheduler
+			const { scheduled, unscheduled } = scheduleTasks(
+				pendingTasks,
+				[], // Pass empty array since we're rescheduling everything
+				state.taskTypes
+			);
+
+			// Update all items with new scheduled times or clear them
+			const updatedItems = state.items.map(item => {
+				const scheduledItem = scheduled.find(s => s.key === item.key);
+				if (scheduledItem) {
+					return scheduledItem;
+				} else if (item.status === 'pending' || item.status === 'paused') {
+					// Clear scheduling for unscheduled pending/paused tasks
+					return {
+						...item,
+						scheduledFor: null,
+						specificTime: null,
+						specificDay: null
+					};
+				}
+				return item;
+			});
+
+			const newState = { ...state, items: updatedItems };
+			saveState(newState);
+			return newState;
+		}
+	}
 	case "SCHEDULE_TASKS": {
 		// Use intelligent scheduler if we have an active schedule
 		const activeSchedule = getActiveSchedule();
