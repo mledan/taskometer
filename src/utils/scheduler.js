@@ -153,10 +153,11 @@ export function findFirstAvailableSlot(task, existingItems, taskTypes, startFrom
       // For immediate scheduling, use current time if we're on the first attempt
       // For specific day/time scheduling, time is already set
       if (task.schedulingPreference === 'immediate' && attempts === 0) {
-        // Keep current time for immediate scheduling
+        // For immediate scheduling, use the actual current time
         const now = new Date();
         const beforeChange = currentDate.toISOString();
-        currentDate.setHours(now.getHours(), now.getMinutes(), 0, 0);
+        // Replace currentDate with actual current time to avoid timezone issues
+        currentDate = new Date(now);
         
         debugLog('FIND_SLOT:IMMEDIATE', 'Using current time for immediate scheduling', {
           now: now.toISOString(),
@@ -173,7 +174,11 @@ export function findFirstAvailableSlot(task, existingItems, taskTypes, startFrom
       } else if (attempts > 0) {
         // Start from work day start for subsequent attempts
         const beforeChange = currentDate.toISOString();
-        currentDate.setHours(WORK_DAY_START, 0, 0, 0);
+        // Create a new date for the current day at work start time
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const date = currentDate.getDate();
+        currentDate = new Date(year, month, date, WORK_DAY_START, 0, 0, 0);
         
         debugLog('FIND_SLOT:WORK_START', `Moving to work day start (attempt ${attempts + 1})`, {
           before: beforeChange,
@@ -255,8 +260,10 @@ export function findFirstAvailableSlot(task, existingItems, taskTypes, startFrom
 
     // Move to next day
     const beforeNextDay = currentDate.toISOString();
-    currentDate.setDate(currentDate.getDate() + 1);
-    currentDate.setHours(WORK_DAY_START, 0, 0, 0); // Reset to work start for next day
+    // Create a new date for the next day at work start time
+    const nextDay = new Date(currentDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    currentDate = new Date(nextDay.getFullYear(), nextDay.getMonth(), nextDay.getDate(), WORK_DAY_START, 0, 0, 0);
     attempts++;
     
     debugLog('FIND_SLOT:NEXT_DAY', `Moving to next day (attempt ${attempts + 1}/${maxAttempts})`, {
