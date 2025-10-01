@@ -4,11 +4,13 @@
 	"version": "1.0.0",
 	"type": "module",
 	"author": "mledan",
-	"contributors": [{
-		"name": "Cassidy Williams",
-		"email": "hi@cassidoo.co",
-		"url": "https://cassidoo.co"
-	}],
+	"contributors": [
+		{
+			"name": "Cassidy Williams",
+			"email": "hi@cassidoo.co",
+			"url": "https://cassidoo.co"
+		}
+	],
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
@@ -19,6 +21,8 @@
 	"dependencies": {
 		"@reach/accordion": "^0.8.0",
 		"date-fns": "^2.9.0",
+		"dotenv": "^17.2.3",
+		"dotenv-vault": "^1.27.0",
 		"prop-types": "^15.8.1",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0"

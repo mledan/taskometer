@@ -15,11 +15,29 @@ dist
 
 # misc
 .DS_Store
+
+# Environment variables - NEVER commit these!
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.me
+.env.keys
+
+# Google OAuth Client Secrets - NEVER commit!
+client_secret*.json
+credentials.json
+token.json
+
+# Keep these for documentation
+!.env.example
+!.env.vault
 
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+.env*
+.flaskenv*
+!.env.project

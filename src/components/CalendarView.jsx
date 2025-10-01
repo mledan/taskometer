@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAppState, useAppReducer } from '../AppContext.jsx';
 import { format, addDays, startOfWeek, isWithinInterval, isSameDay } from 'date-fns';
 import { toLocalTime, formatLocalTime } from '../utils/timeDisplay.js';
+import CalendarSync from './CalendarSync.jsx';
 import styles from './CalendarView.module.css';
 
 const HOURS_IN_DAY = 24;
@@ -300,6 +301,7 @@ function CalendarView() {
           )}
         </div>
       )}
+      <CalendarSync />
     </div>
   );
 }
