@@ -270,6 +270,132 @@ switch (action.type) {
 			saveState(newState);
 			return newState;
 		}
+		case "APPLY_TEMPLATE_BLOCKS": {
+			const { blocks, options } = action.payload;
+			const { overrideExisting = false, mergeWithExisting = true } = options || {};
+
+			// Create calendar items from template blocks
+			const templateItems = blocks.map((block, index) => ({
+				key: `template-${block.templateId}-${new Date(block.startTime).getTime()}-${index}`,
+				text: block.label || block.name || `${block.type} block`,
+				description: block.description || '',
+				status: 'pending',
+				taskType: block.type,
+				duration: Math.round((new Date(block.endTime) - new Date(block.startTime)) / 60000), // minutes
+				scheduledTime: block.startTime,
+				specificTime: new Date(block.startTime).toLocaleTimeString('en-US', {
+					hour: '2-digit',
+					minute: '2-digit',
+					hour12: false
+				}),
+				scheduledFor: new Date(block.startTime).toISOString().split('T')[0],
+				specificDay: format(new Date(block.startTime), 'EEEE'),
+				categoryId: block.categoryId,
+				color: block.color,
+				isTemplateBlock: true,
+				templateId: block.templateId,
+				templateName: block.templateName
+			}));
+
+			let newItems;
+			if (overrideExisting) {
+				// Remove existing template blocks and add new ones
+				newItems = [
+					...state.items.filter(item => !item.isTemplateBlock),
+					...templateItems
+				];
+			} else if (mergeWithExisting) {
+				// Keep existing items and add template blocks
+				newItems = [...state.items, ...templateItems];
+			} else {
+				// Replace all items with template blocks
+				newItems = templateItems;
+			}
+
+			const newState = { ...state, items: newItems };
+			saveState(newState);
+			return newState;
+		}
+		case "AUTO_SLOT_TASKS_INTO_TEMPLATE": {
+			const { templateBlocks } = action.payload;
+
+			// Get unscheduled tasks
+			const unscheduledTasks = state.items.filter(
+				item => item.status === 'pending' && !item.scheduledTime && !item.isTemplateBlock
+			);
+
+			if (unscheduledTasks.length === 0 || !templateBlocks || templateBlocks.length === 0) {
+				return state;
+			}
+
+			// Auto-slot each unscheduled task into appropriate template blocks
+			const updatedItems = state.items.map(item => {
+				// Skip if already scheduled or is a template block
+				if (item.scheduledTime || item.isTemplateBlock || item.status !== 'pending') {
+					return item;
+				}
+
+				// Find matching template blocks for this task type
+				const eligibleBlocks = templateBlocks.filter(block => {
+					// Match by task type or use flexible blocks
+					return block.type === item.taskType || block.type === 'flexible_work' || block.type === 'buffer';
+				});
+
+				if (eligibleBlocks.length === 0) {
+					return item; // No matching block found
+				}
+
+				// Sort by start time to fill earliest slots first
+				const sortedBlocks = [...eligibleBlocks].sort((a, b) =>
+					new Date(a.startTime) - new Date(b.startTime)
+				);
+
+				// Find first available block with enough time
+				for (const block of sortedBlocks) {
+					const blockStart = new Date(block.startTime);
+					const blockEnd = new Date(block.endTime);
+					const taskDuration = item.duration || 30; // minutes
+					const blockDuration = (blockEnd - blockStart) / 60000; // minutes
+
+					// Check if task fits in block and block is in the future
+					if (blockDuration >= taskDuration && blockStart > new Date()) {
+						// Check for conflicts with already scheduled items
+						const hasConflict = state.items.some(otherItem => {
+							if (!otherItem.scheduledTime || otherItem.key === item.key) return false;
+
+							const otherStart = new Date(otherItem.scheduledTime);
+							const otherEnd = new Date(otherStart.getTime() + (otherItem.duration || 30) * 60000);
+							const taskEnd = new Date(blockStart.getTime() + taskDuration * 60000);
+
+							return (blockStart < otherEnd && taskEnd > otherStart);
+						});
+
+						if (!hasConflict) {
+							// Schedule the task in this block
+							return {
+								...item,
+								scheduledTime: blockStart.toISOString(),
+								specificTime: blockStart.toLocaleTimeString('en-US', {
+									hour: '2-digit',
+									minute: '2-digit',
+									hour12: false
+								}),
+								scheduledFor: blockStart.toISOString().split('T')[0],
+								specificDay: format(blockStart, 'EEEE'),
+								assignedToTemplate: true,
+								templateBlockId: block.templateId
+							};
+						}
+					}
+				}
+
+				return item; // Couldn't find suitable block
+			});
+
+			const newState = { ...state, items: updatedItems };
+			saveState(newState);
+			return newState;
+		}
 		default:
 			return state;
 	}
