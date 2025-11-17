@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAppContext } from '../AppContext';
+import { useAppState } from '../AppContext';
 import { getLocalTimeString, formatTimeForDisplay } from '../utils/timeDisplay';
-import { analyzeScheduleLoad, findOptimalSlots, getTaskPatterns } from '../utils/intelligentScheduler';
 import './SmartSchedulingSuggestions.css';
 
 const SmartSchedulingSuggestions = ({ taskType, taskName, duration = 60, onAcceptSuggestion }) => {
-  const { state } = useAppContext();
+  const state = useAppState();
   const [suggestions, setSuggestions] = useState([]);
   const [analysisData, setAnalysisData] = useState(null);
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
@@ -21,8 +20,16 @@ const SmartSchedulingSuggestions = ({ taskType, taskName, duration = 60, onAccep
       workloadDistribution: []
     };
 
-    // Analyze completed tasks from history
-    const completedTasks = state.history || [];
+    // Analyze completed tasks from history (stored in localStorage)
+    let completedTasks = [];
+    try {
+      const savedHistory = localStorage.getItem('taskometer-history');
+      if (savedHistory) {
+        completedTasks = JSON.parse(savedHistory);
+      }
+    } catch (e) {
+      console.error('Failed to load history:', e);
+    }
     const recentTasks = completedTasks.slice(-100); // Last 100 tasks for analysis
 
     // Find most productive hours
@@ -80,7 +87,7 @@ const SmartSchedulingSuggestions = ({ taskType, taskName, duration = 60, onAccep
     });
 
     return patterns;
-  }, [state.history]);
+  }, [state.items]);
 
   // Generate smart suggestions based on analysis
   useEffect(() => {
@@ -90,7 +97,7 @@ const SmartSchedulingSuggestions = ({ taskType, taskName, duration = 60, onAccep
       const upcomingDays = 7; // Look ahead 7 days
 
       // Get current workload
-      const scheduledTasks = state.todos.filter(t => t.scheduledTime);
+      const scheduledTasks = state.items.filter(t => t.scheduledTime);
       const workloadByDay = {};
 
       scheduledTasks.forEach(task => {
@@ -170,7 +177,7 @@ const SmartSchedulingSuggestions = ({ taskType, taskName, duration = 60, onAccep
     };
 
     generateSuggestions();
-  }, [taskType, taskName, duration, userPatterns, state.todos]);
+  }, [taskType, taskName, duration, userPatterns, state.items]);
 
   // Generate reason for suggestion
   const generateReason = (hour, dayOffset, dayWorkload, patterns) => {

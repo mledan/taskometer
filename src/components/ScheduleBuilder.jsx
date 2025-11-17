@@ -3,15 +3,17 @@ import styles from './ScheduleLibrary.module.css';
 import CircularSchedule from './CircularSchedule.jsx';
 import { ACTIVITY_TYPES, createScheduleTemplate, saveScheduleToLocalStorage } from '../utils/scheduleTemplates.js';
 
-function ScheduleBuilder({ onClose, onCreated }) {
-  const [name, setName] = useState('My Schedule');
-  const [description, setDescription] = useState('Describe your schedule');
-  const [tags, setTags] = useState('community');
-  const [blocks, setBlocks] = useState([
-    { start: '09:00', end: '12:00', type: 'work', label: 'Work' },
-    { start: '13:00', end: '17:00', type: 'work', label: 'Work' },
-    { start: '22:30', end: '06:30', type: 'sleep', label: 'Sleep' },
-  ]);
+function ScheduleBuilder({ onClose, onCreated, initialSchedule }) {
+  const [name, setName] = useState(initialSchedule ? `${initialSchedule.name} (Copy)` : 'My Schedule');
+  const [description, setDescription] = useState(initialSchedule?.description || 'Describe your schedule');
+  const [tags, setTags] = useState(initialSchedule?.tags?.join(', ') || 'community');
+  const [blocks, setBlocks] = useState(
+    initialSchedule?.timeBlocks || [
+      { start: '09:00', end: '12:00', type: 'work', label: 'Work' },
+      { start: '13:00', end: '17:00', type: 'work', label: 'Work' },
+      { start: '22:30', end: '06:30', type: 'sleep', label: 'Sleep' },
+    ]
+  );
 
   const [newBlock, setNewBlock] = useState({ start: '07:00', end: '08:00', type: 'meals', label: 'Breakfast' });
 

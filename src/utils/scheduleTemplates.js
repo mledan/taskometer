@@ -206,13 +206,52 @@ export function validateTimeBlock(timeBlock) {
 }
 
 export function getTimeBlocksForDay(schedule, dayOfWeek = null) {
-  // For now, return daily blocks
-  // TODO: Handle weekly schedules with different days
-  return schedule.timeBlocks;
+  if (!schedule || !schedule.timeBlocks) {
+    return [];
+  }
+
+  // If no day specified or schedule is daily, return all blocks
+  if (!dayOfWeek || schedule.period === 'daily') {
+    return schedule.timeBlocks;
+  }
+
+  // For weekly schedules, filter blocks by day
+  // dayOfWeek should be a string like 'Monday', 'Tuesday', etc.
+  // or a number 0-6 (0 = Sunday, 1 = Monday, etc.)
+  let dayName = dayOfWeek;
+  if (typeof dayOfWeek === 'number') {
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    dayName = dayNames[dayOfWeek];
+  }
+
+  // Filter blocks that either:
+  // 1. Don't have a 'day' or 'days' field (apply to all days)
+  // 2. Have a 'day' field matching the requested day
+  // 3. Have a 'days' array containing the requested day
+  return schedule.timeBlocks.filter(block => {
+    // If block has no day specification, include it for all days
+    if (!block.day && !block.days) {
+      return true;
+    }
+
+    // Check if block.day matches
+    if (block.day && block.day.toLowerCase() === dayName.toLowerCase()) {
+      return true;
+    }
+
+    // Check if dayName is in block.days array
+    if (block.days && Array.isArray(block.days)) {
+      return block.days.some(d => d.toLowerCase() === dayName.toLowerCase());
+    }
+
+    return false;
+  });
 }
 
 export function findNextAvailableSlot(schedule, activityType, duration, currentTime = new Date()) {
-  const timeBlocks = getTimeBlocksForDay(schedule);
+  // Get the current day of week for weekly schedules
+  const dayOfWeek = currentTime.getDay();
+  const timeBlocks = getTimeBlocksForDay(schedule, dayOfWeek);
   const relevantBlocks = timeBlocks.filter(block => block.type === activityType);
   
   for (const block of relevantBlocks) {

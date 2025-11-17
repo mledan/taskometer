@@ -49,6 +49,7 @@ function ScheduleLibrary() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showBuilder, setShowBuilder] = useState(false);
+  const [scheduleToCustomize, setScheduleToCustomize] = useState(null);
 
   useEffect(() => {
     // Load schedules from localStorage and famous templates
@@ -292,10 +293,10 @@ function ScheduleLibrary() {
               >
                 {selectedSchedule.id === activeScheduleId ? 'Currently Active' : 'Activate This Schedule'}
               </button>
-              <button 
+              <button
                 onClick={() => {
-                  // TODO: Implement clone/customize functionality
-                  alert('Customize feature coming soon!');
+                  setScheduleToCustomize(selectedSchedule);
+                  setShowBuilder(true);
                 }}
                 className={styles.customizeButton}
               >
@@ -322,12 +323,17 @@ function ScheduleLibrary() {
       )}
 
       {showBuilder && (
-        <ScheduleBuilder 
-          onClose={() => setShowBuilder(false)}
+        <ScheduleBuilder
+          initialSchedule={scheduleToCustomize}
+          onClose={() => {
+            setShowBuilder(false);
+            setScheduleToCustomize(null);
+          }}
           onCreated={(sched) => {
             setShowBuilder(false);
+            setScheduleToCustomize(null);
             const custom = getSchedulesFromLocalStorage();
-            setSchedules([...FAMOUS_SCHEDULES, ...custom]);
+            setSchedules([...FAMOUS_SCHEDULES, ...ENHANCED_FAMOUS_SCHEDULES, ...custom]);
             setSelectedSchedule(sched);
           }}
         />
