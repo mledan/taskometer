@@ -1,0 +1,250 @@
+/**
+ * TagSelector Component Styles
+ */
+
+.container {
+  position: relative;
+  width: 100%;
+}
+
+.container.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.container.compact .inputWrapper {
+  padding: 6px 8px;
+  min-height: 32px;
+}
+
+.container.compact .tagChip {
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.container.compact .searchInput {
+  font-size: 12px;
+}
+
+/* Input wrapper */
+.inputWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  min-height: 42px;
+  background: var(--input-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: text;
+  transition: border-color 0.2s ease;
+}
+
+.inputWrapper:focus-within {
+  border-color: var(--green);
+}
+
+.selectedTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  align-items: center;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 100px;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 14px;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: var(--font-color);
+  opacity: 0.4;
+}
+
+.dropdownIcon {
+  font-size: 10px;
+  color: var(--font-color);
+  opacity: 0.5;
+}
+
+/* Tag chips */
+.tagChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.chipIcon {
+  font-size: 12px;
+}
+
+.chipName {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipRemove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 0 0 4px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.chipRemove:hover {
+  opacity: 1;
+}
+
+/* Tag count */
+.tagCount {
+  position: absolute;
+  right: 8px;
+  bottom: -18px;
+  font-size: 10px;
+  color: var(--font-color);
+  opacity: 0.4;
+}
+
+/* Dropdown */
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--input-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  margin-top: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.dropdown::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+/* Category groups */
+.categoryGroup {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.categoryGroup:last-child {
+  border-bottom: none;
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--font-color);
+  opacity: 0.5;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Options */
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.option:hover,
+.option.highlighted {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.option.highlighted {
+  background: rgba(98, 220, 165, 0.15);
+}
+
+.optionIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.optionContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.optionName {
+  display: block;
+  color: var(--font-color);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.optionDescription {
+  display: block;
+  color: var(--font-color);
+  opacity: 0.5;
+  font-size: 12px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* No results */
+.noResults {
+  padding: 20px;
+  text-align: center;
+  color: var(--font-color);
+  opacity: 0.5;
+  font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dropdown {
+    max-height: 250px;
+  }
+
+  .tagChip {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+}

@@ -1,0 +1,394 @@
+/**
+ * TaskInput Component Styles
+ */
+
+.form {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Main input */
+.mainInput {
+  position: relative;
+  width: 100%;
+}
+
+.mainInput input {
+  width: 100%;
+  height: 60px;
+  padding: 16px 70px 16px 48px;
+  background: var(--input-color);
+  border: none;
+  border-radius: 8px;
+  color: var(--font-color);
+  font-size: 18px;
+  outline: none;
+  box-sizing: border-box;
+  transition: box-shadow 0.2s ease;
+}
+
+.mainInput input:focus {
+  box-shadow: 0 0 0 2px var(--green);
+}
+
+.mainInput input::placeholder {
+  color: var(--font-color);
+  opacity: 0.4;
+}
+
+.typeIndicator {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.submitButton {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  background: no-repeat center url("../../img/plus.svg");
+  background-size: 24px;
+  border: none;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.submitButton:hover {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.submitButton:focus {
+  outline: none;
+}
+
+/* Slot preview */
+.slotPreview {
+  position: absolute;
+  left: 48px;
+  bottom: -20px;
+  font-size: 12px;
+  color: var(--green);
+  opacity: 0.8;
+}
+
+/* Options panel */
+.options {
+  background: var(--input-color);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.optionsRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.optionsRow > label,
+.optionsRow > div {
+  flex: 1;
+  min-width: 140px;
+}
+
+/* Labels */
+.labelText {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--font-color);
+  opacity: 0.5;
+  margin-bottom: 6px;
+}
+
+/* Type selector */
+.typeLabel {
+  flex: 1;
+}
+
+.typeSelectWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.typeColorDot {
+  position: absolute;
+  left: 10px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.typeSelect {
+  width: 100%;
+  padding: 10px 12px 10px 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--font-color);
+  font-size: 14px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.typeSelect:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+/* Tags wrapper */
+.tagsWrapper {
+  flex: 2;
+  min-width: 200px;
+}
+
+/* Scheduling */
+.scheduleLabel select,
+.priorityLabel select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--font-color);
+  font-size: 14px;
+}
+
+.scheduleLabel select:focus,
+.priorityLabel select:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+/* Duration input */
+.durationLabel {
+  flex: 0.7;
+}
+
+.durationInput {
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.durationInput input {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 14px;
+  width: 60px;
+  -moz-appearance: textfield;
+}
+
+.durationInput input::-webkit-outer-spin-button,
+.durationInput input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.durationInput input:focus {
+  outline: none;
+}
+
+.durationUnit {
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--font-color);
+  opacity: 0.5;
+  background: rgba(0, 0, 0, 0.1);
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+/* Priority label */
+.priorityLabel {
+  flex: 0.8;
+}
+
+/* Delay input */
+.delayLabel {
+  flex: 1;
+  max-width: 200px;
+}
+
+.delayInput {
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.delayInput input {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 14px;
+  width: 60px;
+}
+
+.delayInput input:focus {
+  outline: none;
+}
+
+.delayUnit {
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--font-color);
+  opacity: 0.5;
+  background: rgba(0, 0, 0, 0.1);
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+/* Date/time inputs */
+.dateLabel,
+.timeLabel {
+  flex: 1;
+}
+
+.dateLabel input,
+.timeLabel input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--font-color);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.dateLabel input:focus,
+.timeLabel input:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+/* Footer */
+.optionsFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.autoScheduleToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--font-color);
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.autoScheduleToggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+}
+
+.collapseButton {
+  background: none;
+  border: none;
+  color: var(--font-color);
+  opacity: 0.5;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.collapseButton:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .mainInput input {
+    height: 54px;
+    font-size: 16px;
+    padding: 14px 60px 14px 44px;
+  }
+
+  .typeIndicator {
+    left: 14px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .submitButton {
+    right: 14px;
+    width: 28px;
+    height: 28px;
+    background-size: 20px;
+  }
+
+  .options {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .optionsRow {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .optionsRow > label,
+  .optionsRow > div {
+    min-width: 100%;
+  }
+
+  .tagsWrapper {
+    min-width: 100%;
+  }
+
+  .optionsFooter {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+}
+
+/* Wide screens */
+@media (min-width: 1440px) {
+  .mainInput input {
+    height: 66px;
+    font-size: 20px;
+  }
+
+  .options {
+    padding: 20px;
+  }
+}
