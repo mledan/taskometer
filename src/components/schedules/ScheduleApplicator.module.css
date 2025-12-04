@@ -1,0 +1,559 @@
+/**
+ * ScheduleApplicator Component Styles
+ */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: var(--bg);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--font-color);
+  font-size: 28px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.closeButton:hover {
+  opacity: 1;
+}
+
+/* Content */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--font-color);
+  margin: 0 0 14px 0;
+  opacity: 0.9;
+}
+
+/* Schedule Grid */
+.scheduleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.scheduleCard {
+  background: var(--input-color);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.scheduleCard:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.scheduleCard.selected {
+  border-color: var(--green);
+  background: rgba(98, 220, 165, 0.1);
+}
+
+.scheduleName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--font-color);
+  margin-bottom: 4px;
+}
+
+.scheduleAuthor {
+  font-size: 12px;
+  color: var(--font-color);
+  opacity: 0.5;
+  margin-bottom: 8px;
+}
+
+.scheduleTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--font-color);
+  opacity: 0.7;
+}
+
+/* Subsections */
+.subsection {
+  margin-bottom: 16px;
+}
+
+.subsectionLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--font-color);
+  opacity: 0.6;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hint {
+  display: block;
+  font-size: 12px;
+  color: var(--font-color);
+  opacity: 0.4;
+  font-style: italic;
+  margin-top: 6px;
+}
+
+/* Category List */
+.categoryList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.categoryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--font-color);
+  transition: all 0.2s ease;
+}
+
+.categoryButton:hover {
+  transform: translateY(-1px);
+}
+
+.categoryButton.selected {
+  font-weight: 500;
+}
+
+/* Block List */
+.blockList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.blockButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid;
+  border-radius: 6px;
+  background: var(--input-color);
+  cursor: pointer;
+  text-align: left;
+  color: var(--font-color);
+  transition: all 0.2s ease;
+}
+
+.blockButton.included {
+  opacity: 1;
+}
+
+.blockButton.excluded {
+  opacity: 0.4;
+}
+
+.blockTime {
+  font-family: monospace;
+  font-size: 12px;
+  opacity: 0.7;
+  min-width: 100px;
+}
+
+.blockLabel {
+  font-size: 13px;
+}
+
+/* Date Range */
+.dateRangeOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.rangeButton {
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rangeButton:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.rangeButton.selected {
+  background: var(--green);
+  border-color: var(--green);
+  color: #1a1a2e;
+  font-weight: 500;
+}
+
+.customDateInputs {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.customDateInputs label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.customDateInputs span {
+  font-size: 11px;
+  color: var(--font-color);
+  opacity: 0.6;
+  text-transform: uppercase;
+}
+
+.customDateInputs input {
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 14px;
+}
+
+.customDateInputs input:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+/* Recurring */
+.recurringOption {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--font-color);
+}
+
+.checkboxLabel input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
+}
+
+.dayButtons {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.dayButton {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dayButton:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dayButton.selected {
+  background: var(--green);
+  border-color: var(--green);
+  color: #1a1a2e;
+}
+
+/* Mode Options */
+.modeOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modeButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--font-color);
+  transition: all 0.2s ease;
+}
+
+.modeButton:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.modeButton.selected {
+  border-color: var(--green);
+  background: rgba(98, 220, 165, 0.1);
+}
+
+.modeIcon {
+  font-size: 20px;
+}
+
+.modeName {
+  font-weight: 600;
+  font-size: 14px;
+  min-width: 80px;
+}
+
+.modeDescription {
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+/* Preview */
+.previewList {
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--input-color);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.previewSlot {
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+}
+
+.previewSlot:last-child {
+  border-bottom: none;
+}
+
+.previewDate {
+  font-family: monospace;
+  color: var(--font-color);
+  opacity: 0.6;
+  min-width: 100px;
+}
+
+.previewTime {
+  font-family: monospace;
+  color: var(--font-color);
+  min-width: 110px;
+}
+
+.previewLabel {
+  color: var(--font-color);
+  flex: 1;
+}
+
+.previewMore {
+  padding: 8px;
+  text-align: center;
+  color: var(--font-color);
+  opacity: 0.5;
+  font-size: 12px;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.actionsRight {
+  display: flex;
+  gap: 10px;
+}
+
+.cancelButton {
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: var(--font-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancelButton:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.previewButton {
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px solid var(--accent-color);
+  border-radius: 6px;
+  color: var(--accent-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.previewButton:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.previewButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.applyButton {
+  padding: 10px 24px;
+  background: var(--green);
+  border: none;
+  border-radius: 6px;
+  color: #1a1a2e;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.applyButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.applyButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-width: 100%;
+    max-height: 95vh;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .scheduleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .customDateInputs {
+    flex-direction: column;
+  }
+
+  .dayButtons {
+    flex-wrap: wrap;
+  }
+
+  .modeButton {
+    flex-wrap: wrap;
+  }
+
+  .modeDescription {
+    width: 100%;
+    margin-top: 4px;
+  }
+}

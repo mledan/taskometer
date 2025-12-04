@@ -1,0 +1,322 @@
+/**
+ * SlotConfigPanel Component Styles
+ */
+
+.panel {
+  background: var(--bg);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--font-color);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.5;
+}
+
+.closeButton:hover {
+  opacity: 1;
+}
+
+/* Content */
+.content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Preview */
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 2px solid;
+  margin-bottom: 20px;
+}
+
+.previewLabel {
+  color: var(--font-color);
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.previewMeta {
+  color: var(--font-color);
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+/* Fields */
+.field {
+  margin-bottom: 20px;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--font-color);
+  opacity: 0.8;
+}
+
+.field input[type="text"],
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--font-color);
+  opacity: 0.5;
+}
+
+/* Type selector */
+.typeSelectWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.typeColorDot {
+  position: absolute;
+  left: 10px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.typeSelectWrapper select {
+  padding-left: 30px;
+}
+
+/* Flexibility options */
+.flexibilityOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flexOption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--input-color);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--font-color);
+  transition: all 0.2s ease;
+}
+
+.flexOption:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.flexOption.active {
+  border-color: var(--green);
+  background: rgba(98, 220, 165, 0.1);
+}
+
+.flexIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.flexLabel {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.flexDescription {
+  width: 100%;
+  font-size: 12px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
+/* Tags */
+.tagsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tagButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--font-color);
+  transition: all 0.2s ease;
+}
+
+.tagButton:hover {
+  transform: translateY(-1px);
+}
+
+.tagSelected {
+  font-weight: 500;
+}
+
+/* Color input */
+.colorInput {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.colorInput input[type="color"] {
+  width: 48px;
+  height: 48px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--input-color);
+}
+
+.colorInput span {
+  font-size: 13px;
+  color: var(--font-color);
+  opacity: 0.6;
+  font-family: monospace;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.actionsRight {
+  display: flex;
+  gap: 10px;
+}
+
+.deleteButton {
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid var(--red);
+  border-radius: 6px;
+  color: var(--red);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.deleteButton:hover {
+  background: rgba(225, 103, 90, 0.2);
+}
+
+.cancelButton {
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: var(--font-color);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.cancelButton:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.saveButton {
+  padding: 10px 20px;
+  background: var(--green);
+  border: none;
+  border-radius: 6px;
+  color: #1a1a2e;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.saveButton:hover {
+  opacity: 0.9;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .panel {
+    max-width: 100%;
+    border-radius: 12px 12px 0 0;
+    max-height: 80vh;
+  }
+
+  .flexibilityOptions {
+    gap: 6px;
+  }
+
+  .flexOption {
+    padding: 10px;
+  }
+}

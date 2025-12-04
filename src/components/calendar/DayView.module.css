@@ -1,0 +1,248 @@
+/**
+ * DayView Component Styles
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-color);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--input-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.headerContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dayName {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.dateDisplay {
+  font-size: 13px;
+  color: var(--font-color);
+  opacity: 0.6;
+}
+
+.todayBadge {
+  background: var(--green);
+  color: #1a1a2e;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Grid */
+.grid {
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Time column */
+.timeColumn {
+  min-width: 60px;
+  border-right: 1px solid var(--border-color);
+  background: var(--input-color);
+  flex-shrink: 0;
+}
+
+.timeLabel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4px;
+  font-size: 11px;
+  color: var(--font-color);
+  opacity: 0.5;
+  box-sizing: border-box;
+}
+
+/* Content column */
+.contentColumn {
+  flex: 1;
+  position: relative;
+}
+
+.timeSlotLine {
+  border-bottom: 1px solid var(--border-color);
+  box-sizing: border-box;
+}
+
+.hourLine {
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Current time indicator */
+.currentTimeWrapper {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.currentTimeLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    #3b82f6 0%,
+    #3b82f6 70%,
+    rgba(59, 130, 246, 0.3) 100%);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+}
+
+.currentTimeDot {
+  position: absolute;
+  left: -6px;
+  top: -5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.currentTimeLabel {
+  position: absolute;
+  left: 16px;
+  top: -18px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #3b82f6;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* Tasks */
+.task {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: white;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 6;
+}
+
+.taskTitle {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.taskType {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* Task states */
+.taskCurrent {
+  border: 2px solid white;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+  animation: currentPulse 2s ease-in-out infinite;
+}
+
+.taskPast {
+  opacity: 0.6;
+  filter: grayscale(20%);
+}
+
+.taskCompleted {
+  opacity: 0.4;
+  text-decoration: line-through;
+  filter: grayscale(40%);
+}
+
+.taskPaused {
+  opacity: 0.7;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+}
+
+@keyframes currentPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .header {
+    padding: 12px 16px;
+  }
+
+  .dayName {
+    font-size: 16px;
+  }
+
+  .dateDisplay {
+    font-size: 12px;
+  }
+
+  .timeColumn {
+    min-width: 50px;
+  }
+
+  .timeLabel {
+    font-size: 10px;
+  }
+
+  .task {
+    left: 4px;
+    right: 4px;
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+}
