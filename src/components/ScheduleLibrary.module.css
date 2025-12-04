@@ -335,26 +335,74 @@
   background: var(--hover-color);
 }
 
+/* View Toggle */
+.viewToggle {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.viewToggleBtn {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid var(--border-color, #E2E8F0);
+  background: var(--input-color, white);
+  color: var(--font-color-secondary, #64748B);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.viewToggleBtn:first-child {
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+}
+
+.viewToggleBtn:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.viewToggleBtn:hover:not(.viewToggleActive) {
+  background: var(--hover-color, #F1F5F9);
+}
+
+.viewToggleActive {
+  background: var(--accent-color, #2563EB);
+  color: white;
+  border-color: var(--accent-color, #2563EB);
+}
+
+.cardPreview {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .scheduleGrid {
     grid-template-columns: 1fr;
   }
-  
+
   .controls {
     flex-direction: column;
   }
-  
+
   .filters {
     width: 100%;
     justify-content: center;
   }
-  
+
   .modalContent {
     padding: 20px;
   }
-  
+
   .modalActions {
     flex-direction: column;
+  }
+
+  .viewToggle {
+    order: -1;
   }
 }

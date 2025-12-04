@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { 
-  FAMOUS_SCHEDULES, 
-  getSchedulesFromLocalStorage, 
+import {
+  FAMOUS_SCHEDULES,
+  getSchedulesFromLocalStorage,
   setActiveSchedule,
   getActiveSchedule,
   ACTIVITY_TYPES,
-  saveScheduleToLocalStorage 
+  saveScheduleToLocalStorage
 } from '../utils/scheduleTemplates.js';
-import { 
+import {
   ENHANCED_FAMOUS_SCHEDULES,
   BLOCK_CATEGORIES,
   applyTemplateToDateRange,
@@ -17,6 +17,7 @@ import styles from './ScheduleLibrary.module.css';
 import CircularSchedule from './CircularSchedule.jsx';
 import ScheduleBuilder from './ScheduleBuilder.jsx';
 import ScheduleDiscussion from './ScheduleDiscussion.jsx';
+import HistoricalFiguresGantt from './HistoricalFiguresGantt.jsx';
 import { getLikes, toggleLike } from '../utils/community.js';
 
 function CardDescription({ text = '' }) {
@@ -50,6 +51,7 @@ function ScheduleLibrary() {
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showBuilder, setShowBuilder] = useState(false);
   const [scheduleToCustomize, setScheduleToCustomize] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'chronomap'
 
   useEffect(() => {
     // Load schedules from localStorage and famous templates
@@ -195,54 +197,76 @@ function ScheduleLibrary() {
       <div className={styles.header}>
         <h2>Schedule Library</h2>
         <p>Choose a schedule template that fits your lifestyle</p>
-        <div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div className={styles.viewToggle}>
+            <button
+              className={`${styles.viewToggleBtn} ${viewMode === 'grid' ? styles.viewToggleActive : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Grid View"
+            >
+              Grid
+            </button>
+            <button
+              className={`${styles.viewToggleBtn} ${viewMode === 'chronomap' ? styles.viewToggleActive : ''}`}
+              onClick={() => setViewMode('chronomap')}
+              title="ChronoMap View"
+            >
+              ChronoMap
+            </button>
+          </div>
           <button className={styles.activateButton} onClick={() => setShowBuilder(true)}>Create Schedule</button>
         </div>
       </div>
 
-      <div className={styles.controls}>
-        <input 
-          type="text"
-          placeholder="Search schedules..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className={styles.searchInput}
-        />
-        <div className={styles.filters}>
-          <button 
-            className={filter === 'all' ? styles.filterActive : ''}
-            onClick={() => setFilter('all')}
-          >
-            All
-          </button>
-          <button 
-            className={filter === 'famous' ? styles.filterActive : ''}
-            onClick={() => setFilter('famous')}
-          >
-            Famous People
-          </button>
-          <button 
-            className={filter === 'community' ? styles.filterActive : ''}
-            onClick={() => setFilter('community')}
-          >
-            Community
-          </button>
-          <button 
-            className={filter === 'custom' ? styles.filterActive : ''}
-            onClick={() => setFilter('custom')}
-          >
-            My Schedules
-          </button>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ marginLeft: 12 }}>
-            <option value="default">Sort: Default</option>
-            <option value="most_liked">Sort: Most Liked</option>
-          </select>
-        </div>
-      </div>
+      {viewMode === 'chronomap' ? (
+        <HistoricalFiguresGantt />
+      ) : (
+        <>
+          <div className={styles.controls}>
+            <input
+              type="text"
+              placeholder="Search schedules..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={styles.searchInput}
+            />
+            <div className={styles.filters}>
+              <button
+                className={filter === 'all' ? styles.filterActive : ''}
+                onClick={() => setFilter('all')}
+              >
+                All
+              </button>
+              <button
+                className={filter === 'famous' ? styles.filterActive : ''}
+                onClick={() => setFilter('famous')}
+              >
+                Famous People
+              </button>
+              <button
+                className={filter === 'community' ? styles.filterActive : ''}
+                onClick={() => setFilter('community')}
+              >
+                Community
+              </button>
+              <button
+                className={filter === 'custom' ? styles.filterActive : ''}
+                onClick={() => setFilter('custom')}
+              >
+                My Schedules
+              </button>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ marginLeft: 12 }}>
+                <option value="default">Sort: Default</option>
+                <option value="most_liked">Sort: Most Liked</option>
+              </select>
+            </div>
+          </div>
 
-      <div className={styles.scheduleGrid}>
-        {sortedSchedules.map(schedule => renderScheduleCard(schedule))}
-      </div>
+          <div className={styles.scheduleGrid}>
+            {sortedSchedules.map(schedule => renderScheduleCard(schedule))}
+          </div>
+        </>
+      )}
 
       {/* Schedule Preview Modal */}
       {selectedSchedule && (

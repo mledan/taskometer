@@ -1,0 +1,301 @@
+/* Container */
+.container {
+  padding: 24px;
+  background: var(--bg-1, #F8FAFC);
+  min-height: 100%;
+}
+
+/* Header */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border, #E2E8F0);
+}
+
+.titleSection {
+  flex: 1;
+  min-width: 200px;
+}
+
+.title {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-1, #0F172A);
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.accent {
+  color: var(--accent, #2563EB);
+}
+
+.subtitle {
+  font-size: 0.75rem;
+  color: var(--text-3, #64748B);
+  margin: 4px 0 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Era Toggle */
+.eraToggle {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.toggleBtn {
+  padding: 10px 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid var(--border, #E2E8F0);
+  background: var(--bg-2, white);
+  color: var(--text-2, #64748B);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggleBtn:first-child {
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+}
+
+.toggleBtn:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.toggleBtn:hover:not(.active) {
+  background: var(--bg-3, #F1F5F9);
+}
+
+.toggleBtn.active {
+  background: var(--text-1, #0F172A);
+  color: white;
+  border-color: var(--text-1, #0F172A);
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--text-2, #475569);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Clock Grid */
+.clockGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+/* Clock Card */
+.clockCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  background: var(--bg-2, white);
+  border-radius: 16px;
+  border: 1px solid var(--border, #E2E8F0);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clockCard:hover,
+.clockCardHovered {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent, #2563EB);
+}
+
+/* Clock Container */
+.clockContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Clock Ring (the colored donut) */
+.clockRing {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  mask: radial-gradient(circle at center, transparent 0 50%, black 50% 100%);
+  -webkit-mask: radial-gradient(circle at center, transparent 0 50%, black 50% 100%);
+}
+
+/* Center circle */
+.clockCenter {
+  position: absolute;
+  width: 45%;
+  height: 45%;
+  border-radius: 50%;
+  background: var(--bg-2, white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.clockCenterText {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-3, #94A3B8);
+}
+
+/* Hour labels */
+.hourLabel {
+  position: absolute;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--text-3, #64748B);
+  pointer-events: none;
+}
+
+/* Tick marks */
+.tick {
+  position: absolute;
+  width: 1px;
+  height: 6px;
+  background: var(--border, #CBD5E1);
+  top: 4px;
+  left: 50%;
+  transform-origin: center calc(50% + 86px);
+}
+
+.tickMajor {
+  height: 10px;
+  width: 2px;
+  background: var(--text-3, #94A3B8);
+}
+
+/* Clock Name */
+.clockName {
+  margin-top: 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-1, #1E293B);
+  text-align: center;
+}
+
+/* Details Panel */
+.detailsPanel {
+  background: var(--bg-2, white);
+  border-radius: 12px;
+  border: 1px solid var(--border, #E2E8F0);
+  padding: 20px;
+  min-height: 120px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.detailsHint {
+  color: var(--text-2, #64748B);
+  text-align: center;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.detailsContent {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detailsName {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-1, #0F172A);
+  margin: 0 0 12px 0;
+}
+
+.scheduleBreakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+
+.breakdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-1, #F8FAFC);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+}
+
+.breakdownDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.breakdownTime {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--accent, #2563EB);
+  font-weight: 500;
+  min-width: 130px;
+}
+
+.breakdownDesc {
+  color: var(--text-2, #475569);
+  flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .clockGrid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  .clockCard {
+    padding: 16px;
+  }
+
+  .scheduleBreakdown {
+    grid-template-columns: 1fr;
+  }
+}
