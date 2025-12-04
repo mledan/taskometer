@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import TodoDate from "./components/TodoDate.jsx";
 import ItemList from "./components/ItemList.jsx";
 import TaskTypeManager from "./components/TaskTypeManager.jsx";
@@ -8,17 +8,39 @@ import ScheduleLibrary from "./components/ScheduleLibrary.jsx";
 import Community from "./components/Community.jsx";
 import TabNavigation, { VIEWS } from "./components/TabNavigation.jsx";
 import Notifications from "./components/Notifications.jsx";
+import PWAStatus from "./components/PWAStatus.jsx";
+import OnboardingTour from "./components/OnboardingTour.jsx";
+import KeyboardShortcuts from "./components/KeyboardShortcuts.jsx";
 import { AppStateProvider } from "./AppContext.jsx";
+import { ThemeProvider, useTheme } from "./context/ThemeContext.jsx";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts.js";
 import styles from './App.module.css';
 
-function App() {
+// Inner app component that uses hooks
+function AppContent() {
 	const [activeView, setActiveView] = useState(VIEWS.TODOS);
+	const [showShortcuts, setShowShortcuts] = useState(false);
+	const { toggleTheme } = useTheme();
+
+	// Keyboard shortcuts handlers
+	const shortcutHandlers = {
+		goToTodos: () => setActiveView(VIEWS.TODOS),
+		goToCalendar: () => setActiveView(VIEWS.CALENDAR),
+		goToSchedules: () => setActiveView(VIEWS.SCHEDULES),
+		goToHistory: () => setActiveView(VIEWS.HISTORY),
+		goToTaskTypes: () => setActiveView(VIEWS.TASK_TYPES),
+		toggleDarkMode: () => toggleTheme(),
+		showHelp: () => setShowShortcuts(true),
+		cancel: () => setShowShortcuts(false),
+	};
+
+	useKeyboardShortcuts(shortcutHandlers);
 
 	return (
-		<AppStateProvider>
+		<>
 			<div className={styles.app}>
 				<TabNavigation activeView={activeView} onViewChange={setActiveView} />
-				
+
 				<div className={styles.content}>
 					{activeView === VIEWS.TODOS && (
 						<div className={styles.todosView}>
@@ -58,8 +80,24 @@ function App() {
 					)}
 				</div>
 				<Notifications />
+				<PWAStatus />
 			</div>
-		</AppStateProvider>
+			<OnboardingTour />
+			<KeyboardShortcuts
+				isOpen={showShortcuts}
+				onClose={() => setShowShortcuts(false)}
+			/>
+		</>
+	);
+}
+
+function App() {
+	return (
+		<ThemeProvider>
+			<AppStateProvider>
+				<AppContent />
+			</AppStateProvider>
+		</ThemeProvider>
 	);
 }
 

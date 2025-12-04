@@ -1,19 +1,28 @@
 .navigation {
   display: flex;
-  gap: 2px;
-  padding: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
   background: var(--bg-color);
   border-bottom: 1px solid var(--border-color);
   width: 100%;
   box-sizing: border-box;
-  justify-content: center;
+  gap: 16px;
+  transition: var(--theme-transition);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
   flex-wrap: wrap;
+  justify-content: center;
+  flex: 1;
 }
 
 .tab {
   padding: 10px 20px;
   border: none;
-  border-radius: 3px;
+  border-radius: 6px;
   background: var(--input-color);
   color: var(--font-color);
   cursor: pointer;
@@ -22,7 +31,7 @@
 }
 
 .tab:hover {
-  background: var(--hover-color);
+  background: rgba(255, 255, 255, 0.1);
   transform: translateY(-1px);
 }
 
@@ -31,19 +40,39 @@
   color: white;
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 /* Mobile responsive design */
 @media (max-width: 768px) {
   .navigation {
-    padding: 5px;
-    gap: 1px;
+    padding: 8px 10px;
+    flex-wrap: wrap;
+    gap: 8px;
   }
-  
+
+  .tabs {
+    order: 2;
+    width: 100%;
+    gap: 4px;
+  }
+
+  .actions {
+    order: 1;
+    margin-left: auto;
+  }
+
   .tab {
     padding: 8px 12px;
     font-size: 12px;
     flex: 1;
     min-width: 0;
     text-align: center;
+    white-space: nowrap;
   }
 }
 

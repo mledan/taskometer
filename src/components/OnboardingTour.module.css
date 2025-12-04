@@ -1,0 +1,234 @@
+/**
+ * OnboardingTour Component Styles
+ */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 10000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Spotlight effect */
+.spotlight {
+  position: fixed;
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.75),
+    0 0 15px rgba(98, 220, 165, 0.5);
+  border: 2px solid var(--green);
+  pointer-events: none;
+  transition: all 0.3s ease;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 9999px rgba(0, 0, 0, 0.75),
+      0 0 15px rgba(98, 220, 165, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 0 9999px rgba(0, 0, 0, 0.75),
+      0 0 25px rgba(98, 220, 165, 0.8);
+  }
+}
+
+/* Tooltip */
+.tooltip {
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: calc(100vw - 40px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  z-index: 10001;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.tooltipHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tooltipHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.stepCounter {
+  font-size: 12px;
+  color: var(--font-color-secondary);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.tooltipDescription {
+  margin: 0 0 20px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--font-color);
+  opacity: 0.8;
+}
+
+.tooltipActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.tooltipRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backButton {
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--font-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.backButton:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.skipButton {
+  padding: 10px 18px;
+  background: transparent;
+  border: none;
+  color: var(--font-color);
+  opacity: 0.6;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.skipButton:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.nextButton {
+  padding: 10px 24px;
+  background: var(--green);
+  border: none;
+  border-radius: 6px;
+  color: #1a1a2e;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.nextButton:hover {
+  opacity: 0.9;
+}
+
+/* Progress dots */
+.progressDots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dot:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.activeDot {
+  background: var(--green);
+  transform: scale(1.2);
+}
+
+.completedDot {
+  background: var(--green);
+  opacity: 0.5;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .tooltip {
+    padding: 20px;
+    max-width: calc(100vw - 32px);
+    left: 16px !important;
+    right: 16px !important;
+    transform: none !important;
+    bottom: auto;
+    top: auto;
+  }
+
+  .tooltipHeader h3 {
+    font-size: 16px;
+  }
+
+  .tooltipDescription {
+    font-size: 13px;
+  }
+
+  .tooltipActions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .tooltipRight {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .backButton,
+  .nextButton {
+    flex: 1;
+    text-align: center;
+  }
+}
