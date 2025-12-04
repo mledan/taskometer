@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAppState, useAppReducer } from '../AppContext.jsx';
 import { format } from 'date-fns';
 import { formatLocalTime } from '../utils/timeDisplay.js';
+import { AuditLogViewer, ProductivityDashboard } from './history';
 import styles from './History.module.css';
 
 function History() {
@@ -9,6 +10,7 @@ function History() {
   const dispatch = useAppReducer();
   const [historyItems, setHistoryItems] = useState([]);
   const [filter, setFilter] = useState('all'); // all, completed, paused, removed
+  const [activeTab, setActiveTab] = useState('tasks'); // tasks, audit, analytics
 
   // Load history from localStorage
   useEffect(() => {
@@ -124,11 +126,11 @@ function History() {
     }
   }
 
-  return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h2>Task History</h2>
-        <div className={styles.controls}>
+  // Render task history content
+  function renderTaskHistory() {
+    return (
+      <>
+        <div className={styles.historyControls}>
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="all">All</option>
             <option value="completed">Completed</option>
@@ -139,47 +141,84 @@ function History() {
             Clear History
           </button>
         </div>
+
+        <div className={styles.historyList}>
+          {filteredItems.length === 0 ? (
+            <div className={styles.emptyState}>
+              No history items to display
+            </div>
+          ) : (
+            filteredItems.map(item => (
+              <div key={item.key} className={styles.historyItem}>
+                <div className={styles.itemInfo}>
+                  <span className={`${styles.status} ${styles[item.status]}`}>
+                    {item.status}
+                  </span>
+                  <span className={styles.text}>{item.text}</span>
+                  <span className={styles.metadata}>
+                    Duration: {item.duration}min |
+                    Priority: {item.priority} |
+                    Type: {item.taskType}
+                  </span>
+                  <span className={styles.timestamp}>
+                    {item.completedAt && `Completed: ${formatTimestamp(item.completedAt)}`}
+                    {item.pausedAt && `Paused: ${formatTimestamp(item.pausedAt)}`}
+                    {item.removedAt && `Removed: ${formatTimestamp(item.removedAt)}`}
+                  </span>
+                </div>
+                <div className={styles.actions}>
+                  <button onClick={() => restoreItem(item)} title="Restore to active list">
+                    ↺ Restore
+                  </button>
+                  <button
+                    onClick={() => permanentlyDelete(item)}
+                    className={styles.deleteButton}
+                    title="Permanently delete"
+                  >
+                    × Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <h2>History & Analytics</h2>
       </div>
 
-      <div className={styles.historyList}>
-        {filteredItems.length === 0 ? (
-          <div className={styles.emptyState}>
-            No history items to display
-          </div>
-        ) : (
-          filteredItems.map(item => (
-            <div key={item.key} className={styles.historyItem}>
-              <div className={styles.itemInfo}>
-                <span className={`${styles.status} ${styles[item.status]}`}>
-                  {item.status}
-                </span>
-                <span className={styles.text}>{item.text}</span>
-                <span className={styles.metadata}>
-                  Duration: {item.duration}min | 
-                  Priority: {item.priority} | 
-                  Type: {item.taskType}
-                </span>
-                <span className={styles.timestamp}>
-                  {item.completedAt && `Completed: ${formatTimestamp(item.completedAt)}`}
-                  {item.pausedAt && `Paused: ${formatTimestamp(item.pausedAt)}`}
-                  {item.removedAt && `Removed: ${formatTimestamp(item.removedAt)}`}
-                </span>
-              </div>
-              <div className={styles.actions}>
-                <button onClick={() => restoreItem(item)} title="Restore to active list">
-                  ↺ Restore
-                </button>
-                <button 
-                  onClick={() => permanentlyDelete(item)} 
-                  className={styles.deleteButton}
-                  title="Permanently delete"
-                >
-                  × Delete
-                </button>
-              </div>
-            </div>
-          ))
-        )}
+      {/* Tabs */}
+      <div className={styles.tabs}>
+        <button
+          className={`${styles.tab} ${activeTab === 'tasks' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('tasks')}
+        >
+          Task History
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'audit' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('audit')}
+        >
+          Audit Log
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'analytics' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('analytics')}
+        >
+          Analytics
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      <div className={styles.tabContent}>
+        {activeTab === 'tasks' && renderTaskHistory()}
+        {activeTab === 'audit' && <AuditLogViewer />}
+        {activeTab === 'analytics' && <ProductivityDashboard />}
       </div>
     </div>
   );

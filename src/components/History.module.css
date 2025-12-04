@@ -22,6 +22,62 @@
   margin: 0;
 }
 
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 0;
+}
+
+.tab {
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--font-color);
+  opacity: 0.6;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  opacity: 0.8;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.activeTab {
+  opacity: 1;
+  border-bottom-color: var(--green, #62DCA5);
+  color: var(--green, #62DCA5);
+}
+
+/* Tab Content */
+.tabContent {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* History Controls (within task history tab) */
+.historyControls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 0;
+}
+
+.historyControls select {
+  padding: 8px 12px;
+  background: var(--input-color);
+  color: var(--font-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 .controls {
   display: flex;
   gap: 10px;
@@ -179,32 +235,48 @@
   .container {
     padding: 10px;
   }
-  
+
   .header {
     flex-direction: column;
     gap: 10px;
     text-align: center;
   }
-  
+
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab {
+    padding: 10px 14px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .historyControls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
   .controls {
     width: 100%;
     justify-content: center;
   }
-  
+
   .historyItem {
     flex-direction: column;
     gap: 10px;
   }
-  
+
   .itemInfo {
     width: 100%;
   }
-  
+
   .actions {
     width: 100%;
     justify-content: center;
   }
-  
+
   .metadata {
     flex-wrap: wrap;
   }
