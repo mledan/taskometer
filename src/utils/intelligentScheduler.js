@@ -78,7 +78,8 @@ export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
 
     if (!hasConflict) {
       return {
-        scheduledTime: slotStart.toISOString(),
+        scheduledFor: slotStart.toISOString(),
+        scheduledTime: slotStart.toISOString(), // Legacy compatibility
         timeBlock: block,
         confidence: calculateConfidence(task, block)
       };
@@ -107,7 +108,8 @@ export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
 
       if (!hasNextConflict) {
         return {
-          scheduledTime: nextSlot.toISOString(),
+          scheduledFor: nextSlot.toISOString(),
+          scheduledTime: nextSlot.toISOString(), // Legacy compatibility
           timeBlock: block,
           confidence: calculateConfidence(task, block)
         };

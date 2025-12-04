@@ -1,0 +1,430 @@
+/**
+ * TagManager Component Styles
+ */
+
+.container {
+  padding: 20px;
+  background: var(--bg);
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.header {
+  margin-bottom: 20px;
+}
+
+.header h2 {
+  color: var(--font-color);
+  margin: 0 0 8px 0;
+  font-size: 24px;
+}
+
+.subtitle {
+  color: var(--font-color);
+  opacity: 0.7;
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 14px;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+.categoryFilter {
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 14px;
+  min-width: 160px;
+}
+
+/* Error display */
+.error {
+  background: rgba(225, 103, 90, 0.2);
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.error button {
+  background: none;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  line-height: 1;
+}
+
+/* Add form */
+.addForm {
+  background: var(--input-color);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.formRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.iconInput {
+  position: relative;
+}
+
+.iconButton {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconButton:hover {
+  border-color: var(--green);
+}
+
+.iconPicker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  background: var(--input-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.iconOption {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconOption:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nameInput {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--font-color);
+  font-size: 14px;
+}
+
+.nameInput:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+.colorInput {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 2px;
+  cursor: pointer;
+  background: var(--bg);
+}
+
+.categorySelect {
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--font-color);
+  font-size: 14px;
+  min-width: 120px;
+}
+
+.descriptionInput {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--font-color);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.descriptionInput:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+.addButton {
+  padding: 10px 20px;
+  background: var(--green);
+  color: #1a1a2e;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.addButton:hover {
+  opacity: 0.9;
+}
+
+/* Tags list */
+.tagsList {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.categoryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.categoryTitle {
+  color: var(--font-color);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tagCount {
+  font-weight: 400;
+  opacity: 0.5;
+  font-size: 14px;
+}
+
+.tagsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+/* Tag item */
+.tagItem {
+  background: var(--input-color);
+  border-radius: 8px;
+  padding: 12px;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tagItem:hover {
+  transform: translateY(-2px);
+}
+
+.systemTag {
+  opacity: 0.8;
+}
+
+.tagContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.tagIcon {
+  font-size: 18px;
+}
+
+.tagName {
+  color: var(--font-color);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.systemBadge {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--font-color);
+  opacity: 0.6;
+}
+
+.tagDescription {
+  color: var(--font-color);
+  opacity: 0.6;
+  font-size: 12px;
+  margin: 4px 0 8px 0;
+  line-height: 1.4;
+}
+
+.tagActions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.editButton,
+.deleteButton {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  transition: background 0.2s ease;
+}
+
+.editButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.deleteButton:hover {
+  background: rgba(225, 103, 90, 0.3);
+}
+
+/* Edit mode */
+.tagEditMode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editNameInput {
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--font-color);
+  font-size: 14px;
+}
+
+.editColorInput {
+  width: 100%;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px;
+  cursor: pointer;
+  background: var(--bg);
+}
+
+.editActions {
+  display: flex;
+  gap: 8px;
+}
+
+.saveButton,
+.cancelButton {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.saveButton {
+  background: var(--green);
+  color: #1a1a2e;
+}
+
+.cancelButton {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--font-color);
+}
+
+/* Empty state */
+.emptyState {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--font-color);
+  opacity: 0.5;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .filters {
+    flex-direction: column;
+  }
+
+  .formRow {
+    flex-wrap: wrap;
+  }
+
+  .nameInput {
+    flex: 1 0 100%;
+    order: 1;
+    margin-bottom: 4px;
+  }
+
+  .iconInput,
+  .colorInput,
+  .categorySelect {
+    order: 2;
+  }
+
+  .addButton {
+    order: 3;
+    flex: 1 0 100%;
+    margin-top: 8px;
+  }
+
+  .tagsGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,409 @@
+/**
+ * ScheduleUploader Component Styles
+ */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: var(--bg);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--font-color);
+  font-size: 28px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.closeButton:hover {
+  opacity: 1;
+}
+
+/* Content */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--font-color);
+  margin: 0 0 12px 0;
+  opacity: 0.9;
+}
+
+/* Fields */
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--font-color);
+  opacity: 0.6;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.field input[type="text"],
+.field input[type="time"],
+.field textarea,
+.field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Import/Export */
+.importExport {
+  display: flex;
+  gap: 10px;
+}
+
+.importButton,
+.exportButton {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.importButton:hover,
+.exportButton:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.exportButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.error {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(225, 103, 90, 0.2);
+  border: 1px solid var(--red);
+  border-radius: 6px;
+  color: var(--red);
+  font-size: 13px;
+}
+
+/* Block List */
+.blockList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.blockItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--input-color);
+  border-radius: 6px;
+}
+
+.blockColor {
+  width: 4px;
+  height: 100%;
+  min-height: 36px;
+  border-radius: 2px;
+}
+
+.blockInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.blockTime {
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--font-color);
+  opacity: 0.6;
+}
+
+.blockLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--font-color);
+}
+
+.blockDays {
+  font-size: 11px;
+  color: var(--font-color);
+  opacity: 0.5;
+}
+
+.blockActions {
+  display: flex;
+  gap: 4px;
+}
+
+.blockActions button {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.blockActions button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Block Form */
+.blockForm {
+  background: var(--input-color);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.blockFormHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.blockFormHeader h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.cancelEdit {
+  background: none;
+  border: none;
+  color: var(--font-color);
+  opacity: 0.5;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cancelEdit:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.blockFormRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Day Buttons */
+.dayButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dayButton {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dayButton:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dayButton.selected {
+  background: var(--green);
+  border-color: var(--green);
+  color: #1a1a2e;
+}
+
+.addBlockButton {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px;
+  background: var(--accent-color);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.addBlockButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.addBlockButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.cancelButton {
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: var(--font-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancelButton:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.saveButton {
+  padding: 10px 24px;
+  background: var(--green);
+  border: none;
+  border-radius: 6px;
+  color: #1a1a2e;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.saveButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.saveButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-width: 100%;
+    max-height: 95vh;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .importExport {
+    flex-direction: column;
+  }
+
+  .blockFormRow {
+    grid-template-columns: 1fr;
+  }
+}

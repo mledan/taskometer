@@ -1,0 +1,449 @@
+/**
+ * WeekView Component Styles
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-color);
+}
+
+/* Navigation */
+.navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--input-color);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.navLeft,
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.monthYear {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.currentTimeDisplay {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent-color);
+}
+
+.navButton,
+.todayButton {
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.navButton:hover,
+.todayButton:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.todayButton {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: white;
+}
+
+.editModeButton {
+  padding: 8px 14px;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--green);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.editModeButton:hover {
+  background: rgba(98, 220, 165, 0.1);
+}
+
+.editModeButton.active {
+  background: var(--green);
+  color: #1a1a2e;
+}
+
+/* Calendar grid */
+.calendar {
+  display: flex;
+  flex: 1;
+  overflow: auto;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Time column */
+.timeColumn {
+  min-width: 60px;
+  border-right: 1px solid var(--border-color);
+  background: var(--input-color);
+  flex-shrink: 0;
+}
+
+.timeColumnHeader {
+  height: 50px;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  background: var(--input-color);
+  z-index: 2;
+}
+
+.timeColumnBody {
+  /* Contains time labels */
+}
+
+.timeSlot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4px;
+  font-size: 11px;
+  color: var(--font-color);
+  opacity: 0.5;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Days container */
+.daysContainer {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  flex: 1;
+  min-width: 700px;
+}
+
+.dayColumn {
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  min-width: 100px;
+}
+
+.dayColumn:last-child {
+  border-right: none;
+}
+
+.dayColumn.today {
+  background: rgba(59, 130, 246, 0.03);
+}
+
+/* Day header */
+.dayHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  background: var(--input-color);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.dayName {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--font-color);
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dayNumber {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.todayNumber {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-color);
+  color: white;
+  border-radius: 50%;
+}
+
+/* Day content */
+.dayContent {
+  position: relative;
+  flex: 1;
+}
+
+.gridLine {
+  border-bottom: 1px solid var(--border-color);
+  box-sizing: border-box;
+}
+
+.hourLine {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Current time indicator */
+.currentTimeWrapper {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  height: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.currentTimeLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
+}
+
+.currentTimeDot {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* Tasks */
+.task {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: white;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 5;
+}
+
+.task:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 6;
+}
+
+.taskTitle {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+/* Task states */
+.taskCurrent {
+  border: 2px solid white;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+  animation: currentPulse 2s ease-in-out infinite;
+}
+
+.taskPast {
+  opacity: 0.6;
+  filter: grayscale(20%);
+}
+
+.taskCompleted {
+  opacity: 0.4;
+  text-decoration: line-through;
+  filter: grayscale(40%);
+}
+
+.taskPaused {
+  opacity: 0.7;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+}
+
+@keyframes currentPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Context menu */
+.contextMenu {
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  padding: 6px;
+  min-width: 150px;
+}
+
+.contextMenu button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--font-color);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: background 0.15s ease;
+}
+
+.contextMenu button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.snoozeGroup {
+  border-top: 1px solid var(--border-color);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.snoozeLabel {
+  display: block;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--font-color);
+  opacity: 0.5;
+  text-transform: uppercase;
+}
+
+.snoozeButtons {
+  display: flex;
+  gap: 4px;
+  padding: 0 6px;
+}
+
+.snoozeButtons button {
+  flex: 1;
+  text-align: center;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .navigation {
+    padding: 10px 12px;
+    justify-content: center;
+  }
+
+  .navLeft,
+  .navRight {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .navCenter {
+    order: -1;
+    width: 100%;
+  }
+
+  .daysContainer {
+    min-width: 600px;
+    overflow-x: auto;
+  }
+
+  .dayColumn {
+    min-width: 85px;
+  }
+
+  .timeColumn {
+    min-width: 50px;
+  }
+
+  .timeSlot {
+    font-size: 10px;
+  }
+
+  .dayHeader {
+    padding: 8px;
+  }
+
+  .dayName {
+    font-size: 10px;
+  }
+
+  .dayNumber {
+    font-size: 16px;
+  }
+
+  .todayNumber {
+    width: 28px;
+    height: 28px;
+  }
+
+  .task {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+}
+
+/* Wide screens */
+@media (min-width: 1440px) {
+  .dayColumn {
+    min-width: 150px;
+  }
+
+  .task {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+}
+
+@media (min-width: 2560px) {
+  .dayColumn {
+    min-width: 200px;
+  }
+
+  .task {
+    font-size: 13px;
+  }
+}
