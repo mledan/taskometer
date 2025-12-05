@@ -8,10 +8,8 @@
 /* Header */
 .header {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 16px;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border, #E2E8F0);
@@ -46,39 +44,35 @@
 /* Era Toggle */
 .eraToggle {
   display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  background: var(--bg-3, #F1F5F9);
 }
 
 .toggleBtn {
-  padding: 10px 20px;
-  font-size: 0.875rem;
+  padding: 8px 14px;
+  font-size: 0.8rem;
   font-weight: 500;
-  border: 1px solid var(--border, #E2E8F0);
-  background: var(--bg-2, white);
+  border: none;
+  border-radius: 6px;
+  background: transparent;
   color: var(--text-2, #64748B);
   cursor: pointer;
   transition: all 0.2s ease;
-}
-
-.toggleBtn:first-child {
-  border-radius: 8px 0 0 8px;
-  border-right: none;
-}
-
-.toggleBtn:last-child {
-  border-radius: 0 8px 8px 0;
+  white-space: nowrap;
 }
 
 .toggleBtn:hover:not(.active) {
-  background: var(--bg-3, #F1F5F9);
+  background: var(--bg-2, white);
+  color: var(--text-1, #0F172A);
 }
 
 .toggleBtn.active {
   background: var(--text-1, #0F172A);
   color: white;
-  border-color: var(--text-1, #0F172A);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 /* Legend */
@@ -204,6 +198,13 @@
   text-align: center;
 }
 
+.clockSubtitle {
+  font-size: 0.7rem;
+  color: var(--text-3, #94A3B8);
+  text-align: center;
+  margin-top: 2px;
+}
+
 /* Details Panel */
 .detailsPanel {
   background: var(--bg-2, white);
@@ -240,7 +241,38 @@
   font-size: 1.125rem;
   font-weight: 700;
   color: var(--text-1, #0F172A);
+  margin: 0 0 4px 0;
+}
+
+.detailsSubtitle {
+  font-size: 0.875rem;
+  color: var(--text-2, #64748B);
+  margin: 0 0 4px 0;
+}
+
+.detailsSource {
+  font-size: 0.75rem;
+  color: var(--text-3, #94A3B8);
   margin: 0 0 12px 0;
+  font-style: italic;
+}
+
+.statsRow {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.statBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: var(--bg-1, #F8FAFC);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-2, #475569);
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .scheduleBreakdown {
