@@ -379,6 +379,120 @@
   padding: 12px 0;
 }
 
+/* Notification Toast */
+.notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  background: var(--accent-color);
+  color: white;
+  font-weight: 500;
+  z-index: 1001;
+  animation: slideDown 0.3s ease, fadeOut 0.3s ease 2.7s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.notification.success {
+  background: #10B981;
+}
+
+.notification.warning {
+  background: #F59E0B;
+}
+
+.notification.error {
+  background: #EF4444;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Apply to Calendar Section */
+.applyToCalendarSection {
+  margin: 24px 0;
+  padding: 20px;
+  background: var(--input-color);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.applyToCalendarSection h4 {
+  margin: 0 0 8px 0;
+  color: var(--font-color);
+  font-size: 16px;
+}
+
+.applyDescription {
+  margin: 0 0 16px 0;
+  color: var(--font-color-secondary);
+  font-size: 14px;
+}
+
+.dateRangePicker {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.dateRangePicker label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--font-color-secondary);
+  font-size: 13px;
+}
+
+.dateRangePicker input[type="date"] {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-color);
+  color: var(--font-color);
+  font-size: 14px;
+}
+
+.dateRangePicker input[type="date"]:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.applyButton {
+  padding: 10px 20px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.applyButton:hover {
+  filter: brightness(1.1);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .scheduleGrid {
