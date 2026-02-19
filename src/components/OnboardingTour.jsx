@@ -11,44 +11,65 @@ import styles from './OnboardingTour.module.css';
 const TOUR_STEPS = [
   {
     id: 'welcome',
-    title: 'Welcome to Taskometer!',
-    description: 'Your intelligent task manager with smart scheduling. Let\'s take a quick tour to help you get started.',
+    title: 'Welcome to LifeOS!',
+    description: 'Your intelligent productivity system with Tasks, Schedule planning, and Memory Palace techniques. Let\'s take a quick tour!',
     target: null, // No target - centered modal
     position: 'center'
   },
   {
-    id: 'add-task',
-    title: 'Add Your First Task',
-    description: 'Click here or press "N" to create a new task. You can set duration, priority, type, and tags.',
-    target: '[data-tour="add-task"]',
+    id: 'dashboard',
+    title: 'Your Dashboard',
+    description: 'See your day at a glance - current focus, today\'s schedule, pending tasks, and quick task entry.',
+    target: '[data-tour="dashboard"]',
     position: 'bottom'
   },
   {
-    id: 'task-types',
-    title: 'Task Types',
-    description: 'Organize tasks by type (Work, Personal, Health, etc.). Each type has its own color and icon.',
-    target: '[data-tour="task-types"]',
+    id: 'add-task',
+    title: 'Manage Your Tasks',
+    description: 'Add, edit, and organize tasks. Set duration, priority, type, and schedule them intelligently.',
+    target: '[data-tour="add-task"]',
     position: 'bottom'
   },
   {
     id: 'calendar',
     title: 'Calendar View',
-    description: 'See your tasks on a weekly calendar. Tasks are auto-scheduled based on your preferences.',
+    description: 'See your tasks on a weekly calendar. Tasks are auto-scheduled based on your preferences and schedule templates.',
     target: '[data-tour="calendar"]',
     position: 'bottom'
   },
   {
     id: 'schedules',
     title: 'Schedule Templates',
-    description: 'Explore famous people\'s daily routines or create your own schedule templates.',
+    description: 'Explore famous people\'s daily routines or create your own schedule templates to structure your day.',
     target: '[data-tour="schedules"]',
+    position: 'bottom'
+  },
+  {
+    id: 'palace',
+    title: 'Memory Palace',
+    description: 'Create visual memory palaces to link tasks with locations. A powerful technique for remembering and organizing.',
+    target: '[data-tour="palace"]',
+    position: 'bottom'
+  },
+  {
+    id: 'task-types',
+    title: 'Task Types',
+    description: 'Customize task categories (Work, Personal, Health, etc.). Each type has its own color and default settings.',
+    target: '[data-tour="task-types"]',
     position: 'bottom'
   },
   {
     id: 'history',
     title: 'Analytics & History',
-    description: 'Track your productivity, view completed tasks, and see detailed analytics.',
+    description: 'Track your productivity, view completed tasks, and analyze your patterns over time.',
     target: '[data-tour="history"]',
+    position: 'bottom'
+  },
+  {
+    id: 'community',
+    title: 'Community Schedules',
+    description: 'Discover and share schedules with the community. Like schedules that inspire you.',
+    target: '[data-tour="community"]',
     position: 'bottom'
   },
   {
@@ -61,14 +82,14 @@ const TOUR_STEPS = [
   {
     id: 'shortcuts',
     title: 'Keyboard Shortcuts',
-    description: 'Press "?" anytime to see all keyboard shortcuts. Use "G+T" to go to Todos, "G+C" for Calendar, etc.',
+    description: 'Press "?" anytime to see all keyboard shortcuts. Use "G+D" for Dashboard, "G+T" for Tasks, "G+P" for Palace, etc.',
     target: null,
     position: 'center'
   },
   {
     id: 'complete',
     title: 'You\'re All Set!',
-    description: 'Start adding tasks and building your perfect schedule. You can always replay this tour from Settings.',
+    description: 'Start adding tasks, apply a schedule template, and build your Memory Palace. You can always replay this tour from Settings.',
     target: null,
     position: 'center'
   }

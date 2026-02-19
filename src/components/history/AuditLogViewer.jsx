@@ -14,7 +14,7 @@
 
 import { useState, useMemo } from 'react';
 import { format, isWithinInterval, parseISO } from 'date-fns';
-import { ACTION_ENTRY_TYPES, createAuditEntry } from '../../models/AuditEntry';
+import { AUDIT_ACTIONS, createAuditEntry } from '../../models/AuditEntry';
 import styles from './AuditLogViewer.module.css';
 
 // Action type icons

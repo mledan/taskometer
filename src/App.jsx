@@ -33,6 +33,7 @@ function AppContent() {
 		goToPalace: () => setActiveView(VIEWS.PALACE),
 		goToHistory: () => setActiveView(VIEWS.HISTORY),
 		goToTaskTypes: () => setActiveView(VIEWS.TASK_TYPES),
+		goToCommunity: () => setActiveView(VIEWS.COMMUNITY),
 		toggleDarkMode: () => toggleTheme(),
 		showHelp: () => setShowShortcuts(true),
 		cancel: () => setShowShortcuts(false),
