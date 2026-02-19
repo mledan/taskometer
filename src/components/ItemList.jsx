@@ -8,7 +8,7 @@ import "@reach/accordion/styles.css";
 
 import { useAppReducer, useItems } from "../AppContext.jsx";
 import Progress from "./Progress.jsx";
-import AddItemForm from "./AddItemForm.jsx";
+import TaskInput from "./tasks/TaskInput.jsx";
 import Item from "./Item.jsx";
 import styles from "./ItemList.module.css";
 import arrow from "../img/arrow.svg";
@@ -35,7 +35,7 @@ function ItemList() {
 	return (
 		<div className="item-list">
 			<Progress />
-			<AddItemForm />
+			<TaskInput />
 
 			<div className={styles.toolbar}>
 				<button
