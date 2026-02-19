@@ -65,6 +65,13 @@ function TabNavigation({ activeView, onViewChange }) {
         >
           History
         </button>
+        <button
+          className={`${styles.tab} ${activeView === VIEWS.COMMUNITY ? styles.active : ''}`}
+          onClick={() => onViewChange(VIEWS.COMMUNITY)}
+          data-tour="community"
+        >
+          Community
+        </button>
       </div>
       <div className={styles.actions} data-tour="theme">
         <ThemeToggle variant="cycle" />

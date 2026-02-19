@@ -167,7 +167,7 @@ function WeekView({
     if (selectedTask) {
       dispatch({
         type: ACTION_TYPES.COMPLETE_TASK,
-        payload: { id: selectedTask.id || selectedTask.key }
+        payload: { taskId: selectedTask.id || selectedTask.key }
       });
       setShowContextMenu(false);
     }
@@ -177,7 +177,7 @@ function WeekView({
     if (selectedTask) {
       dispatch({
         type: ACTION_TYPES.PAUSE_TASK,
-        payload: { id: selectedTask.id || selectedTask.key }
+        payload: { taskId: selectedTask.id || selectedTask.key }
       });
       setShowContextMenu(false);
     }
