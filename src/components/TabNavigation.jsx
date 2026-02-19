@@ -2,10 +2,12 @@ import styles from './TabNavigation.module.css';
 import ThemeToggle from './ThemeToggle';
 
 export const VIEWS = {
+  DASHBOARD: 'dashboard',
   TODOS: 'todos',
   TASK_TYPES: 'taskTypes',
   CALENDAR: 'calendar',
   SCHEDULES: 'schedules',
+  PALACE: 'palace',
   COMMUNITY: 'community',
   HISTORY: 'history',
 };
@@ -15,18 +17,18 @@ function TabNavigation({ activeView, onViewChange }) {
     <nav className={styles.navigation}>
       <div className={styles.tabs}>
         <button
+          className={`${styles.tab} ${activeView === VIEWS.DASHBOARD ? styles.active : ''}`}
+          onClick={() => onViewChange(VIEWS.DASHBOARD)}
+          data-tour="dashboard"
+        >
+          Dashboard
+        </button>
+        <button
           className={`${styles.tab} ${activeView === VIEWS.TODOS ? styles.active : ''}`}
           onClick={() => onViewChange(VIEWS.TODOS)}
           data-tour="add-task"
         >
-          Todos
-        </button>
-        <button
-          className={`${styles.tab} ${activeView === VIEWS.TASK_TYPES ? styles.active : ''}`}
-          onClick={() => onViewChange(VIEWS.TASK_TYPES)}
-          data-tour="task-types"
-        >
-          Task Types
+          Tasks
         </button>
         <button
           className={`${styles.tab} ${activeView === VIEWS.CALENDAR ? styles.active : ''}`}
@@ -43,10 +45,18 @@ function TabNavigation({ activeView, onViewChange }) {
           Schedules
         </button>
         <button
-          className={`${styles.tab} ${activeView === VIEWS.COMMUNITY ? styles.active : ''}`}
-          onClick={() => onViewChange(VIEWS.COMMUNITY)}
+          className={`${styles.tab} ${activeView === VIEWS.PALACE ? styles.active : ''}`}
+          onClick={() => onViewChange(VIEWS.PALACE)}
+          data-tour="palace"
         >
-          Community
+          Palace
+        </button>
+        <button
+          className={`${styles.tab} ${activeView === VIEWS.TASK_TYPES ? styles.active : ''}`}
+          onClick={() => onViewChange(VIEWS.TASK_TYPES)}
+          data-tour="task-types"
+        >
+          Types
         </button>
         <button
           className={`${styles.tab} ${activeView === VIEWS.HISTORY ? styles.active : ''}`}
