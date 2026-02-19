@@ -1,0 +1,530 @@
+.dashboard {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.dateInfo h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary, #fff);
+}
+
+.fullDate {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary, #9ca3af);
+  font-size: 1rem;
+}
+
+.stats {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.stat {
+  text-align: center;
+}
+
+.statValue {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-color, #3b82f6);
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Dashboard Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.grid > section {
+  background: var(--card-bg, #1f2937);
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color, #374151);
+}
+
+.grid h2 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #9ca3af);
+  margin: 0 0 1rem;
+}
+
+/* Current Focus */
+.currentFocus {
+  grid-column: span 2;
+}
+
+.focusCard {
+  border-left: 4px solid var(--accent-color, #3b82f6);
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background: var(--card-bg-hover, #283141);
+}
+
+.focusType {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 0.75rem;
+}
+
+.focusCard h3 {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem;
+  color: var(--text-primary, #fff);
+}
+
+.focusTime {
+  color: var(--text-secondary, #9ca3af);
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.focusActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.completeBtn,
+.pauseBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.completeBtn {
+  background: var(--success-color, #10b981);
+  color: white;
+}
+
+.completeBtn:hover {
+  background: #059669;
+}
+
+.pauseBtn {
+  background: var(--warning-color, #f59e0b);
+  color: white;
+}
+
+.pauseBtn:hover {
+  background: #d97706;
+}
+
+.upNextCard {
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background: var(--card-bg-hover, #283141);
+  border: 1px dashed var(--border-color, #374151);
+}
+
+.upNextLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--accent-color, #3b82f6);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.upNextCard h3 {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 1.1rem;
+  color: var(--text-primary, #fff);
+}
+
+/* Quick Add */
+.quickAdd {
+  grid-column: span 1;
+}
+
+.quickForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.quickInput {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #374151);
+  background: var(--input-bg, #111827);
+  color: var(--text-primary, #fff);
+  font-size: 1rem;
+}
+
+.quickInput:focus {
+  outline: none;
+  border-color: var(--accent-color, #3b82f6);
+}
+
+.quickSelect {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #374151);
+  background: var(--input-bg, #111827);
+  color: var(--text-primary, #fff);
+  font-size: 0.875rem;
+}
+
+.quickBtn {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--accent-color, #3b82f6);
+  color: white;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.quickBtn:hover {
+  background: #2563eb;
+}
+
+/* Today's Schedule */
+.todaySchedule {
+  grid-column: span 2;
+}
+
+.progressWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.progressBar {
+  flex: 1;
+  height: 8px;
+  background: var(--border-color, #374151);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent-color, #3b82f6);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #9ca3af);
+  white-space: nowrap;
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.taskItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: var(--card-bg-hover, #283141);
+  transition: all 0.2s;
+}
+
+.taskItem.completed {
+  opacity: 0.6;
+}
+
+.taskItem.completed .taskText {
+  text-decoration: line-through;
+}
+
+.taskItem.current {
+  border: 1px solid var(--accent-color, #3b82f6);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.taskDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.taskTime {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #9ca3af);
+  min-width: 60px;
+}
+
+.taskText {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text-primary, #fff);
+}
+
+.checkmark {
+  color: var(--success-color, #10b981);
+  font-weight: 600;
+}
+
+.moreCount {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #9ca3af);
+  margin: 0.5rem 0 0;
+}
+
+/* Tasks by Type */
+.byType {
+  grid-column: span 1;
+}
+
+.typeGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.typeCard {
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--card-bg-hover, #283141);
+}
+
+.typeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+}
+
+.typeCount {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+}
+
+.typeList {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.typeList li {
+  font-size: 0.8rem;
+  color: var(--text-primary, #fff);
+  padding: 0.25rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.moreItems {
+  color: var(--text-secondary, #9ca3af) !important;
+  font-style: italic;
+}
+
+/* Schedule Preview */
+.schedulePreview {
+  grid-column: span 1;
+}
+
+.scheduleCard {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.scheduleInfo {
+  flex: 1;
+}
+
+.scheduleInfo h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  color: var(--text-primary, #fff);
+}
+
+.scheduleInfo p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.scheduleViz {
+  width: 80px;
+  height: 80px;
+}
+
+/* Upcoming */
+.upcoming {
+  grid-column: span 2;
+}
+
+.upcomingList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upcomingItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: var(--card-bg-hover, #283141);
+}
+
+.upcomingDate {
+  font-size: 0.75rem;
+  color: var(--accent-color, #3b82f6);
+  min-width: 80px;
+  font-weight: 500;
+}
+
+.upcomingText {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text-primary, #fff);
+}
+
+.upcomingType {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Palace Preview */
+.palacePreview {
+  grid-column: span 1;
+}
+
+.palaceCard {
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--card-bg-hover, #283141);
+  text-align: center;
+}
+
+.palaceCard h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  color: var(--text-primary, #fff);
+}
+
+.palaceCard p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #9ca3af);
+}
+
+/* Empty States */
+.emptyState {
+  text-align: center;
+  padding: 1rem;
+}
+
+.emptyState p {
+  margin: 0;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.hint {
+  font-size: 0.75rem;
+  margin-top: 0.25rem !important;
+  opacity: 0.7;
+}
+
+.emptyList {
+  text-align: center;
+  color: var(--text-secondary, #9ca3af);
+  font-size: 0.875rem;
+  padding: 1rem 0;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .currentFocus,
+  .todaySchedule,
+  .upcoming {
+    grid-column: span 2;
+  }
+  
+  .quickAdd,
+  .byType,
+  .schedulePreview,
+  .palacePreview {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard {
+    padding: 1rem;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .stats {
+    justify-content: space-between;
+  }
+  
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .grid > section {
+    grid-column: span 1 !important;
+  }
+  
+  .scheduleCard {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .scheduleViz {
+    width: 100px;
+    height: 100px;
+  }
+}

@@ -6,6 +6,8 @@ import CalendarView from "./components/CalendarView.jsx";
 import History from "./components/History.jsx";
 import ScheduleLibrary from "./components/ScheduleLibrary.jsx";
 import Community from "./components/Community.jsx";
+import Dashboard from "./components/Dashboard.jsx";
+import { MemoryPalaceEditor } from "./components/palace";
 import TabNavigation, { VIEWS } from "./components/TabNavigation.jsx";
 import Notifications from "./components/Notifications.jsx";
 import PWAStatus from "./components/PWAStatus.jsx";
@@ -18,15 +20,17 @@ import styles from './App.module.css';
 
 // Inner app component that uses hooks
 function AppContent() {
-	const [activeView, setActiveView] = useState(VIEWS.TODOS);
+	const [activeView, setActiveView] = useState(VIEWS.DASHBOARD);
 	const [showShortcuts, setShowShortcuts] = useState(false);
 	const { toggleTheme } = useTheme();
 
 	// Keyboard shortcuts handlers
 	const shortcutHandlers = {
+		goToDashboard: () => setActiveView(VIEWS.DASHBOARD),
 		goToTodos: () => setActiveView(VIEWS.TODOS),
 		goToCalendar: () => setActiveView(VIEWS.CALENDAR),
 		goToSchedules: () => setActiveView(VIEWS.SCHEDULES),
+		goToPalace: () => setActiveView(VIEWS.PALACE),
 		goToHistory: () => setActiveView(VIEWS.HISTORY),
 		goToTaskTypes: () => setActiveView(VIEWS.TASK_TYPES),
 		toggleDarkMode: () => toggleTheme(),
@@ -42,6 +46,12 @@ function AppContent() {
 				<TabNavigation activeView={activeView} onViewChange={setActiveView} />
 
 				<div className={styles.content}>
+					{activeView === VIEWS.DASHBOARD && (
+						<div className={styles.dashboardView}>
+							<Dashboard />
+						</div>
+					)}
+
 					{activeView === VIEWS.TODOS && (
 						<div className={styles.todosView}>
 							<TodoDate />
@@ -64,6 +74,12 @@ function AppContent() {
 					{activeView === VIEWS.SCHEDULES && (
 						<div className={styles.schedulesView}>
 							<ScheduleLibrary />
+						</div>
+					)}
+
+					{activeView === VIEWS.PALACE && (
+						<div className={styles.palaceView}>
+							<MemoryPalaceEditor />
 						</div>
 					)}
 

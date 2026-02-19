@@ -52,6 +52,7 @@ const initialState = {
   tags: [...DEFAULT_TAGS],
   taskTypes: [...DEFAULT_TASK_TYPES],
   schedules: [],
+  palaces: [],
 
   // Active selections
   activeSchedule: null,
@@ -128,6 +129,14 @@ export const ACTION_TYPES = {
   SET_ACTIVE_SCHEDULE: 'SET_ACTIVE_SCHEDULE',
   APPLY_SCHEDULE: 'APPLY_SCHEDULE',
   APPLY_SCHEDULE_BLOCKS: 'APPLY_SCHEDULE_BLOCKS',
+
+  // Palace actions
+  ADD_PALACE: 'ADD_PALACE',
+  UPDATE_PALACE: 'UPDATE_PALACE',
+  DELETE_PALACE: 'DELETE_PALACE',
+  ADD_PALACE_LOCATION: 'ADD_PALACE_LOCATION',
+  UPDATE_PALACE_LOCATION: 'UPDATE_PALACE_LOCATION',
+  DELETE_PALACE_LOCATION: 'DELETE_PALACE_LOCATION',
 
   // Settings actions
   UPDATE_SETTINGS: 'UPDATE_SETTINGS',
@@ -632,6 +641,70 @@ function appReducer(state, action) {
     }
 
     // ============================================
+    // PALACE ACTIONS
+    // ============================================
+
+    case 'ADD_PALACE': {
+      const newPalaces = [...(state.palaces || []), action.payload];
+      return { ...state, palaces: newPalaces };
+    }
+
+    case 'UPDATE_PALACE': {
+      const { palaceId, updates } = action.payload;
+      const newPalaces = (state.palaces || []).map(palace =>
+        palace.id === palaceId ? { ...palace, ...updates, updatedAt: timestamp } : palace
+      );
+      return { ...state, palaces: newPalaces };
+    }
+
+    case 'DELETE_PALACE': {
+      const { palaceId } = action.payload;
+      const newPalaces = (state.palaces || []).filter(p => p.id !== palaceId);
+      return { ...state, palaces: newPalaces };
+    }
+
+    case 'ADD_PALACE_LOCATION': {
+      const { palaceId, location } = action.payload;
+      const newPalaces = (state.palaces || []).map(palace => {
+        if (palace.id !== palaceId) return palace;
+        return {
+          ...palace,
+          locations: [...palace.locations, location],
+          updatedAt: timestamp
+        };
+      });
+      return { ...state, palaces: newPalaces };
+    }
+
+    case 'UPDATE_PALACE_LOCATION': {
+      const { palaceId, locationId, updates } = action.payload;
+      const newPalaces = (state.palaces || []).map(palace => {
+        if (palace.id !== palaceId) return palace;
+        return {
+          ...palace,
+          locations: palace.locations.map(loc =>
+            loc.id === locationId ? { ...loc, ...updates, updatedAt: timestamp } : loc
+          ),
+          updatedAt: timestamp
+        };
+      });
+      return { ...state, palaces: newPalaces };
+    }
+
+    case 'DELETE_PALACE_LOCATION': {
+      const { palaceId, locationId } = action.payload;
+      const newPalaces = (state.palaces || []).map(palace => {
+        if (palace.id !== palaceId) return palace;
+        return {
+          ...palace,
+          locations: palace.locations.filter(loc => loc.id !== locationId),
+          updatedAt: timestamp
+        };
+      });
+      return { ...state, palaces: newPalaces };
+    }
+
+    // ============================================
     // SETTINGS ACTIONS
     // ============================================
 
@@ -720,6 +793,7 @@ export function AppStateProvider({ children }) {
             tags: savedState.tags?.length > 0 ? savedState.tags : DEFAULT_TAGS,
             taskTypes,
             schedules: savedState.schedules || [],
+            palaces: savedState.palaces || [],
             activeScheduleId: savedState.activeScheduleId,
             activeSchedule: await db.getActiveSchedule(),
             settings: savedState.settings || initialState.settings,
@@ -753,6 +827,7 @@ export function AppStateProvider({ children }) {
           tags: state.tags,
           taskTypes: state.taskTypes,
           schedules: state.schedules,
+          palaces: state.palaces,
           activeScheduleId: state.activeScheduleId,
           settings: state.settings,
           items: state.tasks // Legacy compatibility
@@ -776,7 +851,7 @@ export function AppStateProvider({ children }) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [state.tasks, state.slots, state.tags, state.taskTypes, state.schedules, state.activeScheduleId, state.settings, state.isInitialized]);
+  }, [state.tasks, state.slots, state.tags, state.taskTypes, state.schedules, state.palaces, state.activeScheduleId, state.settings, state.isInitialized]);
 
   // Wrapped dispatch with audit logging
   const auditDispatch = useCallback((action) => {
