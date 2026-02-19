@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { format, addDays } from 'date-fns';
 import {
   FAMOUS_SCHEDULES,
   getSchedulesFromLocalStorage,
-  setActiveSchedule,
+  setActiveSchedule as setActiveScheduleStorage,
   getActiveSchedule,
   ACTIVITY_TYPES,
   saveScheduleToLocalStorage
@@ -13,6 +14,7 @@ import {
   applyTemplateToDateRange,
   autoSlotTaskIntoTemplate
 } from '../utils/enhancedTemplates.js';
+import { useAppContext, ACTION_TYPES } from '../context/AppContext.jsx';
 import styles from './ScheduleLibrary.module.css';
 import CircularSchedule from './CircularSchedule.jsx';
 import ScheduleBuilder from './ScheduleBuilder.jsx';
@@ -43,6 +45,7 @@ function CardDescription({ text = '' }) {
 }
 
 function ScheduleLibrary() {
+  const [state, dispatch] = useAppContext();
   const [schedules, setSchedules] = useState([]);
   const [activeScheduleId, setActiveScheduleId] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -52,6 +55,14 @@ function ScheduleLibrary() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [scheduleToCustomize, setScheduleToCustomize] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'chronomap'
+  const [notification, setNotification] = useState(null);
+  const [applyDateRange, setApplyDateRange] = useState(null); // { startDate, endDate }
+
+  // Show notification helper
+  const showNotification = useCallback((message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  }, []);
 
   useEffect(() => {
     // Load schedules from localStorage and famous templates
@@ -59,8 +70,11 @@ function ScheduleLibrary() {
     const allSchedules = [...FAMOUS_SCHEDULES, ...ENHANCED_FAMOUS_SCHEDULES, ...customSchedules];
     setSchedules(allSchedules);
     
-    // Get active schedule
-    const active = getActiveSchedule();
+    // Get active schedule - prefer context, fall back to localStorage
+    const contextActiveId = state.activeScheduleId;
+    const active = contextActiveId 
+      ? allSchedules.find(s => s.id === contextActiveId) 
+      : getActiveSchedule();
     if (active) {
       setActiveScheduleId(active.id);
     }
@@ -71,7 +85,7 @@ function ScheduleLibrary() {
       const match = allSchedules.find(s => s.id === targetId);
       if (match) setSelectedSchedule(match);
     }
-  }, []);
+  }, [state.activeScheduleId]);
 
   const filteredSchedules = schedules.filter(schedule => {
     // Filter by search term
@@ -97,9 +111,41 @@ function ScheduleLibrary() {
   });
 
   function handleActivateSchedule(scheduleId) {
-    setActiveSchedule(scheduleId);
+    // Find the schedule object
+    const schedule = schedules.find(s => s.id === scheduleId);
+    
+    // Update localStorage for backwards compatibility
+    setActiveScheduleStorage(scheduleId);
+    
+    // Dispatch to AppContext so auto-scheduling uses this schedule
+    dispatch({
+      type: ACTION_TYPES.SET_ACTIVE_SCHEDULE,
+      payload: { schedule, scheduleId }
+    });
+    
     setActiveScheduleId(scheduleId);
-    // No full reload; future scheduling reads active schedule from storage
+    showNotification(`"${schedule?.name || 'Schedule'}" is now your active schedule!`);
+  }
+
+  // Apply schedule blocks to a date range
+  function handleApplyToCalendar(schedule, startDate, endDate) {
+    if (!schedule || !startDate || !endDate) return;
+    
+    const blocks = applyTemplateToDateRange(schedule, startDate, endDate);
+    
+    if (blocks.length > 0) {
+      dispatch({
+        type: ACTION_TYPES.APPLY_SCHEDULE,
+        payload: { 
+          blocks,
+          options: { mergeWithExisting: true }
+        }
+      });
+      showNotification(`Applied ${blocks.length} time blocks to your calendar!`);
+      setApplyDateRange(null);
+    } else {
+      showNotification('No blocks to apply for the selected date range', 'warning');
+    }
   }
 
   function renderTimeBlock(block) {
@@ -194,6 +240,15 @@ function ScheduleLibrary() {
 
   return (
     <div className={styles.container}>
+      {/* Notification Toast */}
+      {notification && (
+        <div className={`${styles.notification} ${styles[notification.type] || ''}`}>
+          {notification.type === 'success' && '✓ '}
+          {notification.type === 'warning' && '⚠ '}
+          {notification.message}
+        </div>
+      )}
+      
       <div className={styles.header}>
         <h2>Schedule Library</h2>
         <p>Choose a schedule template that fits your lifestyle</p>
@@ -308,6 +363,49 @@ function ScheduleLibrary() {
             </div>
 
             <ScheduleDiscussion scheduleId={selectedSchedule.id} />
+
+            {/* Apply to Calendar Section */}
+            <div className={styles.applyToCalendarSection}>
+              <h4>Apply to Calendar</h4>
+              <p className={styles.applyDescription}>
+                Apply this schedule's time blocks to your calendar for a date range.
+              </p>
+              <div className={styles.dateRangePicker}>
+                <label>
+                  Start Date
+                  <input 
+                    type="date" 
+                    value={applyDateRange?.startDate || format(new Date(), 'yyyy-MM-dd')}
+                    onChange={(e) => setApplyDateRange(prev => ({ 
+                      ...prev, 
+                      startDate: e.target.value,
+                      endDate: prev?.endDate || format(addDays(new Date(e.target.value), 6), 'yyyy-MM-dd')
+                    }))}
+                  />
+                </label>
+                <label>
+                  End Date
+                  <input 
+                    type="date" 
+                    value={applyDateRange?.endDate || format(addDays(new Date(), 6), 'yyyy-MM-dd')}
+                    onChange={(e) => setApplyDateRange(prev => ({ 
+                      ...prev, 
+                      endDate: e.target.value 
+                    }))}
+                  />
+                </label>
+                <button 
+                  className={styles.applyButton}
+                  onClick={() => handleApplyToCalendar(
+                    selectedSchedule, 
+                    applyDateRange?.startDate || format(new Date(), 'yyyy-MM-dd'),
+                    applyDateRange?.endDate || format(addDays(new Date(), 6), 'yyyy-MM-dd')
+                  )}
+                >
+                  Apply to Calendar
+                </button>
+              </div>
+            </div>
 
             <div className={styles.modalActions}>
               <button 
