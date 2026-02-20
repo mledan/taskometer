@@ -76,9 +76,9 @@ function TaskInput({ onTaskAdded }) {
       tags: selectedTags
     };
 
-    const slot = findOptimalTimeSlot(previewTask, schedule, tasks);
+    const slot = findOptimalTimeSlot(previewTask, schedule, tasks, taskTypes);
     setPreviewSlot(slot);
-  }, [taskText, taskType, duration, selectedTags, autoSchedule, schedulingPreference, activeSchedule, tasks]);
+  }, [taskText, taskType, duration, selectedTags, autoSchedule, schedulingPreference, activeSchedule, tasks, taskTypes]);
 
   function handleSubmit(e) {
     e.preventDefault();

@@ -1,119 +1,121 @@
-import { useState, useEffect } from 'react';
-import { useAppState, useAppReducer } from '../AppContext.jsx';
-import { format } from 'date-fns';
+import { useMemo, useState } from 'react';
+import { useAppState, useAppReducer, ACTION_TYPES } from '../AppContext.jsx';
 import { formatLocalTime } from '../utils/timeDisplay.js';
 import { AuditLogViewer, ProductivityDashboard } from './history';
 import styles from './History.module.css';
 
 function History() {
-  const { items, auditLog = [] } = useAppState();
+  const { items = [], auditLog = [] } = useAppState();
   const dispatch = useAppReducer();
-  const [historyItems, setHistoryItems] = useState([]);
   const [filter, setFilter] = useState('all'); // all, completed, paused, removed
   const [activeTab, setActiveTab] = useState('tasks'); // tasks, audit, analytics
 
-  // Load history from localStorage
-  useEffect(() => {
-    const savedHistory = localStorage.getItem('taskometer-history');
-    if (savedHistory) {
-      try {
-        const parsed = JSON.parse(savedHistory);
-        setHistoryItems(parsed);
-      } catch (e) {
-        console.error('Failed to parse history:', e);
-      }
-    }
-  }, []);
+  const historyItems = useMemo(() => {
+    const completedOrPaused = items
+      .filter(item => item.status === 'completed' || item.status === 'paused')
+      .map(item => ({
+        ...item,
+        historyId: `task-${item.id || item.key}`,
+        historyType: item.status
+      }));
 
-  // Save completed/paused items to history
-  useEffect(() => {
-    const completedItems = items.filter(item => item.status === 'completed');
-    const pausedItems = items.filter(item => item.status === 'paused');
-    
-    // Get existing history
-    const savedHistory = localStorage.getItem('taskometer-history');
-    let history = [];
-    
-    if (savedHistory) {
-      try {
-        history = JSON.parse(savedHistory);
-      } catch (e) {
-        console.error('Failed to parse history:', e);
-      }
-    }
-    
-    // Add completed items to history if not already there
-    completedItems.forEach(item => {
-      if (!history.find(h => h.key === item.key)) {
-        history.push({
-          ...item,
-          completedAt: new Date().toISOString(),
-          action: 'completed'
-        });
-      }
-    });
-    
-    // Update paused items in history
-    pausedItems.forEach(item => {
-      const existingIndex = history.findIndex(h => h.key === item.key);
-      if (existingIndex >= 0) {
-        history[existingIndex] = {
-          ...item,
-          pausedAt: new Date().toISOString(),
-          action: 'paused'
+    const removedFromAudit = auditLog
+      .filter(entry => {
+        const action = entry.action || entry.actionType;
+        return (
+          entry.entityType === 'task' &&
+          (action === 'DELETE' || action === 'DELETE_TASK')
+        );
+      })
+      .map(entry => {
+        const snapshot = entry.previousState || entry.newState || {};
+        const taskId = entry.entityId || snapshot.id || snapshot.key || entry.id;
+        return {
+          ...snapshot,
+          id: snapshot.id || taskId,
+          key: snapshot.key || taskId,
+          text: entry.entityName || snapshot.text || 'Deleted task',
+          status: 'removed',
+          removedAt: entry.timestamp,
+          historyId: `removed-${entry.id}`,
+          historyType: 'removed',
+          sourceAuditEntryId: entry.id,
+          canRestore: Boolean(snapshot.text || entry.entityName)
         };
-      } else {
-        history.push({
-          ...item,
-          pausedAt: new Date().toISOString(),
-          action: 'paused'
-        });
-      }
+      });
+
+    return [...completedOrPaused, ...removedFromAudit].sort((a, b) => {
+      return new Date(getHistoryTimestamp(b)) - new Date(getHistoryTimestamp(a));
     });
-    
-    // Save updated history
-    localStorage.setItem('taskometer-history', JSON.stringify(history));
-    setHistoryItems(history);
-  }, [items]);
+  }, [items, auditLog]);
 
   // Filter history items based on selected filter
   const filteredItems = historyItems.filter(item => {
     if (filter === 'all') return true;
     if (filter === 'completed') return item.status === 'completed';
     if (filter === 'paused') return item.status === 'paused';
-    if (filter === 'removed') return item.action === 'removed';
+    if (filter === 'removed') return item.historyType === 'removed';
     return true;
   });
 
   function restoreItem(item) {
-    // Re-add the item to the active list
+    const itemId = item.id || item.key;
+
+    if (item.historyType === 'removed') {
+      if (!item.canRestore) return;
+      dispatch({
+        type: ACTION_TYPES.ADD_TASK,
+        payload: {
+          text: item.text || 'Restored task',
+          status: 'pending',
+          primaryType: item.primaryType || item.taskType || 'work',
+          taskType: item.primaryType || item.taskType || 'work',
+          tags: item.tags || [],
+          duration: item.duration || 30,
+          priority: item.priority || 'medium',
+          description: item.description || null,
+          scheduledTime: null,
+          specificDay: null,
+          specificTime: null
+        }
+      });
+      return;
+    }
+
+    if (!itemId) return;
     dispatch({
-      type: 'ADD_ITEM',
-      item: {
-        ...item,
+      type: ACTION_TYPES.UPDATE_TASK,
+      payload: {
+        id: itemId,
         status: 'pending',
-        key: Date.now(), // New key to avoid conflicts
-        scheduledTime: null
+        completedAt: null
       }
     });
-
-    // Remove from history
-    const updatedHistory = historyItems.filter(h => h.key !== item.key);
-    localStorage.setItem('taskometer-history', JSON.stringify(updatedHistory));
-    setHistoryItems(updatedHistory);
   }
 
   function permanentlyDelete(item) {
-    // Remove from history permanently
-    const updatedHistory = historyItems.filter(h => h.key !== item.key);
-    localStorage.setItem('taskometer-history', JSON.stringify(updatedHistory));
-    setHistoryItems(updatedHistory);
+    if (item.historyType === 'removed') return;
+    const itemId = item.id || item.key;
+    if (!itemId) return;
+    dispatch({
+      type: ACTION_TYPES.DELETE_TASK,
+      payload: { id: itemId }
+    });
   }
 
   function clearHistory() {
-    if (window.confirm('Are you sure you want to clear all history?')) {
-      localStorage.setItem('taskometer-history', JSON.stringify([]));
-      setHistoryItems([]);
+    const clearableItems = filteredItems.filter(item => item.historyType !== 'removed');
+    if (clearableItems.length === 0) return;
+
+    if (window.confirm('Are you sure you want to clear completed/paused tasks from history?')) {
+      clearableItems.forEach(item => {
+        const itemId = item.id || item.key;
+        if (!itemId) return;
+        dispatch({
+          type: ACTION_TYPES.DELETE_TASK,
+          payload: { id: itemId }
+        });
+      });
     }
   }
 
@@ -137,7 +139,11 @@ function History() {
             <option value="paused">Paused</option>
             <option value="removed">Removed</option>
           </select>
-          <button onClick={clearHistory} className={styles.clearButton}>
+          <button
+            onClick={clearHistory}
+            className={styles.clearButton}
+            disabled={filteredItems.every(item => item.historyType === 'removed')}
+          >
             Clear History
           </button>
         </div>
@@ -149,7 +155,7 @@ function History() {
             </div>
           ) : (
             filteredItems.map(item => (
-              <div key={item.key} className={styles.historyItem}>
+              <div key={item.historyId || item.id || item.key} className={styles.historyItem}>
                 <div className={styles.itemInfo}>
                   <span className={`${styles.status} ${styles[item.status]}`}>
                     {item.status}
@@ -158,25 +164,31 @@ function History() {
                   <span className={styles.metadata}>
                     Duration: {item.duration}min |
                     Priority: {item.priority} |
-                    Type: {item.taskType}
+                    Type: {item.primaryType || item.taskType}
                   </span>
                   <span className={styles.timestamp}>
                     {item.completedAt && `Completed: ${formatTimestamp(item.completedAt)}`}
-                    {item.pausedAt && `Paused: ${formatTimestamp(item.pausedAt)}`}
+                    {item.status === 'paused' && `Paused: ${formatTimestamp(item.updatedAt)}`}
                     {item.removedAt && `Removed: ${formatTimestamp(item.removedAt)}`}
                   </span>
                 </div>
                 <div className={styles.actions}>
-                  <button onClick={() => restoreItem(item)} title="Restore to active list">
+                  <button
+                    onClick={() => restoreItem(item)}
+                    disabled={item.historyType === 'removed' && !item.canRestore}
+                    title="Restore to active list"
+                  >
                     ↺ Restore
                   </button>
-                  <button
-                    onClick={() => permanentlyDelete(item)}
-                    className={styles.deleteButton}
-                    title="Permanently delete"
-                  >
-                    × Delete
-                  </button>
+                  {item.historyType !== 'removed' && (
+                    <button
+                      onClick={() => permanentlyDelete(item)}
+                      className={styles.deleteButton}
+                      title="Permanently delete"
+                    >
+                      × Delete
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -222,6 +234,10 @@ function History() {
       </div>
     </div>
   );
+}
+
+function getHistoryTimestamp(item) {
+  return item.removedAt || item.completedAt || item.updatedAt || item.createdAt || new Date(0).toISOString();
 }
 
 export default History;

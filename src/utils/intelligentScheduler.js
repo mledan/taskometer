@@ -1,4 +1,4 @@
-import { parseTime } from './scheduleTemplates';
+import { parseTime } from './scheduleTemplates.js';
 import { addMinutes, addDays, isAfter, isBefore } from 'date-fns';
 
 /**
@@ -6,7 +6,7 @@ import { addMinutes, addDays, isAfter, isBefore } from 'date-fns';
  * Automatically assigns tasks to appropriate time blocks based on activity type
  */
 
-export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
+export function findOptimalTimeSlot(task, activeSchedule, existingTasks = [], taskTypes = []) {
   if (!activeSchedule || !activeSchedule.timeBlocks) {
     return null;
   }
@@ -14,12 +14,16 @@ export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
   const now = new Date();
   const taskActivityType = task.primaryType || task.taskType || task.activityType || 'buffer';
   const taskDuration = task.duration || 30; // minutes
+  const taskTypeConfig = getTaskTypeConfig(task, taskTypes);
   const preferredDateTime = getPreferredDateTime(task, now);
 
   if (preferredDateTime) {
     const preferredEnd = addMinutes(preferredDateTime, taskDuration);
+    const isWithinConstraints =
+      task.schedulingPreference === 'specific' ||
+      isWithinTaskTypeConstraints(preferredDateTime, preferredEnd, taskTypeConfig);
     const hasConflict = hasTaskConflict(preferredDateTime, preferredEnd, existingTasks);
-    if (!hasConflict) {
+    if (isWithinConstraints && !hasConflict) {
       return createScheduledResult(preferredDateTime, null, 100);
     }
   }
@@ -54,48 +58,58 @@ export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
 
   // Try to find an available slot in each matching block
   for (const block of matchingBlocks) {
-    const { blockStart, blockEnd } = getNextBlockWindow(block, now);
-    
-    // Skip blocks that are in the past
-    if (isAfter(now, blockEnd)) {
-      continue;
-    }
+    const windows = getUpcomingBlockWindows(block, now, 7);
 
-    // Start from current time if block has already started
-    let slotStart = isAfter(now, blockStart) ? new Date(now) : new Date(blockStart);
-    
-    // Round to next 15-minute interval for cleaner scheduling
-    const minutes = slotStart.getMinutes();
-    const roundedMinutes = Math.ceil(minutes / 15) * 15;
-    slotStart.setMinutes(roundedMinutes, 0, 0);
-
-    // Check if the task fits in this block
-    const slotEnd = addMinutes(slotStart, taskDuration);
-    if (isAfter(slotEnd, blockEnd)) {
-      continue; // Task doesn't fit in this block
-    }
-
-    // Check for conflicts with existing tasks
-    const hasConflict = hasTaskConflict(slotStart, slotEnd, existingTasks);
-
-    if (!hasConflict) {
-      return createScheduledResult(slotStart, block, calculateConfidence(task, block));
-    }
-
-    // Try to find next available slot within this block
-    let nextSlot = slotStart;
-    while (isBefore(nextSlot, blockEnd)) {
-      nextSlot = addMinutes(nextSlot, 15); // Check every 15 minutes
-      const nextSlotEnd = addMinutes(nextSlot, taskDuration);
-      
-      if (isAfter(nextSlotEnd, blockEnd)) {
-        break; // Doesn't fit
+    for (const { blockStart, blockEnd } of windows) {
+      const constrainedWindow = applyTaskTypeWindowConstraints(blockStart, blockEnd, taskTypeConfig);
+      if (!constrainedWindow) {
+        continue;
       }
 
-      const hasNextConflict = hasTaskConflict(nextSlot, nextSlotEnd, existingTasks);
+      const { windowStart, windowEnd } = constrainedWindow;
 
-      if (!hasNextConflict) {
-        return createScheduledResult(nextSlot, block, calculateConfidence(task, block));
+      // Start from current time if block has already started
+      let slotStart = isAfter(now, windowStart) ? new Date(now) : new Date(windowStart);
+      if (isBefore(slotStart, windowStart)) {
+        slotStart = new Date(windowStart);
+      }
+
+      // Round to next 15-minute interval for cleaner scheduling
+      const minutes = slotStart.getMinutes();
+      const roundedMinutes = Math.ceil(minutes / 15) * 15;
+      slotStart.setMinutes(roundedMinutes, 0, 0);
+      if (isBefore(slotStart, windowStart)) {
+        slotStart = new Date(windowStart);
+      }
+
+      // Check if the task fits in this constrained window
+      const slotEnd = addMinutes(slotStart, taskDuration);
+      if (isAfter(slotEnd, windowEnd)) {
+        continue; // Task doesn't fit in this window
+      }
+
+      // Check for conflicts with existing tasks
+      const hasConflict = hasTaskConflict(slotStart, slotEnd, existingTasks);
+
+      if (!hasConflict) {
+        return createScheduledResult(slotStart, block, calculateConfidence(task, block));
+      }
+
+      // Try to find next available slot within this window
+      let nextSlot = slotStart;
+      while (isBefore(nextSlot, windowEnd)) {
+        nextSlot = addMinutes(nextSlot, 15); // Check every 15 minutes
+        const nextSlotEnd = addMinutes(nextSlot, taskDuration);
+        
+        if (isAfter(nextSlotEnd, windowEnd)) {
+          break; // Doesn't fit
+        }
+
+        const hasNextConflict = hasTaskConflict(nextSlot, nextSlotEnd, existingTasks);
+
+        if (!hasNextConflict) {
+          return createScheduledResult(nextSlot, block, calculateConfidence(task, block));
+        }
       }
     }
   }
@@ -133,22 +147,28 @@ function calculateConfidence(task, block) {
   return confidence;
 }
 
-function getNextBlockWindow(block, referenceTime) {
-  let blockStart = parseTime(block.start);
-  let blockEnd = parseTime(block.end);
+function getUpcomingBlockWindows(block, referenceTime, daysAhead = 7) {
+  const windows = [];
+  const startBase = parseTime(block.start);
+  let endBase = parseTime(block.end);
 
   // Handle overnight blocks like 22:00 -> 06:30
-  if (blockEnd <= blockStart) {
-    blockEnd = addDays(blockEnd, 1);
+  if (endBase <= startBase) {
+    endBase = addDays(endBase, 1);
   }
 
-  // If today's occurrence is over, move to next day.
-  if (blockEnd <= referenceTime) {
-    blockStart = addDays(blockStart, 1);
-    blockEnd = addDays(blockEnd, 1);
+  for (let dayOffset = 0; dayOffset < daysAhead; dayOffset++) {
+    const blockStart = addDays(startBase, dayOffset);
+    const blockEnd = addDays(endBase, dayOffset);
+
+    if (blockEnd <= referenceTime) {
+      continue;
+    }
+
+    windows.push({ blockStart, blockEnd });
   }
 
-  return { blockStart, blockEnd };
+  return windows;
 }
 
 function getBlockDurationMinutes(block) {
@@ -266,7 +286,7 @@ function isWeekdayLabel(value) {
 /**
  * Batch schedule multiple tasks intelligently
  */
-export function batchScheduleTasks(tasks, activeSchedule, existingTasks = []) {
+export function batchScheduleTasks(tasks, activeSchedule, existingTasks = [], taskTypes = []) {
   if (!activeSchedule) {
     return tasks.map(task => ({ ...task, scheduledTime: null }));
   }
@@ -285,7 +305,7 @@ export function batchScheduleTasks(tasks, activeSchedule, existingTasks = []) {
   const allScheduledItems = [...existingTasks];
 
   for (const task of sortedTasks) {
-    const slot = findOptimalTimeSlot(task, activeSchedule, allScheduledItems);
+    const slot = findOptimalTimeSlot(task, activeSchedule, allScheduledItems, taskTypes);
     
     if (slot) {
       const scheduledTask = {
@@ -372,14 +392,14 @@ export function getScheduleUtilization(activeSchedule, tasks) {
 /**
  * Suggest best time for a new task based on current schedule
  */
-export function suggestBestTime(taskType, duration, activeSchedule, existingTasks) {
+export function suggestBestTime(taskType, duration, activeSchedule, existingTasks, taskTypes = []) {
   const mockTask = {
     taskType,
     duration,
     priority: 'medium'
   };
 
-  const slot = findOptimalTimeSlot(mockTask, activeSchedule, existingTasks);
+  const slot = findOptimalTimeSlot(mockTask, activeSchedule, existingTasks, taskTypes);
   
   if (slot) {
     return {
@@ -399,12 +419,12 @@ export function suggestBestTime(taskType, duration, activeSchedule, existingTask
 /**
  * Reschedule a task to next available slot
  */
-export function rescheduleTask(task, activeSchedule, existingTasks) {
+export function rescheduleTask(task, activeSchedule, existingTasks, taskTypes = []) {
   // Remove the task from existing items to avoid self-conflict
   const otherTasks = existingTasks.filter(t => t.key !== task.key);
   
   // Find new slot
-  const slot = findOptimalTimeSlot(task, activeSchedule, otherTasks);
+  const slot = findOptimalTimeSlot(task, activeSchedule, otherTasks, taskTypes);
   
   if (slot) {
     return {
@@ -415,4 +435,95 @@ export function rescheduleTask(task, activeSchedule, existingTasks) {
   }
   
   return null;
+}
+
+function getTaskTypeConfig(task, taskTypes = []) {
+  const taskTypeId = task?.primaryType || task?.taskType || task?.activityType;
+  if (!taskTypeId || !Array.isArray(taskTypes)) {
+    return null;
+  }
+  return taskTypes.find(type => type.id === taskTypeId) || null;
+}
+
+function isWithinTaskTypeConstraints(start, end, taskTypeConfig) {
+  if (!taskTypeConfig) {
+    return true;
+  }
+
+  if (!isDayAllowed(start, taskTypeConfig)) {
+    return false;
+  }
+
+  const constrained = applyTaskTypeWindowConstraints(start, end, taskTypeConfig);
+  if (!constrained) {
+    return false;
+  }
+
+  return start >= constrained.windowStart && end <= constrained.windowEnd;
+}
+
+function applyTaskTypeWindowConstraints(windowStart, windowEnd, taskTypeConfig) {
+  if (!taskTypeConfig) {
+    return { windowStart, windowEnd };
+  }
+
+  if (!isDayAllowed(windowStart, taskTypeConfig)) {
+    return null;
+  }
+
+  let constrainedStart = new Date(windowStart);
+  let constrainedEnd = new Date(windowEnd);
+  const preferredStart = taskTypeConfig.constraints?.preferredTimeStart;
+  const preferredEnd = taskTypeConfig.constraints?.preferredTimeEnd;
+
+  if (preferredStart) {
+    const preferredStartDate = setTimeOnDate(windowStart, preferredStart);
+    if (preferredStartDate > constrainedStart) {
+      constrainedStart = preferredStartDate;
+    }
+  }
+
+  if (preferredEnd) {
+    let preferredEndDate = setTimeOnDate(windowStart, preferredEnd);
+
+    if (preferredStart) {
+      const preferredStartDate = setTimeOnDate(windowStart, preferredStart);
+      if (preferredEndDate <= preferredStartDate) {
+        preferredEndDate = addDays(preferredEndDate, 1);
+      }
+    }
+
+    if (preferredEndDate < constrainedEnd) {
+      constrainedEnd = preferredEndDate;
+    }
+  }
+
+  if (constrainedEnd <= constrainedStart) {
+    return null;
+  }
+
+  return {
+    windowStart: constrainedStart,
+    windowEnd: constrainedEnd
+  };
+}
+
+function isDayAllowed(date, taskTypeConfig) {
+  const allowedDays = taskTypeConfig?.allowedDays;
+  if (!Array.isArray(allowedDays)) {
+    return true;
+  }
+  if (allowedDays.length === 0) {
+    return false;
+  }
+
+  const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+  return allowedDays.some(day => String(day).toLowerCase() === dayName);
+}
+
+function setTimeOnDate(baseDate, timeString) {
+  const [hours, minutes] = parseTimeString(timeString);
+  const nextDate = new Date(baseDate);
+  nextDate.setHours(hours, minutes, 0, 0);
+  return nextDate;
 }

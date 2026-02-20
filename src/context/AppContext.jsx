@@ -203,7 +203,7 @@ function appReducer(state, action) {
       if (state.settings.autoSchedule && !skipAutoSchedule && !newTask.scheduledTime && !newTask.specificTime) {
         const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
         if (activeSchedule) {
-          const optimalSlot = findOptimalTimeSlot(newTask, activeSchedule, state.tasks);
+          const optimalSlot = findOptimalTimeSlot(newTask, activeSchedule, state.tasks, state.taskTypes);
           if (optimalSlot) {
             newTask = {
               ...newTask,
@@ -247,7 +247,7 @@ function appReducer(state, action) {
           const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
           if (activeSchedule) {
             const otherTasks = state.tasks.filter(t => t.id !== task.id && t.key !== task.key);
-            const optimalSlot = findOptimalTimeSlot(updatedTask, activeSchedule, otherTasks);
+            const optimalSlot = findOptimalTimeSlot(updatedTask, activeSchedule, otherTasks, state.taskTypes);
             if (optimalSlot) {
               updatedTask.scheduledTime = optimalSlot.scheduledFor;
               updatedTask.scheduledFor = optimalSlot.scheduledFor;
@@ -355,7 +355,7 @@ function appReducer(state, action) {
         return state;
       }
 
-      const scheduledTasks = batchScheduleTasks(tasksToSchedule, activeSchedule, state.tasks);
+      const scheduledTasks = batchScheduleTasks(tasksToSchedule, activeSchedule, state.tasks, state.taskTypes);
 
       const newTasks = state.tasks.map(task => {
         const scheduled = scheduledTasks.find(s => s.key === task.key || s.id === task.id);
@@ -378,7 +378,7 @@ function appReducer(state, action) {
       const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
 
       if (activeSchedule) {
-        const scheduledTasks = batchScheduleTasks(pendingTasks, activeSchedule, []);
+        const scheduledTasks = batchScheduleTasks(pendingTasks, activeSchedule, [], state.taskTypes);
         const newTasks = state.tasks.map(item => {
           const scheduledItem = scheduledTasks.find(s => s.key === item.key || s.id === item.id);
           return scheduledItem || item;
@@ -870,40 +870,39 @@ export function AppStateProvider({ children }) {
       ACTION_TYPES.ADD_ITEM, ACTION_TYPES.UPDATE_ITEM, ACTION_TYPES.DELETE_ITEM
     ];
 
+    const payload = action.payload || action.item || {};
+    const entityType = getEntityTypeFromAction(action.type);
+    const auditAction = getAuditActionFromAction(action.type);
+    const entitySnapshot = getEntitySnapshotForAction(state, entityType, payload);
+    const deleteAction = isDeleteAction(action.type);
+
     // Dispatch the action
     dispatch(action);
 
     // Create audit entry if action is auditable
     if (auditableActions.includes(action.type)) {
-      const entityType = getEntityTypeFromAction(action.type);
-      const auditAction = getAuditActionFromAction(action.type);
-      const payload = action.payload || action.item || {};
+      const auditPayload = {
+        action: auditAction,
+        entityType,
+        entityId: entitySnapshot.entityId,
+        entityName: entitySnapshot.entityName,
+        previousState: deleteAction ? entitySnapshot.previousState : null,
+        newState: deleteAction ? null : payload,
+        source: CHANGE_SOURCES.USER
+      };
 
       dispatch({
         type: ACTION_TYPES.ADD_AUDIT_ENTRY,
-        payload: {
-          action: auditAction,
-          entityType,
-          entityId: payload.id || payload.key || payload.taskId || payload.slotId || payload.tagId || payload.scheduleId,
-          entityName: payload.text || payload.name || payload.label,
-          newState: payload,
-          source: CHANGE_SOURCES.USER
-        }
+        payload: auditPayload
       });
 
       // Also persist to database
       if (dbRef.current) {
-        dbRef.current.createAuditEntry({
-          action: auditAction,
-          entityType,
-          entityId: payload.id || payload.key,
-          entityName: payload.text || payload.name,
-          newState: payload,
-          source: CHANGE_SOURCES.USER
-        }).catch(err => console.error('[AppContext] Audit log error:', err));
+        dbRef.current.createAuditEntry(auditPayload)
+          .catch(err => console.error('[AppContext] Audit log error:', err));
       }
     }
-  }, []);
+  }, [state]);
 
   return (
     <div className="App">
@@ -1022,6 +1021,70 @@ function getAuditActionFromAction(actionType) {
   if (actionType.includes('RESUME')) return AUDIT_ACTIONS.TASK_RESUME;
   if (actionType.includes('APPLY')) return AUDIT_ACTIONS.SCHEDULE_APPLY;
   return AUDIT_ACTIONS.UPDATE;
+}
+
+function getEntitySnapshotForAction(state, entityType, payload) {
+  const entityId = getEntityIdFromPayload(payload);
+  const collection = getCollectionForEntityType(state, entityType);
+  const previousState = entityId
+    ? collection.find(entity => matchesEntityId(entity, entityId)) || null
+    : null;
+
+  return {
+    entityId: entityId || previousState?.id || previousState?.key || null,
+    entityName:
+      payload.text ||
+      payload.name ||
+      payload.label ||
+      payload.schedule?.name ||
+      previousState?.text ||
+      previousState?.name ||
+      previousState?.label ||
+      null,
+    previousState
+  };
+}
+
+function getCollectionForEntityType(state, entityType) {
+  switch (entityType) {
+    case ENTITY_TYPES.TASK:
+      return state.tasks || [];
+    case ENTITY_TYPES.SLOT:
+      return state.slots || [];
+    case ENTITY_TYPES.TAG:
+      return state.tags || [];
+    case ENTITY_TYPES.TASK_TYPE:
+      return state.taskTypes || [];
+    case ENTITY_TYPES.SCHEDULE:
+      return state.schedules || [];
+    default:
+      return [];
+  }
+}
+
+function getEntityIdFromPayload(payload = {}) {
+  return (
+    payload.id ||
+    payload.key ||
+    payload.taskId ||
+    payload.slotId ||
+    payload.tagId ||
+    payload.scheduleId ||
+    payload.schedule?.id ||
+    null
+  );
+}
+
+function matchesEntityId(entity, targetId) {
+  if (!entity || !targetId) return false;
+  return (
+    entity.id?.toString() === targetId.toString() ||
+    entity.key?.toString() === targetId.toString()
+  );
+}
+
+function isDeleteAction(actionType) {
+  return actionType.includes('DELETE');
 }
 
 export default AppContext;
