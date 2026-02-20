@@ -107,7 +107,7 @@ function ScheduleLibrary() {
     // Filter by category
     if (filter === 'famous' && schedule.isCustom) return false;
     if (filter === 'custom' && !schedule.isCustom) return false;
-    if (filter === 'community' && !schedule.author.includes('Community')) return false;
+    if (filter === 'community' && !(schedule.author || '').includes('Community')) return false;
     
     return true;
   }).map(s => ({ ...s, _likes: getLikes(s.id) }));

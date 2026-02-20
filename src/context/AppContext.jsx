@@ -197,9 +197,10 @@ function appReducer(state, action) {
     case ACTION_TYPES.ADD_ITEM: {
       const taskData = action.payload || action.item;
       let newTask = createTask(taskData);
+      const skipAutoSchedule = taskData?.autoSchedule === false;
 
       // Auto-schedule if enabled and no specific time set
-      if (state.settings.autoSchedule && !newTask.scheduledTime && !newTask.specificTime) {
+      if (state.settings.autoSchedule && !skipAutoSchedule && !newTask.scheduledTime && !newTask.specificTime) {
         const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
         if (activeSchedule) {
           const optimalSlot = findOptimalTimeSlot(newTask, activeSchedule, state.tasks);

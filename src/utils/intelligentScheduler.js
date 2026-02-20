@@ -14,6 +14,15 @@ export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
   const now = new Date();
   const taskActivityType = task.primaryType || task.taskType || task.activityType || 'buffer';
   const taskDuration = task.duration || 30; // minutes
+  const preferredDateTime = getPreferredDateTime(task, now);
+
+  if (preferredDateTime) {
+    const preferredEnd = addMinutes(preferredDateTime, taskDuration);
+    const hasConflict = hasTaskConflict(preferredDateTime, preferredEnd, existingTasks);
+    if (!hasConflict) {
+      return createScheduledResult(preferredDateTime, null, 100);
+    }
+  }
 
   // Find all time blocks that match the task's activity type.
   // Enhanced templates often use category IDs in `type` and map to task types
@@ -67,25 +76,10 @@ export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
     }
 
     // Check for conflicts with existing tasks
-    const hasConflict = existingTasks.some(existingTask => {
-      if (!existingTask.scheduledTime || existingTask.status === 'completed') {
-        return false;
-      }
-
-      const existingStart = new Date(existingTask.scheduledTime);
-      const existingEnd = addMinutes(existingStart, existingTask.duration || 30);
-
-      // Check for overlap
-      return (slotStart < existingEnd && slotEnd > existingStart);
-    });
+    const hasConflict = hasTaskConflict(slotStart, slotEnd, existingTasks);
 
     if (!hasConflict) {
-      return {
-        scheduledFor: slotStart.toISOString(),
-        scheduledTime: slotStart.toISOString(), // Legacy compatibility
-        timeBlock: block,
-        confidence: calculateConfidence(task, block)
-      };
+      return createScheduledResult(slotStart, block, calculateConfidence(task, block));
     }
 
     // Try to find next available slot within this block
@@ -98,24 +92,10 @@ export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
         break; // Doesn't fit
       }
 
-      const hasNextConflict = existingTasks.some(existingTask => {
-        if (!existingTask.scheduledTime || existingTask.status === 'completed') {
-          return false;
-        }
-
-        const existingStart = new Date(existingTask.scheduledTime);
-        const existingEnd = addMinutes(existingStart, existingTask.duration || 30);
-
-        return (nextSlot < existingEnd && nextSlotEnd > existingStart);
-      });
+      const hasNextConflict = hasTaskConflict(nextSlot, nextSlotEnd, existingTasks);
 
       if (!hasNextConflict) {
-        return {
-          scheduledFor: nextSlot.toISOString(),
-          scheduledTime: nextSlot.toISOString(), // Legacy compatibility
-          timeBlock: block,
-          confidence: calculateConfidence(task, block)
-        };
+        return createScheduledResult(nextSlot, block, calculateConfidence(task, block));
       }
     }
   }
@@ -180,6 +160,109 @@ function getBlockDurationMinutes(block) {
   return (end - start) / 60000;
 }
 
+function createScheduledResult(startDate, block, confidence) {
+  return {
+    scheduledFor: startDate.toISOString(),
+    scheduledTime: startDate.toISOString(), // Legacy compatibility
+    specificTime: to24HourTime(startDate),
+    specificDay: startDate.toLocaleDateString('en-US', { weekday: 'long' }),
+    timeBlock: block,
+    confidence
+  };
+}
+
+function hasTaskConflict(slotStart, slotEnd, existingTasks = []) {
+  return existingTasks.some(existingTask => {
+    if (!existingTask?.scheduledTime || existingTask.status === 'completed') {
+      return false;
+    }
+
+    const existingStart = new Date(existingTask.scheduledTime);
+    const existingEnd = addMinutes(existingStart, existingTask.duration || 30);
+
+    return slotStart < existingEnd && slotEnd > existingStart;
+  });
+}
+
+function getPreferredDateTime(task, now) {
+  if (task?.schedulingPreference === 'delay' && Number(task.delayMinutes) > 0) {
+    return addMinutes(new Date(now), Number(task.delayMinutes));
+  }
+
+  if (task?.schedulingPreference !== 'specific') {
+    return null;
+  }
+
+  const date = resolvePreferredDate(task.specificDay, now);
+  const dateTime = applyPreferredTime(date, task.specificTime);
+
+  // If a specific datetime was picked in the past, roll forward.
+  // Weekday picks should stay on that weekday (next week), while date picks
+  // move one day forward to keep the intent as "next available".
+  if (dateTime <= now) {
+    if (isWeekdayLabel(task.specificDay)) {
+      return addDays(dateTime, 7);
+    }
+    return addDays(dateTime, 1);
+  }
+  return dateTime;
+}
+
+function resolvePreferredDate(specificDay, now) {
+  const base = new Date(now);
+  base.setSeconds(0, 0);
+
+  if (!specificDay) return base;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(specificDay)) {
+    const parsed = new Date(`${specificDay}T00:00:00`);
+    if (!isNaN(parsed.getTime())) {
+      parsed.setSeconds(0, 0);
+      return parsed;
+    }
+  }
+
+  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const targetIndex = weekdays.findIndex(day => day.toLowerCase() === String(specificDay).toLowerCase());
+  if (targetIndex === -1) return base;
+
+  const currentIndex = base.getDay();
+  let delta = targetIndex - currentIndex;
+  if (delta < 0) delta += 7;
+
+  const result = addDays(base, delta);
+  result.setSeconds(0, 0);
+  return result;
+}
+
+function applyPreferredTime(date, specificTime) {
+  const result = new Date(date);
+  const [hours, minutes] = parseTimeString(specificTime);
+  result.setHours(hours, minutes, 0, 0);
+  return result;
+}
+
+function parseTimeString(value) {
+  if (!value || typeof value !== 'string') return [9, 0];
+  const match = value.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return [9, 0];
+  const hours = Math.max(0, Math.min(23, Number(match[1])));
+  const minutes = Math.max(0, Math.min(59, Number(match[2])));
+  return [hours, minutes];
+}
+
+function to24HourTime(date) {
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function isWeekdayLabel(value) {
+  if (!value || typeof value !== 'string') return false;
+  return ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    .includes(value.toLowerCase());
+}
+
 /**
  * Batch schedule multiple tasks intelligently
  */
@@ -208,6 +291,9 @@ export function batchScheduleTasks(tasks, activeSchedule, existingTasks = []) {
       const scheduledTask = {
         ...task,
         scheduledTime: slot.scheduledTime,
+        scheduledFor: slot.scheduledFor,
+        specificTime: slot.specificTime,
+        specificDay: slot.specificDay,
         assignedBlock: slot.timeBlock,
         confidence: slot.confidence
       };
