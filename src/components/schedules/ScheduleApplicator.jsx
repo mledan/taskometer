@@ -170,7 +170,7 @@ function ScheduleApplicator({
       slotsToDelete.forEach(slot => {
         dispatch({
           type: ACTION_TYPES.DELETE_SLOT,
-          payload: { id: slot.id }
+          payload: { slotId: slot.id }
         });
       });
     }

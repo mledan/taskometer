@@ -89,16 +89,25 @@ function ScheduleLibrary() {
 
   const filteredSchedules = schedules.filter(schedule => {
     // Filter by search term
-    if (searchTerm && !schedule.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !schedule.description.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !schedule.author.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
+    const normalizedSearchTerm = searchTerm.trim().replace(/^#/, '').toLowerCase();
+    if (normalizedSearchTerm) {
+      const searchableText = [
+        schedule.name,
+        schedule.description,
+        schedule.author,
+        ...(schedule.tags || [])
+      ]
+        .join(' ')
+        .toLowerCase();
+      if (!searchableText.includes(normalizedSearchTerm)) {
+        return false;
+      }
     }
     
     // Filter by category
     if (filter === 'famous' && schedule.isCustom) return false;
     if (filter === 'custom' && !schedule.isCustom) return false;
-    if (filter === 'community' && !schedule.author.includes('Community')) return false;
+    if (filter === 'community' && !(schedule.author || '').includes('Community')) return false;
     
     return true;
   }).map(s => ({ ...s, _likes: getLikes(s.id) }));
@@ -192,7 +201,7 @@ function ScheduleLibrary() {
             <button
               key={tag}
               className={styles.tag}
-              onClick={(e) => { e.stopPropagation(); setFilter('all'); setSearchTerm('#' + tag.toLowerCase()); }}
+              onClick={(e) => { e.stopPropagation(); setFilter('all'); setSearchTerm(tag.toLowerCase()); }}
               title={`Filter by #${tag}`}
             >
               #{tag}
@@ -430,7 +439,7 @@ function ScheduleLibrary() {
                     const updated = { ...selectedSchedule, author: 'Community', communityUploadedAt: new Date().toISOString() };
                     saveScheduleToLocalStorage(updated);
                     const custom = getSchedulesFromLocalStorage();
-                    setSchedules([...FAMOUS_SCHEDULES, ...custom]);
+                    setSchedules([...FAMOUS_SCHEDULES, ...ENHANCED_FAMOUS_SCHEDULES, ...custom]);
                     setSelectedSchedule(updated);
                     alert('Uploaded to Community');
                   }}

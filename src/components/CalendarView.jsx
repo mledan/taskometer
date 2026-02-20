@@ -43,6 +43,8 @@ function CalendarView() {
         showSlots={true}
         isSlotEditMode={isSlotEditMode}
         onSlotEditModeChange={handleSlotEditModeChange}
+        selectedWeek={selectedWeek}
+        onWeekChange={setSelectedWeek}
       />
       <CalendarSync />
       <CalendarTemplateOverlay currentWeekStart={selectedWeek} />

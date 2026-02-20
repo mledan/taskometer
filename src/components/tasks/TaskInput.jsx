@@ -76,16 +76,17 @@ function TaskInput({ onTaskAdded }) {
       tags: selectedTags
     };
 
-    const slot = findOptimalTimeSlot(previewTask, schedule, tasks);
+    const slot = findOptimalTimeSlot(previewTask, schedule, tasks, taskTypes);
     setPreviewSlot(slot);
-  }, [taskText, taskType, duration, selectedTags, autoSchedule, schedulingPreference, activeSchedule, tasks]);
+  }, [taskText, taskType, duration, selectedTags, autoSchedule, schedulingPreference, activeSchedule, tasks, taskTypes]);
 
   function handleSubmit(e) {
     e.preventDefault();
 
     if (!taskText.trim()) return;
 
-    const newTask = createTask({
+    const newTask = {
+      ...createTask({
       text: taskText.trim(),
       status: 'pending',
       primaryType: taskType,
@@ -98,7 +99,9 @@ function TaskInput({ onTaskAdded }) {
       specificDay: schedulingPreference === 'specific' ? specificDay : null,
       specificTime: schedulingPreference === 'specific' ? specificTime : null,
       scheduledTime: null
-    });
+      }),
+      autoSchedule
+    };
 
     // Dispatch the add action (will auto-schedule based on context settings)
     dispatch({ type: ACTION_TYPES.ADD_TASK, payload: newTask });

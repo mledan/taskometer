@@ -14,11 +14,29 @@
 
 import { useState, useMemo } from 'react';
 import { format, isWithinInterval, parseISO } from 'date-fns';
-import { AUDIT_ACTIONS, createAuditEntry } from '../../models/AuditEntry';
+import { AUDIT_ACTIONS } from '../../models/AuditEntry';
 import styles from './AuditLogViewer.module.css';
 
 // Action type icons
 const ACTION_ICONS = {
+  // New audit model actions
+  CREATE: '➕',
+  UPDATE: '✏️',
+  DELETE: '🗑️',
+  TASK_COMPLETE: '✅',
+  TASK_PAUSE: '⏸️',
+  TASK_RESUME: '▶️',
+  TASK_RESCHEDULE: '🔄',
+  SCHEDULE_APPLY: '📋',
+  SYNC_PUSH: '⬆️',
+  SYNC_PULL: '⬇️',
+  USER_LOGIN: '🔐',
+  USER_LOGOUT: '🚪',
+  DAILY_RESET: '🧹',
+  SETTINGS_CHANGE: '⚙️',
+  DATA_IMPORT: '📥',
+  DATA_EXPORT: '📤',
+  // Legacy action keys kept for backwards compatibility
   ADD_TASK: '➕',
   UPDATE_TASK: '✏️',
   DELETE_TASK: '🗑️',
@@ -44,12 +62,12 @@ const ACTION_ICONS = {
 
 // Category groupings
 const ACTION_CATEGORIES = {
-  tasks: ['ADD_TASK', 'UPDATE_TASK', 'DELETE_TASK', 'COMPLETE_TASK', 'PAUSE_TASK'],
-  slots: ['ADD_SLOT', 'UPDATE_SLOT', 'DELETE_SLOT', 'ASSIGN_TASK_TO_SLOT'],
-  schedules: ['ADD_SCHEDULE', 'UPDATE_SCHEDULE', 'DELETE_SCHEDULE', 'APPLY_SCHEDULE'],
-  tags: ['ADD_TAG', 'UPDATE_TAG', 'DELETE_TAG'],
-  sync: ['SYNC_START', 'SYNC_SUCCESS', 'SYNC_ERROR'],
-  auth: ['LOGIN', 'LOGOUT']
+  tasks: ['TASK_COMPLETE', 'TASK_PAUSE', 'TASK_RESUME', 'TASK_RESCHEDULE', 'ADD_TASK', 'UPDATE_TASK', 'DELETE_TASK', 'COMPLETE_TASK', 'PAUSE_TASK'],
+  slots: ['SLOT_ASSIGN', 'SLOT_UNASSIGN', 'SLOT_CONFIGURE', 'ADD_SLOT', 'UPDATE_SLOT', 'DELETE_SLOT', 'ASSIGN_TASK_TO_SLOT'],
+  schedules: ['SCHEDULE_APPLY', 'SCHEDULE_APPLY_PARTIAL', 'ADD_SCHEDULE', 'UPDATE_SCHEDULE', 'DELETE_SCHEDULE', 'APPLY_SCHEDULE'],
+  tags: ['CREATE', 'UPDATE', 'DELETE', 'ADD_TAG', 'UPDATE_TAG', 'DELETE_TAG'],
+  sync: ['SYNC_PUSH', 'SYNC_PULL', 'SYNC_CONFLICT', 'SYNC_START', 'SYNC_SUCCESS', 'SYNC_ERROR'],
+  auth: ['USER_LOGIN', 'USER_LOGOUT', 'LOGIN', 'LOGOUT']
 };
 
 function AuditLogViewer({
@@ -66,6 +84,30 @@ function AuditLogViewer({
   const [expandedEntries, setExpandedEntries] = useState(new Set());
   const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
 
+  function getEntryAction(entry) {
+    return entry.action || entry.actionType || AUDIT_ACTIONS.UPDATE;
+  }
+
+  function getEntryDetails(entry) {
+    const details = entry.details ? { ...entry.details } : {};
+    if (entry.changedFields?.length) {
+      details.changedFields = entry.changedFields.join(', ');
+    }
+    if (entry.source) {
+      details.source = entry.source;
+    }
+    if (entry.metadata && Object.keys(entry.metadata).length > 0) {
+      details.metadata = entry.metadata;
+    }
+    if (entry.previousState) {
+      details.previousState = entry.previousState;
+    }
+    if (entry.newState) {
+      details.newState = entry.newState;
+    }
+    return details;
+  }
+
   // Filter and sort entries
   const filteredEntries = useMemo(() => {
     let entries = [...auditLog].slice(0, maxEntries);
@@ -74,7 +116,7 @@ function AuditLogViewer({
     if (selectedCategory !== 'all') {
       const allowedActions = ACTION_CATEGORIES[selectedCategory] || [];
       entries = entries.filter(entry =>
-        allowedActions.includes(entry.actionType)
+        allowedActions.includes(getEntryAction(entry))
       );
     }
 
@@ -94,9 +136,9 @@ function AuditLogViewer({
       const query = searchQuery.toLowerCase();
       entries = entries.filter(entry => {
         const searchable = [
-          entry.actionType,
+          getEntryAction(entry),
           entry.description,
-          JSON.stringify(entry.details),
+          JSON.stringify(getEntryDetails(entry)),
           entry.entityType,
           entry.entityId
         ].join(' ').toLowerCase();
@@ -152,8 +194,27 @@ function AuditLogViewer({
    */
   function getActionDescription(entry) {
     if (entry.description) return entry.description;
+    const action = getEntryAction(entry);
 
     const templates = {
+      CREATE: 'Created item',
+      UPDATE: 'Updated item',
+      DELETE: 'Deleted item',
+      TASK_COMPLETE: 'Completed task',
+      TASK_PAUSE: 'Paused task',
+      TASK_RESUME: 'Resumed task',
+      TASK_RESCHEDULE: 'Rescheduled task',
+      SCHEDULE_APPLY: 'Applied schedule',
+      SCHEDULE_APPLY_PARTIAL: 'Partially applied schedule',
+      SYNC_PUSH: 'Synced changes to calendar',
+      SYNC_PULL: 'Imported changes from calendar',
+      SYNC_CONFLICT: 'Sync conflict detected',
+      USER_LOGIN: 'Logged in',
+      USER_LOGOUT: 'Logged out',
+      DAILY_RESET: 'Daily reset completed',
+      SETTINGS_CHANGE: 'Changed settings',
+      DATA_IMPORT: 'Imported data',
+      DATA_EXPORT: 'Exported data',
       ADD_TASK: 'Created task',
       UPDATE_TASK: 'Updated task',
       DELETE_TASK: 'Deleted task',
@@ -177,7 +238,7 @@ function AuditLogViewer({
       LOGOUT: 'Logged out'
     };
 
-    return templates[entry.actionType] || entry.actionType;
+    return templates[action] || action;
   }
 
   /**
@@ -307,58 +368,64 @@ function AuditLogViewer({
             )}
           </div>
         ) : (
-          filteredEntries.map(entry => (
-            <div
-              key={entry.id}
-              className={`${styles.logEntry} ${expandedEntries.has(entry.id) ? styles.expanded : ''}`}
-              onClick={() => toggleEntry(entry.id)}
-            >
-              <div className={styles.entryMain}>
-                <span className={styles.entryIcon}>
-                  {ACTION_ICONS[entry.actionType] || '📌'}
-                </span>
-                <div className={styles.entryContent}>
-                  <span className={styles.entryDescription}>
-                    {getActionDescription(entry)}
-                  </span>
-                  {entry.entityName && (
-                    <span className={styles.entityName}>{entry.entityName}</span>
-                  )}
-                </div>
-                <span className={styles.entryTime}>
-                  {formatTimestamp(entry.timestamp)}
-                </span>
-              </div>
+          filteredEntries.map(entry => {
+            const details = getEntryDetails(entry);
+            const action = getEntryAction(entry);
+            const hasDetails = Object.keys(details).length > 0;
 
-              {/* Expanded details */}
-              {expandedEntries.has(entry.id) && entry.details && (
-                <div className={styles.entryDetails}>
-                  <div className={styles.detailsGrid}>
-                    {entry.entityType && (
-                      <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>Type:</span>
-                        <span className={styles.detailValue}>{entry.entityType}</span>
-                      </div>
+            return (
+              <div
+                key={entry.id}
+                className={`${styles.logEntry} ${expandedEntries.has(entry.id) ? styles.expanded : ''}`}
+                onClick={() => toggleEntry(entry.id)}
+              >
+                <div className={styles.entryMain}>
+                  <span className={styles.entryIcon}>
+                    {ACTION_ICONS[action] || '📌'}
+                  </span>
+                  <div className={styles.entryContent}>
+                    <span className={styles.entryDescription}>
+                      {getActionDescription(entry)}
+                    </span>
+                    {entry.entityName && (
+                      <span className={styles.entityName}>{entry.entityName}</span>
                     )}
-                    {entry.entityId && (
-                      <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>ID:</span>
-                        <span className={styles.detailValue}>{entry.entityId}</span>
-                      </div>
-                    )}
-                    {Object.entries(entry.details).map(([key, value]) => (
-                      <div key={key} className={styles.detailItem}>
-                        <span className={styles.detailLabel}>{key}:</span>
-                        <span className={styles.detailValue}>
-                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                        </span>
-                      </div>
-                    ))}
                   </div>
+                  <span className={styles.entryTime}>
+                    {formatTimestamp(entry.timestamp)}
+                  </span>
                 </div>
-              )}
-            </div>
-          ))
+
+                {/* Expanded details */}
+                {expandedEntries.has(entry.id) && hasDetails && (
+                  <div className={styles.entryDetails}>
+                    <div className={styles.detailsGrid}>
+                      {entry.entityType && (
+                        <div className={styles.detailItem}>
+                          <span className={styles.detailLabel}>Type:</span>
+                          <span className={styles.detailValue}>{entry.entityType}</span>
+                        </div>
+                      )}
+                      {entry.entityId && (
+                        <div className={styles.detailItem}>
+                          <span className={styles.detailLabel}>ID:</span>
+                          <span className={styles.detailValue}>{entry.entityId}</span>
+                        </div>
+                      )}
+                      {Object.entries(details).map(([key, value]) => (
+                        <div key={key} className={styles.detailItem}>
+                          <span className={styles.detailLabel}>{key}:</span>
+                          <span className={styles.detailValue}>
+                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>

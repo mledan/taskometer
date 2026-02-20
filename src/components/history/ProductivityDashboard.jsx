@@ -26,7 +26,6 @@ import {
   subWeeks,
   subMonths,
   isWithinInterval,
-  differenceInMinutes,
   format,
   eachDayOfInterval
 } from 'date-fns';
@@ -44,38 +43,45 @@ const TIME_RANGES = {
 };
 
 function ProductivityDashboard() {
-  const { items = [], calendarSlots = [] } = useAppState();
+  const { items = [] } = useAppState();
   const taskTypes = useTaskTypes();
   const tags = useTags();
 
   const [timeRange, setTimeRange] = useState('week');
   const [activeTab, setActiveTab] = useState('overview');
 
+  function getTaskReferenceDate(task) {
+    if (task.completedAt) return new Date(task.completedAt);
+    if (task.scheduledTime) return new Date(task.scheduledTime);
+    if (task.scheduledFor) return new Date(`${task.scheduledFor}T00:00:00`);
+    return new Date(task.createdAt || Date.now());
+  }
+
   // Filter tasks by time range
   const filteredTasks = useMemo(() => {
     const range = TIME_RANGES[timeRange].getValue();
     return items.filter(task => {
       if (!task) return false;
-      const taskDate = new Date(task.completedAt || task.scheduledFor || task.createdAt);
+      const taskDate = getTaskReferenceDate(task);
       return isWithinInterval(taskDate, range);
     });
   }, [items, timeRange]);
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const completed = filteredTasks.filter(t => t.completed);
-    const incomplete = filteredTasks.filter(t => !t.completed);
+    const completed = filteredTasks.filter(t => t.status === 'completed');
+    const incomplete = filteredTasks.filter(t => t.status !== 'completed');
     const totalMinutes = completed.reduce((sum, t) => sum + (t.duration || 30), 0);
 
     // Type distribution
     const byType = {};
     filteredTasks.forEach(task => {
-      const typeId = task.type || 'untyped';
+      const typeId = task.primaryType || task.taskType || task.type || 'untyped';
       if (!byType[typeId]) {
         byType[typeId] = { total: 0, completed: 0, minutes: 0 };
       }
       byType[typeId].total++;
-      if (task.completed) {
+      if (task.status === 'completed') {
         byType[typeId].completed++;
         byType[typeId].minutes += task.duration || 30;
       }
@@ -88,12 +94,12 @@ function ProductivityDashboard() {
       if (taskTags.length === 0) {
         if (!byTag['untagged']) byTag['untagged'] = { total: 0, completed: 0 };
         byTag['untagged'].total++;
-        if (task.completed) byTag['untagged'].completed++;
+        if (task.status === 'completed') byTag['untagged'].completed++;
       } else {
         taskTags.forEach(tagId => {
           if (!byTag[tagId]) byTag[tagId] = { total: 0, completed: 0 };
           byTag[tagId].total++;
-          if (task.completed) byTag[tagId].completed++;
+          if (task.status === 'completed') byTag[tagId].completed++;
         });
       }
     });
@@ -105,14 +111,14 @@ function ProductivityDashboard() {
       const dayStart = startOfDay(day);
       const dayEnd = endOfDay(day);
       const dayTasks = filteredTasks.filter(t => {
-        const taskDate = new Date(t.completedAt || t.scheduledFor || t.createdAt);
+        const taskDate = getTaskReferenceDate(t);
         return isWithinInterval(taskDate, { start: dayStart, end: dayEnd });
       });
       return {
         date: day,
         total: dayTasks.length,
-        completed: dayTasks.filter(t => t.completed).length,
-        minutes: dayTasks.filter(t => t.completed).reduce((sum, t) => sum + (t.duration || 30), 0)
+        completed: dayTasks.filter(t => t.status === 'completed').length,
+        minutes: dayTasks.filter(t => t.status === 'completed').reduce((sum, t) => sum + (t.duration || 30), 0)
       };
     });
 
@@ -133,8 +139,8 @@ function ProductivityDashboard() {
   const streaks = useMemo(() => {
     const completedDates = new Set();
     items.forEach(task => {
-      if (task?.completed && task.completedAt) {
-        completedDates.add(format(new Date(task.completedAt), 'yyyy-MM-dd'));
+      if (task?.status === 'completed') {
+        completedDates.add(format(getTaskReferenceDate(task), 'yyyy-MM-dd'));
       }
     });
 

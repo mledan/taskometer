@@ -1,5 +1,6 @@
 // Schedule Template System
 // All data stored in browser localStorage for now
+import { ENHANCED_FAMOUS_SCHEDULES } from './enhancedTemplates.js';
 
 export const SCHEDULE_PERIODS = {
   DAILY: 'daily',
@@ -308,7 +309,7 @@ export function getActiveSchedule() {
   const activeId = localStorage.getItem('taskometer-active-schedule');
   if (!activeId) return null;
   
-  const schedules = [...FAMOUS_SCHEDULES, ...getSchedulesFromLocalStorage()];
+  const schedules = [...FAMOUS_SCHEDULES, ...ENHANCED_FAMOUS_SCHEDULES, ...getSchedulesFromLocalStorage()];
   return schedules.find(s => s.id === activeId) || null;
 }
 

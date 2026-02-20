@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAppState, useAppReducer } from '../../AppContext.jsx';
 import {
   createMemoryPalace,
@@ -37,10 +37,24 @@ function MemoryPalaceEditor() {
   const selectedPalace = palaces.find(p => p.id === selectedPalaceId);
   const selectedLocation = selectedPalace?.locations.find(l => l.id === selectedLocationId);
 
-  // Get tasks that can be linked (pending or paused)
-  const availableTasks = items.filter(t => 
-    t.status === 'pending' || t.status === 'paused'
-  );
+  useEffect(() => {
+    if (!selectedPalaceId && palaces.length > 0) {
+      setSelectedPalaceId(palaces[0].id);
+      return;
+    }
+
+    if (selectedPalaceId && !palaces.some(p => p.id === selectedPalaceId)) {
+      setSelectedPalaceId(palaces[0]?.id || null);
+      setSelectedLocationId(null);
+    }
+  }, [palaces, selectedPalaceId]);
+
+  function getTaskIdentifier(task) {
+    return task.id || task.key?.toString();
+  }
+
+  // Keep completed tasks linkable so users can also unlink/archive old links.
+  const availableTasks = items.filter(t => t.status !== 'deleted');
 
   // Create a new palace from scratch
   function handleCreatePalace(e) {
@@ -235,7 +249,7 @@ function MemoryPalaceEditor() {
                     isSelected={location.id === selectedLocationId}
                     onSelect={() => setSelectedLocationId(location.id)}
                     onDrag={handleLocationDrag}
-                    tasks={items.filter(t => location.linkedTaskIds.includes(t.key?.toString() || t.id))}
+                    tasks={items.filter(t => location.linkedTaskIds.includes(getTaskIdentifier(t)))}
                   />
                 ))}
                 
@@ -314,7 +328,7 @@ function MemoryPalaceEditor() {
               <div className={styles.taskList}>
                 {availableTasks.length > 0 ? (
                   availableTasks.map(task => {
-                    const taskId = task.key?.toString() || task.id;
+                    const taskId = getTaskIdentifier(task);
                     const isLinked = selectedLocation.linkedTaskIds.includes(taskId);
                     return (
                       <div 
