@@ -6,7 +6,7 @@ import { AuditLogViewer, ProductivityDashboard } from './history';
 import styles from './History.module.css';
 
 function History() {
-  const { items } = useAppState();
+  const { items, auditLog = [] } = useAppState();
   const dispatch = useAppReducer();
   const [historyItems, setHistoryItems] = useState([]);
   const [filter, setFilter] = useState('all'); // all, completed, paused, removed
@@ -217,7 +217,7 @@ function History() {
       {/* Tab Content */}
       <div className={styles.tabContent}>
         {activeTab === 'tasks' && renderTaskHistory()}
-        {activeTab === 'audit' && <AuditLogViewer />}
+        {activeTab === 'audit' && <AuditLogViewer auditLog={auditLog} />}
         {activeTab === 'analytics' && <ProductivityDashboard />}
       </div>
     </div>

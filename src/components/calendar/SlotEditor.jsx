@@ -191,7 +191,13 @@ function SlotEditor({
 
       dispatch({
         type: ACTION_TYPES.UPDATE_SLOT,
-        payload: updatedSlot
+        payload: {
+          slotId: resizingSlot.id,
+          updates: {
+            startTime: dragPreview.startTime,
+            endTime: dragPreview.endTime
+          }
+        }
       });
 
       if (onSlotUpdated) {
@@ -251,9 +257,14 @@ function SlotEditor({
         onSlotCreated(slotData);
       }
     } else {
+      const updates = { ...slotData };
+      delete updates.id;
       dispatch({
         type: ACTION_TYPES.UPDATE_SLOT,
-        payload: slotData
+        payload: {
+          slotId: slotData.id,
+          updates
+        }
       });
       if (onSlotUpdated) {
         onSlotUpdated(slotData);
@@ -272,7 +283,7 @@ function SlotEditor({
     if (editingSlot?.id) {
       dispatch({
         type: ACTION_TYPES.DELETE_SLOT,
-        payload: { id: editingSlot.id }
+        payload: { slotId: editingSlot.id }
       });
       if (onSlotDeleted) {
         onSlotDeleted(editingSlot);

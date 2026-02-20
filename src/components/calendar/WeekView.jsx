@@ -29,14 +29,23 @@ function WeekView({
   onTaskClick,
   showSlots = true,
   isSlotEditMode = false,
-  onSlotEditModeChange
+  onSlotEditModeChange,
+  selectedWeek: externalSelectedWeek = null,
+  onWeekChange
 }) {
   const dispatch = useAppReducer();
   const { taskTypes = [] } = useAppState();
   const slots = useSlots();
 
-  const [selectedWeek, setSelectedWeek] = useState(() => startOfWeek(new Date()));
+  const [internalSelectedWeek, setInternalSelectedWeek] = useState(() => externalSelectedWeek || startOfWeek(new Date()));
   const [currentTime, setCurrentTime] = useState(new Date());
+  const selectedWeek = externalSelectedWeek || internalSelectedWeek;
+
+  useEffect(() => {
+    if (externalSelectedWeek) {
+      setInternalSelectedWeek(externalSelectedWeek);
+    }
+  }, [externalSelectedWeek]);
 
   // Task context menu state
   const [selectedTask, setSelectedTask] = useState(null);
@@ -224,16 +233,25 @@ function WeekView({
   /**
    * Week navigation
    */
+  function updateSelectedWeek(nextWeek) {
+    if (onWeekChange) {
+      onWeekChange(nextWeek);
+    }
+    if (!externalSelectedWeek) {
+      setInternalSelectedWeek(nextWeek);
+    }
+  }
+
   function previousWeek() {
-    setSelectedWeek(prev => addDays(prev, -7));
+    updateSelectedWeek(addDays(selectedWeek, -7));
   }
 
   function nextWeek() {
-    setSelectedWeek(prev => addDays(prev, 7));
+    updateSelectedWeek(addDays(selectedWeek, 7));
   }
 
   function goToToday() {
-    setSelectedWeek(startOfWeek(new Date()));
+    updateSelectedWeek(startOfWeek(new Date()));
   }
 
   return (

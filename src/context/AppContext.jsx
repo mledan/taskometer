@@ -399,7 +399,8 @@ function appReducer(state, action) {
     }
 
     case ACTION_TYPES.UPDATE_SLOT: {
-      const { slotId, updates } = action.payload;
+      const slotId = action.payload?.slotId || action.payload?.id;
+      const updates = action.payload?.updates || action.payload || {};
       const newSlots = state.slots.map(slot =>
         slot.id === slotId ? { ...slot, ...updates, updatedAt: timestamp } : slot
       );
@@ -407,7 +408,7 @@ function appReducer(state, action) {
     }
 
     case ACTION_TYPES.DELETE_SLOT: {
-      const { slotId } = action.payload;
+      const slotId = action.payload?.slotId || action.payload?.id;
       return { ...state, slots: state.slots.filter(s => s.id !== slotId) };
     }
 

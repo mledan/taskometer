@@ -38,6 +38,7 @@ import { createTaskType, mergeWithDefaultTypes, DEFAULT_TASK_TYPES } from '../..
 import { createSchedule, migrateLegacySchedule } from '../../models/Schedule';
 import { createAuditEntry, filterAuditEntries } from '../../models/AuditEntry';
 import { FAMOUS_SCHEDULES } from '../../utils/scheduleTemplates';
+import { ENHANCED_FAMOUS_SCHEDULES } from '../../utils/enhancedTemplates';
 
 // Storage key constants
 const STORAGE_KEYS = {
@@ -781,6 +782,12 @@ export class LocalStorageAdapter extends DatabaseAdapter {
       return createSchedule({ ...famousSchedule, isFamous: true, isCustom: false });
     }
 
+    // Check enhanced built-in schedules
+    const enhancedSchedule = ENHANCED_FAMOUS_SCHEDULES.find(s => s.id === scheduleId);
+    if (enhancedSchedule) {
+      return createSchedule({ ...enhancedSchedule, isFamous: true, isCustom: false });
+    }
+
     // Check custom schedules
     const schedules = this._get(STORAGE_KEYS.SCHEDULES) || [];
     return schedules.find(s => s.id === scheduleId) || null;
@@ -801,7 +808,10 @@ export class LocalStorageAdapter extends DatabaseAdapter {
       const famous = FAMOUS_SCHEDULES.map(s =>
         createSchedule({ ...s, isFamous: true, isCustom: false })
       );
-      schedules.push(...famous);
+      const enhanced = ENHANCED_FAMOUS_SCHEDULES.map(s =>
+        createSchedule({ ...s, isFamous: true, isCustom: false })
+      );
+      schedules.push(...famous, ...enhanced);
     }
 
     // Include custom schedules

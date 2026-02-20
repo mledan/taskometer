@@ -172,13 +172,13 @@ function Dashboard() {
               </p>
               <div className={styles.focusActions}>
                 <button
-                  onClick={() => dispatch({ type: 'COMPLETE_TASK', payload: { taskId: currentTask.key } })}
+                  onClick={() => dispatch({ type: 'COMPLETE_TASK', payload: { taskId: currentTask.id || currentTask.key?.toString() } })}
                   className={styles.completeBtn}
                 >
                   ✓ Complete
                 </button>
                 <button
-                  onClick={() => dispatch({ type: 'PAUSE_TASK', payload: { taskId: currentTask.key } })}
+                  onClick={() => dispatch({ type: 'PAUSE_TASK', payload: { taskId: currentTask.id || currentTask.key?.toString() } })}
                   className={styles.pauseBtn}
                 >
                   ⏸ Pause

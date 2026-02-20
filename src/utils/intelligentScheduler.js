@@ -1,5 +1,5 @@
-import { parseTime, formatTime } from './scheduleTemplates';
-import { addMinutes, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+import { parseTime } from './scheduleTemplates';
+import { addMinutes, addDays, isAfter, isBefore } from 'date-fns';
 
 /**
  * Intelligent Task Routing System
@@ -12,12 +12,16 @@ export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
   }
 
   const now = new Date();
-  const taskActivityType = task.taskType || task.activityType || 'buffer';
+  const taskActivityType = task.primaryType || task.taskType || task.activityType || 'buffer';
   const taskDuration = task.duration || 30; // minutes
 
-  // Find all time blocks that match the task's activity type
-  const matchingBlocks = activeSchedule.timeBlocks.filter(block => 
-    block.type === taskActivityType
+  // Find all time blocks that match the task's activity type.
+  // Enhanced templates often use category IDs in `type` and map to task types
+  // through `allowedTaskTypes`.
+  const matchingBlocks = activeSchedule.timeBlocks.filter(block =>
+    block.type === taskActivityType ||
+    block.category === taskActivityType ||
+    (Array.isArray(block.allowedTaskTypes) && block.allowedTaskTypes.includes(taskActivityType))
   );
 
   if (matchingBlocks.length === 0) {
@@ -41,8 +45,7 @@ export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
 
   // Try to find an available slot in each matching block
   for (const block of matchingBlocks) {
-    const blockStart = parseTime(block.start);
-    const blockEnd = parseTime(block.end);
+    const { blockStart, blockEnd } = getNextBlockWindow(block, now);
     
     // Skip blocks that are in the past
     if (isAfter(now, blockEnd)) {
@@ -50,7 +53,7 @@ export function findOptimalTimeSlot(task, activeSchedule, existingTasks = []) {
     }
 
     // Start from current time if block has already started
-    let slotStart = isAfter(now, blockStart) ? now : blockStart;
+    let slotStart = isAfter(now, blockStart) ? new Date(now) : new Date(blockStart);
     
     // Round to next 15-minute interval for cleaner scheduling
     const minutes = slotStart.getMinutes();
@@ -139,7 +142,7 @@ function calculateConfidence(task, block) {
   }
   
   // Duration fit (task fits comfortably in block)
-  const blockDuration = (parseTime(block.end) - parseTime(block.start)) / 60000;
+  const blockDuration = getBlockDurationMinutes(block);
   const taskDuration = task.duration || 30;
   if (taskDuration <= blockDuration * 0.5) {
     confidence += 20; // Task takes less than half the block
@@ -148,6 +151,33 @@ function calculateConfidence(task, block) {
   }
   
   return confidence;
+}
+
+function getNextBlockWindow(block, referenceTime) {
+  let blockStart = parseTime(block.start);
+  let blockEnd = parseTime(block.end);
+
+  // Handle overnight blocks like 22:00 -> 06:30
+  if (blockEnd <= blockStart) {
+    blockEnd = addDays(blockEnd, 1);
+  }
+
+  // If today's occurrence is over, move to next day.
+  if (blockEnd <= referenceTime) {
+    blockStart = addDays(blockStart, 1);
+    blockEnd = addDays(blockEnd, 1);
+  }
+
+  return { blockStart, blockEnd };
+}
+
+function getBlockDurationMinutes(block) {
+  const start = parseTime(block.start);
+  let end = parseTime(block.end);
+  if (end <= start) {
+    end = addDays(end, 1);
+  }
+  return (end - start) / 60000;
 }
 
 /**
@@ -226,7 +256,7 @@ export function getScheduleUtilization(activeSchedule, tasks) {
       };
     }
     
-    const blockDuration = (parseTime(block.end) - parseTime(block.start)) / 60000;
+    const blockDuration = getBlockDurationMinutes(block);
     stats[block.type].totalMinutes += blockDuration;
   });
 
