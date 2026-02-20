@@ -20,9 +20,10 @@ import styles from './App.module.css';
 
 // Inner app component that uses hooks
 function AppContent() {
-	const [activeView, setActiveView] = useState(VIEWS.DASHBOARD);
+	const [activeView, setActiveView] = useState(VIEWS.SCHEDULES);
 	const [showShortcuts, setShowShortcuts] = useState(false);
 	const { toggleTheme } = useTheme();
+	const goToTasks = useCallback(() => setActiveView(VIEWS.TODOS), []);
 
 	// Keyboard shortcuts handlers
 	const shortcutHandlers = {
@@ -74,7 +75,7 @@ function AppContent() {
 
 					{activeView === VIEWS.SCHEDULES && (
 						<div className={styles.schedulesView}>
-							<ScheduleLibrary />
+							<ScheduleLibrary onNavigateToTasks={goToTasks} />
 						</div>
 					)}
 
