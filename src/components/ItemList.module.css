@@ -1,3 +1,23 @@
+.onboardingBanner {
+  border: 1px solid var(--border-color);
+  background: var(--input-color);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.onboardingTitle {
+  font-weight: 700;
+  color: var(--font-color);
+  margin-bottom: 4px;
+}
+
+.onboardingText {
+  color: var(--font-color-secondary);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .toolbar {
   display: flex;
   justify-content: flex-end;

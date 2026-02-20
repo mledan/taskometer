@@ -6,18 +6,21 @@ import {
 } from "@reach/accordion";
 import "@reach/accordion/styles.css";
 
-import { useAppReducer, useItems } from "../AppContext.jsx";
+import { useAppReducer, useAppState, useItems } from "../AppContext.jsx";
 import Progress from "./Progress.jsx";
 import TaskInput from "./tasks/TaskInput.jsx";
 import Item from "./Item.jsx";
 import styles from "./ItemList.module.css";
 import arrow from "../img/arrow.svg";
 import alldone from "../img/alldone.svg";
+import { getActiveSchedule } from "../utils/scheduleTemplates.js";
 
 // List of todo items
 function ItemList() {
 	const dispatch = useAppReducer();
+	const { activeSchedule } = useAppState();
 	const { pending, paused, completed } = useItems();
+	const currentSchedule = activeSchedule || getActiveSchedule();
 
 	const unscheduledPending = pending.filter((i) => !i.scheduledTime);
 	const scheduledPending = pending.filter((i) => i.scheduledTime);
@@ -34,6 +37,14 @@ function ItemList() {
 
 	return (
 		<div className="item-list">
+			<div className={styles.onboardingBanner}>
+				<div className={styles.onboardingTitle}>Step 2: Add tasks for AI scheduling</div>
+				<div className={styles.onboardingText}>
+					{currentSchedule
+						? `Active template: ${currentSchedule.name}. Add tasks and we will slot them into this routine.`
+						: "No active schedule yet. Open the Schedules tab first to pick a template foundation."}
+				</div>
+			</div>
 			<Progress />
 			<TaskInput />
 

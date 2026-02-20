@@ -12,36 +12,36 @@ const TOUR_STEPS = [
   {
     id: 'welcome',
     title: 'Welcome to LifeOS!',
-    description: 'Your intelligent productivity system with Tasks, Schedule planning, and Memory Palace techniques. Let\'s take a quick tour!',
+    description: 'Start with a schedule template, then add tasks and let AI map your day. Let\'s take a quick tour.',
     target: null, // No target - centered modal
     position: 'center'
   },
   {
-    id: 'dashboard',
-    title: 'Your Dashboard',
-    description: 'See your day at a glance - current focus, today\'s schedule, pending tasks, and quick task entry.',
-    target: '[data-tour="dashboard"]',
+    id: 'schedules',
+    title: 'Step 1: Pick a Schedule Template',
+    description: 'Choose your base day first: sleep, meals, and work structure. Then browse famous and community routines.',
+    target: '[data-tour="schedules"]',
     position: 'bottom'
   },
   {
     id: 'add-task',
-    title: 'Manage Your Tasks',
-    description: 'Add, edit, and organize tasks. Set duration, priority, type, and schedule them intelligently.',
+    title: 'Step 2: Add Your Tasks',
+    description: 'Capture tasks with duration and priority. The scheduler can place them into your active template.',
     target: '[data-tour="add-task"]',
     position: 'bottom'
   },
   {
     id: 'calendar',
-    title: 'Calendar View',
-    description: 'See your tasks on a weekly calendar. Tasks are auto-scheduled based on your preferences and schedule templates.',
+    title: 'Step 3: Review Your Planned Day',
+    description: 'See how your template and tasks combine on the calendar, then adjust details as needed.',
     target: '[data-tour="calendar"]',
     position: 'bottom'
   },
   {
-    id: 'schedules',
-    title: 'Schedule Templates',
-    description: 'Explore famous people\'s daily routines or create your own schedule templates to structure your day.',
-    target: '[data-tour="schedules"]',
+    id: 'dashboard',
+    title: 'Your Dashboard',
+    description: 'Get a quick summary of focus, progress, and upcoming work at any time.',
+    target: '[data-tour="dashboard"]',
     position: 'bottom'
   },
   {
@@ -89,7 +89,7 @@ const TOUR_STEPS = [
   {
     id: 'complete',
     title: 'You\'re All Set!',
-    description: 'Start adding tasks, apply a schedule template, and build your Memory Palace. You can always replay this tour from Settings.',
+    description: 'Pick a schedule, add tasks, and let AI structure your day. You can always replay this tour from Settings.',
     target: null,
     position: 'center'
   }

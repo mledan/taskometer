@@ -2,20 +2,241 @@
   padding: 20px;
   width: 100%;
   box-sizing: border-box;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.storyHero {
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.28), transparent 42%),
+    var(--input-color);
+}
+
+.storyEyebrow {
+  margin: 0 0 8px 0;
+  color: var(--green);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.storyHero h1 {
+  margin: 0 0 10px 0;
+  font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+  color: var(--font-color);
+}
+
+.storyCopy {
+  margin: 0 0 18px 0;
+  color: var(--font-color-secondary);
+  max-width: 900px;
+  line-height: 1.5;
+}
+
+.storyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.storyPrimaryButton,
+.storySecondaryButton {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: filter 0.2s, opacity 0.2s;
+}
+
+.storyPrimaryButton {
+  background: var(--accent-color);
+  color: white;
+}
+
+.storySecondaryButton {
+  background: transparent;
+  color: var(--font-color);
+  border: 1px solid var(--border-color);
+}
+
+.storyPrimaryButton:hover,
+.storySecondaryButton:hover {
+  filter: brightness(1.05);
+}
+
+.storySecondaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.journeySteps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.journeyStep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--font-color);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.journeyStep span {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-color);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.foundationSection,
+.templatesSection,
+.tasksCtaSection {
+  background: var(--input-color);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 22px;
+}
+
+.sectionHeading {
+  margin-bottom: 14px;
+}
+
+.stepBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--font-color);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.sectionHeading h2 {
+  margin: 0 0 6px 0;
+  color: var(--font-color);
+}
+
+.sectionHeading p {
+  margin: 0;
+  color: var(--font-color-secondary);
+}
+
+.foundationGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.foundationCard {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-color);
+  color: var(--font-color);
+  text-align: left;
+  padding: 14px;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.foundationCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-color);
+}
+
+.foundationCard h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+}
+
+.foundationCard p {
+  margin: 0 0 10px 0;
+  color: var(--font-color-secondary);
+  font-size: 14px;
+}
+
+.foundationCardSelected {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
+.foundationRecommendation {
+  font-size: 12px;
+  color: var(--font-color-secondary);
+  margin-bottom: 10px;
+}
+
+.foundationAction {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-color);
 }
 
 .header {
-  margin-bottom: 30px;
-  text-align: center;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .header h2 {
   color: var(--font-color);
-  margin-bottom: 10px;
+  margin: 0 0 8px 0;
 }
 
 .header p {
   color: var(--font-color-secondary);
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.foundationSummary {
+  margin: -8px 0 18px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-color);
+  border-radius: 10px;
+  color: var(--font-color-secondary);
+}
+
+.linkButton {
+  border: none;
+  background: none;
+  color: var(--accent-color);
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+.linkButton:hover {
+  text-decoration: underline;
 }
 
 .controls {
@@ -83,7 +304,7 @@
   border-color: var(--border-color);
 }
 
-.scheduleCard.active {
+.scheduleCardActive {
   border-color: var(--accent-color);
   background: var(--bg-color);
 }
@@ -101,6 +322,13 @@
   font-size: 18px;
 }
 
+.cardHeaderBadges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .activeLabel {
   background: var(--accent-color);
   color: white;
@@ -108,6 +336,15 @@
   border-radius: 12px;
   font-size: 12px;
   font-weight: bold;
+}
+
+.recommendedLabel {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--font-color);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .author {
@@ -183,6 +420,30 @@
 .activateButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.tasksCtaSection h3 {
+  margin: 8px 0;
+  color: var(--font-color);
+}
+
+.tasksCtaSection p {
+  margin: 0;
+  color: var(--font-color-secondary);
+}
+
+.tasksCtaActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.tasksCtaActions .activateButton,
+.tasksCtaActions .previewButton {
+  flex: 0;
+  min-width: 180px;
 }
 
 /* Modal Styles */
@@ -306,7 +567,8 @@
 }
 
 .modalActivateButton,
-.customizeButton {
+.customizeButton,
+.launchTasksButton {
   flex: 1;
   padding: 12px 24px;
   border: none;
@@ -324,6 +586,15 @@
 .modalActivateButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.launchTasksButton {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.launchTasksButton:hover {
+  filter: brightness(1.05);
 }
 
 .customizeButton {
@@ -495,6 +766,40 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .storyHero,
+  .foundationSection,
+  .templatesSection,
+  .tasksCtaSection {
+    padding: 16px;
+  }
+
+  .storyActions {
+    flex-direction: column;
+  }
+
+  .storyPrimaryButton,
+  .storySecondaryButton {
+    width: 100%;
+  }
+
+  .foundationGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .scheduleGrid {
     grid-template-columns: 1fr;
   }
@@ -505,7 +810,7 @@
 
   .filters {
     width: 100%;
-    justify-content: center;
+    justify-content: flex-start;
   }
 
   .modalContent {
@@ -518,5 +823,15 @@
 
   .viewToggle {
     order: -1;
+  }
+
+  .tasksCtaActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tasksCtaActions .activateButton,
+  .tasksCtaActions .previewButton {
+    width: 100%;
   }
 }

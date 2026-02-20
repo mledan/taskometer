@@ -17,11 +17,11 @@ function TabNavigation({ activeView, onViewChange }) {
     <nav className={styles.navigation}>
       <div className={styles.tabs}>
         <button
-          className={`${styles.tab} ${activeView === VIEWS.DASHBOARD ? styles.active : ''}`}
-          onClick={() => onViewChange(VIEWS.DASHBOARD)}
-          data-tour="dashboard"
+          className={`${styles.tab} ${activeView === VIEWS.SCHEDULES ? styles.active : ''}`}
+          onClick={() => onViewChange(VIEWS.SCHEDULES)}
+          data-tour="schedules"
         >
-          Dashboard
+          Schedules
         </button>
         <button
           className={`${styles.tab} ${activeView === VIEWS.TODOS ? styles.active : ''}`}
@@ -38,11 +38,11 @@ function TabNavigation({ activeView, onViewChange }) {
           Calendar
         </button>
         <button
-          className={`${styles.tab} ${activeView === VIEWS.SCHEDULES ? styles.active : ''}`}
-          onClick={() => onViewChange(VIEWS.SCHEDULES)}
-          data-tour="schedules"
+          className={`${styles.tab} ${activeView === VIEWS.DASHBOARD ? styles.active : ''}`}
+          onClick={() => onViewChange(VIEWS.DASHBOARD)}
+          data-tour="dashboard"
         >
-          Schedules
+          Dashboard
         </button>
         <button
           className={`${styles.tab} ${activeView === VIEWS.PALACE ? styles.active : ''}`}
