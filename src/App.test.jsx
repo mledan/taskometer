@@ -1,24 +1,23 @@
 import { test, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { format } from "date-fns";
 import App from "./App.jsx";
 
-test("renders the app with navigation", () => {
+test("starts on the schedules onboarding view", () => {
   render(<App />);
-  // Dashboard is now the default view
-  expect(screen.getByText('Dashboard')).toBeInTheDocument();
+  expect(screen.getByText("Build your day from a proven routine.")).toBeInTheDocument();
 });
 
-test("renders the weekday on dashboard", () => {
+test("renders the weekday on dashboard after navigation", () => {
   render(<App />);
-  // Dashboard shows the weekday as a heading
+  fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
   const weekdayElement = screen.getByText(format(new Date(), "EEEE"));
   expect(weekdayElement).toBeInTheDocument();
 });
 
-test("renders the full date on dashboard", () => {
+test("renders the full date on dashboard after navigation", () => {
   render(<App />);
-  // Dashboard shows full date like "February 19, 2026"
+  fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
   const fullDate = format(new Date(), "MMMM d, yyyy");
   expect(screen.getByText(fullDate)).toBeInTheDocument();
 });
