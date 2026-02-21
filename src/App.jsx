@@ -25,6 +25,7 @@ function AppContent() {
 	const { toggleTheme } = useTheme();
 	const goToTasks = useCallback(() => setActiveView(VIEWS.TODOS), []);
 	const goToCalendar = useCallback(() => setActiveView(VIEWS.CALENDAR), []);
+	const goToSchedules = useCallback(() => setActiveView(VIEWS.SCHEDULES), []);
 
 	// Keyboard shortcuts handlers
 	const shortcutHandlers = {
@@ -58,7 +59,10 @@ function AppContent() {
 					{activeView === VIEWS.TODOS && (
 						<div className={styles.todosView}>
 							<TodoDate />
-							<ItemList onNavigateToCalendar={goToCalendar} />
+							<ItemList
+								onNavigateToCalendar={goToCalendar}
+								onNavigateToSchedules={goToSchedules}
+							/>
 						</div>
 					)}
 

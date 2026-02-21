@@ -19,6 +19,7 @@ import ScheduleBuilder from './ScheduleBuilder.jsx';
 import ScheduleDiscussion from './ScheduleDiscussion.jsx';
 import HistoricalFiguresGantt from './HistoricalFiguresGantt.jsx';
 import { getLikes, toggleLike } from '../utils/community.js';
+import { buildTemplateApplicationSummary } from '../utils/templateApplicationSummary.js';
 
 function CardDescription({ text = '' }) {
   const [expanded, setExpanded] = useState(false);
@@ -84,8 +85,36 @@ const SCHEDULE_COPY = {
     `You are currently following "${scheduleName}". Add tasks now and AI will place them into this schedule.`,
   searchPlaceholder: 'Search schedules...',
   reviewActiveButton: 'Review Active Schedule',
-  modalLaunchTasksButton: 'Activate and Continue to Tasks'
+  modalLaunchTasksButton: 'Activate and Continue to Tasks',
+  variationTitle: 'Variation view: compare and apply fast',
+  variationSubtitle: 'See schedule shape at a glance, then apply in one click to your calendar window.'
 };
+
+function timeToMinutes(timeString) {
+  if (!timeString || !timeString.includes(':')) return 0;
+  const [h, m] = timeString.split(':').map(Number);
+  return (h * 60) + m;
+}
+
+function getScheduleSnapshot(schedule) {
+  const blocks = schedule?.timeBlocks || [];
+  if (blocks.length === 0) {
+    return {
+      blockCount: 0,
+      firstStart: '--:--',
+      categoryCount: 0
+    };
+  }
+
+  const sortedByStart = [...blocks].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+  const categories = new Set(blocks.map((block) => block.type || block.category || 'custom'));
+
+  return {
+    blockCount: blocks.length,
+    firstStart: sortedByStart[0]?.start || '--:--',
+    categoryCount: categories.size
+  };
+}
 
 function ScheduleLibrary({ onNavigateToTasks }) {
   const [state, dispatch] = useAppContext();
@@ -97,9 +126,11 @@ function ScheduleLibrary({ onNavigateToTasks }) {
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showBuilder, setShowBuilder] = useState(false);
   const [scheduleToCustomize, setScheduleToCustomize] = useState(null);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'chronomap'
+  const [viewMode, setViewMode] = useState('grid'); // 'grid', 'variation', or 'chronomap'
   const [notification, setNotification] = useState(null);
   const [applyDateRange, setApplyDateRange] = useState(null); // { startDate, endDate }
+  const [quickApplyStartDate, setQuickApplyStartDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [quickApplyDays, setQuickApplyDays] = useState(7);
   const templatesSectionRef = useRef(null);
 
   // Show notification helper
@@ -157,6 +188,12 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     templatesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
+  const quickApplyEndDate = useMemo(() => {
+    const baseDate = new Date(quickApplyStartDate);
+    if (Number.isNaN(baseDate.getTime())) return quickApplyStartDate;
+    return format(addDays(baseDate, quickApplyDays - 1), 'yyyy-MM-dd');
+  }, [quickApplyStartDate, quickApplyDays]);
+
   const filteredSchedules = schedules.filter(schedule => {
     // Filter by search term
     const normalizedSearchTerm = searchTerm.trim().replace(/^#/, '').toLowerCase();
@@ -189,11 +226,18 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     return 0;
   });
 
-  function handleActivateSchedule(scheduleId, successMessage = null) {
+  function handleActivateSchedule(scheduleId, options = {}) {
+    const normalizedOptions = typeof options === 'string'
+      ? { successMessage: options }
+      : options;
+    const { successMessage = null, silent = false } = normalizedOptions;
+
     // Find the schedule object
     const schedule = schedules.find(s => s.id === scheduleId);
     if (!schedule) {
-      showNotification('Could not find that schedule template.', 'warning');
+      if (!silent) {
+        showNotification('Could not find that schedule template.', 'warning');
+      }
       return;
     }
     
@@ -207,7 +251,9 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     });
     
     setActiveScheduleId(scheduleId);
-    showNotification(successMessage || `"${schedule.name}" is now your active schedule!`);
+    if (!silent) {
+      showNotification(successMessage || `"${schedule.name}" is now your active schedule!`);
+    }
   }
 
   function handleInspirationSelect(schedule) {
@@ -223,7 +269,8 @@ function ScheduleLibrary({ onNavigateToTasks }) {
   }
 
   // Apply schedule blocks to a date range
-  function handleApplyToCalendar(schedule, startDate, endDate) {
+  function handleApplyToCalendar(schedule, startDate, endDate, options = {}) {
+    const { source = 'schedule-library', activate = true } = options;
     if (!schedule || !startDate || !endDate) return;
     
     const blocks = applyTemplateToDateRange(schedule, startDate, endDate);
@@ -236,10 +283,46 @@ function ScheduleLibrary({ onNavigateToTasks }) {
           options: { mergeWithExisting: true }
         }
       });
-      showNotification(`Applied ${blocks.length} time blocks to your calendar!`);
+
+      if (activate) {
+        handleActivateSchedule(schedule.id, { silent: true });
+      }
+
+      const applicationSummary = buildTemplateApplicationSummary({
+        schedule,
+        blocks,
+        startDate,
+        endDate,
+        source
+      });
+
+      dispatch({
+        type: ACTION_TYPES.UPDATE_SETTINGS,
+        payload: {
+          lastTemplateApplication: applicationSummary
+        }
+      });
+
+      showNotification(`Applied ${blocks.length} blocks from "${schedule.name}". Next: Tasks mini preview, then Calendar.`);
       setApplyDateRange(null);
     } else {
       showNotification('No blocks to apply for the selected date range', 'warning');
+    }
+  }
+
+  function handleQuickApply(schedule, shouldNavigateToTasks = false) {
+    const startDate = quickApplyStartDate || format(new Date(), 'yyyy-MM-dd');
+    const start = new Date(startDate);
+    if (Number.isNaN(start.getTime())) {
+      showNotification('Pick a valid start date for quick apply.', 'warning');
+      return;
+    }
+
+    const endDate = format(addDays(start, quickApplyDays - 1), 'yyyy-MM-dd');
+    handleApplyToCalendar(schedule, startDate, endDate, { source: 'variation-view', activate: true });
+
+    if (shouldNavigateToTasks && onNavigateToTasks) {
+      onNavigateToTasks();
     }
   }
 
@@ -265,6 +348,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
   function renderScheduleCard(schedule) {
     const isActive = schedule.id === activeScheduleId;
     const likes = schedule._likes || { count: 0, liked: false };
+    const snapshot = getScheduleSnapshot(schedule);
     
     return (
       <div 
@@ -283,6 +367,11 @@ function ScheduleLibrary({ onNavigateToTasks }) {
           <CircularSchedule timeBlocks={schedule.timeBlocks} showLegend={false} showNow={false} title={''} />
         </div>
         <p className={styles.author}>by {schedule.author}</p>
+        <div className={styles.scheduleStats}>
+          <span>{snapshot.blockCount} blocks</span>
+          <span>Starts {snapshot.firstStart}</span>
+          <span>{snapshot.categoryCount} categories</span>
+        </div>
         <CardDescription text={schedule.description} />
         <div className={styles.tags}>
           {schedule.tags?.map(tag => (
@@ -329,6 +418,88 @@ function ScheduleLibrary({ onNavigateToTasks }) {
             disabled={isActive}
           >
             {isActive ? 'Active' : 'Activate'}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleQuickApply(schedule);
+            }}
+            className={styles.quickApplyButton}
+          >
+            Quick Apply
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderVariationCard(schedule) {
+    const isActive = schedule.id === activeScheduleId;
+    const snapshot = getScheduleSnapshot(schedule);
+    const blocks = schedule.timeBlocks || [];
+    const listedBlocks = blocks.slice(0, 4);
+
+    return (
+      <div
+        key={`variation-${schedule.id}`}
+        className={`${styles.variationCard} ${isActive ? styles.variationCardActive : ''}`}
+      >
+        <div className={styles.variationHeader}>
+          <div>
+            <h3>{schedule.name}</h3>
+            <p>by {schedule.author}</p>
+          </div>
+          {isActive && <span className={styles.activeLabel}>Active</span>}
+        </div>
+
+        <div className={styles.variationStats}>
+          <span>{snapshot.blockCount} blocks</span>
+          <span>Starts {snapshot.firstStart}</span>
+          <span>{snapshot.categoryCount} categories</span>
+        </div>
+
+        <div className={styles.variationBlockPreview}>
+          {listedBlocks.map((block, idx) => (
+            <div
+              key={`${schedule.id}-block-${idx}`}
+              className={styles.variationBlock}
+            >
+              <span>{block.start} - {block.end}</span>
+              <span>{block.label}</span>
+            </div>
+          ))}
+          {blocks.length > listedBlocks.length && (
+            <div className={styles.variationMore}>
+              +{blocks.length - listedBlocks.length} more blocks
+            </div>
+          )}
+        </div>
+
+        <div className={styles.variationActions}>
+          <button
+            type="button"
+            className={styles.activateButton}
+            onClick={() => handleQuickApply(schedule)}
+          >
+            Apply ({quickApplyDays}d)
+          </button>
+          <button
+            type="button"
+            className={styles.previewButton}
+            onClick={() => {
+              handleQuickApply(schedule, true);
+            }}
+            disabled={!onNavigateToTasks}
+            title={onNavigateToTasks ? 'Apply and continue to Tasks tab' : 'Tasks navigation unavailable'}
+          >
+            Apply + Next Tab
+          </button>
+          <button
+            type="button"
+            className={styles.previewButton}
+            onClick={() => setSelectedSchedule(schedule)}
+          >
+            Preview
           </button>
         </div>
       </div>
@@ -434,6 +605,13 @@ function ScheduleLibrary({ onNavigateToTasks }) {
                 Grid
               </button>
               <button
+                className={`${styles.viewToggleBtn} ${viewMode === 'variation' ? styles.viewToggleActive : ''}`}
+                onClick={() => setViewMode('variation')}
+                title="Variation View"
+              >
+                Variation
+              </button>
+              <button
                 className={`${styles.viewToggleBtn} ${viewMode === 'chronomap' ? styles.viewToggleActive : ''}`}
                 onClick={() => setViewMode('chronomap')}
                 title="ChronoMap View"
@@ -447,6 +625,80 @@ function ScheduleLibrary({ onNavigateToTasks }) {
 
         {viewMode === 'chronomap' ? (
           <HistoricalFiguresGantt />
+        ) : viewMode === 'variation' ? (
+          <>
+            <div className={styles.variationToolbar}>
+              <div>
+                <h3>{SCHEDULE_COPY.variationTitle}</h3>
+                <p>{SCHEDULE_COPY.variationSubtitle}</p>
+              </div>
+              <div className={styles.variationQuickApplyControls}>
+                <label>
+                  Start
+                  <input
+                    type="date"
+                    value={quickApplyStartDate}
+                    onChange={(e) => setQuickApplyStartDate(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Span
+                  <select
+                    value={quickApplyDays}
+                    onChange={(e) => setQuickApplyDays(Number(e.target.value))}
+                  >
+                    <option value={1}>1 day</option>
+                    <option value={3}>3 days</option>
+                    <option value={7}>7 days</option>
+                    <option value={14}>14 days</option>
+                  </select>
+                </label>
+                <div className={styles.variationQuickApplySummary}>
+                  Through {quickApplyEndDate}
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.controls}>
+              <input
+                type="text"
+                placeholder={SCHEDULE_COPY.searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={styles.searchInput}
+              />
+              <div className={styles.filters}>
+                <button
+                  className={filter === 'all' ? styles.filterActive : ''}
+                  onClick={() => setFilter('all')}
+                >
+                  All
+                </button>
+                <button
+                  className={filter === 'famous' ? styles.filterActive : ''}
+                  onClick={() => setFilter('famous')}
+                >
+                  Famous People
+                </button>
+                <button
+                  className={filter === 'community' ? styles.filterActive : ''}
+                  onClick={() => setFilter('community')}
+                >
+                  Community
+                </button>
+                <button
+                  className={filter === 'custom' ? styles.filterActive : ''}
+                  onClick={() => setFilter('custom')}
+                >
+                  My Schedules
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.variationGrid}>
+              {sortedSchedules.map((schedule) => renderVariationCard(schedule))}
+            </div>
+          </>
         ) : (
           <>
             <div className={styles.controls}>
@@ -603,7 +855,8 @@ function ScheduleLibrary({ onNavigateToTasks }) {
                   onClick={() => handleApplyToCalendar(
                     selectedSchedule, 
                     applyDateRange?.startDate || format(new Date(), 'yyyy-MM-dd'),
-                    applyDateRange?.endDate || format(addDays(new Date(), 6), 'yyyy-MM-dd')
+                    applyDateRange?.endDate || format(addDays(new Date(), 6), 'yyyy-MM-dd'),
+                    { source: 'schedule-modal', activate: true }
                   )}
                 >
                   Apply to Calendar

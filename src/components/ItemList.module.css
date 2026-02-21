@@ -18,6 +18,99 @@
   line-height: 1.4;
 }
 
+.templatePreviewBanner {
+  border: 1px solid var(--border-color);
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.templatePreviewHeader {
+  font-weight: 700;
+  color: var(--font-color);
+  margin-bottom: 4px;
+}
+
+.templatePreviewMeta {
+  color: var(--font-color-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.templatePreviewDays {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.templatePreviewDay {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--bg-color);
+}
+
+.templatePreviewDayHeader {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--font-color);
+  margin-bottom: 6px;
+}
+
+.templatePreviewBlock {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--font-color-secondary);
+  margin-bottom: 4px;
+}
+
+.templatePreviewBlock span:last-child {
+  color: var(--font-color);
+  text-align: right;
+}
+
+.templatePreviewMore {
+  font-size: 12px;
+  color: var(--font-color-secondary);
+}
+
+.templatePreviewActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.templatePreviewPrimary,
+.templatePreviewSecondary {
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.templatePreviewPrimary {
+  border: none;
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.templatePreviewSecondary {
+  border: 1px solid var(--border-color);
+  background: var(--input-color);
+  color: var(--font-color);
+}
+
+.templatePreviewPrimary:disabled,
+.templatePreviewSecondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .toolbar {
   display: flex;
   justify-content: flex-end;
@@ -130,6 +223,15 @@
 
   .toolbar .primary,
   .toolbar .secondary {
+    width: 100%;
+  }
+
+  .templatePreviewActions {
+    flex-direction: column;
+  }
+
+  .templatePreviewPrimary,
+  .templatePreviewSecondary {
     width: 100%;
   }
   

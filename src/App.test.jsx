@@ -5,7 +5,7 @@ import App from "./App.jsx";
 
 test("starts on the schedules onboarding view", () => {
   render(<App />);
-  expect(screen.getByText("Build your day from a proven routine.")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /find a routine that fits your life/i })).toBeInTheDocument();
 });
 
 test("renders the weekday on dashboard after navigation", () => {
