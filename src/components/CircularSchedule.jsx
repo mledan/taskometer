@@ -3,7 +3,7 @@ import styles from './CircularSchedule.module.css';
 import { ACTIVITY_TYPES } from '../utils/scheduleTemplates.js';
 
 const MINUTES_PER_DAY = 24 * 60;
-const CLOCK_OFFSET_DEG = -90; // Rotate so midnight starts at the top.
+const CLOCK_ROTATION_DEG = -90; // Rotate so midnight starts at the top.
 const FALLBACK_COLORS = ['#2563EB', '#0EA5E9', '#7C3AED', '#10B981', '#F59E0B', '#EC4899', '#06B6D4'];
 const HOUR_MARKERS = [0, 6, 12, 18];
 
@@ -55,7 +55,11 @@ function getBlockVisual(block) {
 }
 
 function minutesToDeg(minutes) {
-  return (minutes / MINUTES_PER_DAY) * 360 + CLOCK_OFFSET_DEG;
+  return (minutes / MINUTES_PER_DAY) * 360;
+}
+
+function minutesToClockDeg(minutes) {
+  return minutesToDeg(minutes) + CLOCK_ROTATION_DEG;
 }
 
 // Props:
@@ -82,17 +86,44 @@ function CircularSchedule({ timeBlocks = [], showLegend = true, title = 'Daily',
     return blocks.sort((a, b) => a.startMin - b.startMin);
   }, [timeBlocks]);
 
-  const segments = useMemo(
-    () =>
-      normalizedBlocks.map((block, idx) => {
-        const startDeg = minutesToDeg(block.startMin);
-        const endDeg = minutesToDeg(block.endMin);
+  const segmentsBackground = useMemo(() => {
+    if (!normalizedBlocks.length) {
+      return 'conic-gradient(transparent 0deg 360deg)';
+    }
+
+    const gradientStops = [];
+    let cursorDeg = 0;
+
+    normalizedBlocks.forEach((block) => {
+      const startDeg = Math.max(0, Math.min(360, minutesToDeg(block.startMin)));
+      const endDeg = Math.max(0, Math.min(360, minutesToDeg(block.endMin)));
+
+      if (endDeg <= startDeg) {
+        return;
+      }
+
+      const safeStart = Math.max(cursorDeg, startDeg);
+      if (safeStart > cursorDeg) {
+        gradientStops.push(`transparent ${cursorDeg}deg ${safeStart}deg`);
+      }
+
+      if (endDeg > safeStart) {
         const { color } = getBlockVisual(block);
-        const background = `conic-gradient(${color} ${startDeg}deg ${endDeg}deg, transparent ${endDeg}deg 360deg)`;
-        return <div key={`${block.type || 'block'}-${block.startMin}-${idx}`} className={styles.segment} style={{ background }} />;
-      }),
-    [normalizedBlocks]
-  );
+        gradientStops.push(`${color} ${safeStart}deg ${endDeg}deg`);
+        cursorDeg = endDeg;
+      }
+    });
+
+    if (cursorDeg < 360) {
+      gradientStops.push(`transparent ${cursorDeg}deg 360deg`);
+    }
+
+    if (!gradientStops.length) {
+      return 'conic-gradient(transparent 0deg 360deg)';
+    }
+
+    return `conic-gradient(${gradientStops.join(', ')})`;
+  }, [normalizedBlocks]);
 
   const legendEntries = useMemo(() => {
     const entriesByType = new Map();
@@ -108,13 +139,13 @@ function CircularSchedule({ timeBlocks = [], showLegend = true, title = 'Daily',
   const hourMarkers = useMemo(
     () =>
       HOUR_MARKERS.map((hour) => {
-        const deg = minutesToDeg(hour * 60);
         const label = hour === 0 ? '12a' : hour === 12 ? '12p' : `${hour}`;
+        const clockDeg = minutesToClockDeg(hour * 60);
         return (
           <div
             key={hour}
             className={styles.tickLabel}
-            style={{ transform: `translate(-50%, -50%) rotate(${deg}deg) translateY(-96px) rotate(${-deg}deg)` }}
+            style={{ transform: `translate(-50%, -50%) rotate(${clockDeg}deg) translateY(-96px) rotate(${-clockDeg}deg)` }}
           >
             {label}
           </div>
@@ -127,7 +158,7 @@ function CircularSchedule({ timeBlocks = [], showLegend = true, title = 'Daily',
   const nowHand = showNow ? (() => {
     const now = new Date();
     const minutes = now.getHours() * 60 + now.getMinutes();
-    const deg = minutesToDeg(minutes);
+    const deg = minutesToClockDeg(minutes);
     return <div className={styles.nowHand} style={{ transform: `translateX(-50%) rotate(${deg}deg)` }} />;
   })() : null;
 
@@ -135,7 +166,13 @@ function CircularSchedule({ timeBlocks = [], showLegend = true, title = 'Daily',
     <div>
       <div className={styles.circularContainer} aria-label="Circular daily schedule">
         <div className={styles.ring} />
-        {segments}
+        <div
+          className={styles.segment}
+          style={{
+            background: segmentsBackground,
+            transform: `rotate(${CLOCK_ROTATION_DEG}deg)`,
+          }}
+        />
         {shouldShowHourMarkers ? hourMarkers : null}
         {nowHand}
         {title ? <div className={styles.centerLabel}>{title}</div> : null}
