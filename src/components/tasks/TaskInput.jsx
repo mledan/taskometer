@@ -106,8 +106,9 @@ function TaskInput({ onTaskAdded }) {
     // Dispatch the add action (will auto-schedule based on context settings)
     dispatch({ type: ACTION_TYPES.ADD_TASK, payload: newTask });
 
-    // Also trigger scheduling if preference requires it
-    if (autoSchedule && (schedulingPreference === 'immediate' || schedulingPreference === 'specific' || schedulingPreference === 'delay')) {
+    // ADD_TASK already auto-schedules immediate tasks in the reducer.
+    // Only run explicit scheduling for preferences that require extra intent.
+    if (autoSchedule && (schedulingPreference === 'specific' || schedulingPreference === 'delay')) {
       dispatch({ type: ACTION_TYPES.SCHEDULE_TASKS, payload: { tasks: [newTask] } });
     }
 

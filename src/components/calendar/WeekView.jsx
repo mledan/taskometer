@@ -209,12 +209,17 @@ function WeekView({
 
   function handleRescheduleTask() {
     if (selectedTask) {
+      const taskForReschedule = {
+        ...selectedTask,
+        scheduledTime: null,
+        scheduledFor: null,
+        specificTime: null,
+        specificDay: null,
+        schedulingPreference: 'immediate'
+      };
       dispatch({
-        type: ACTION_TYPES.UPDATE_TASK,
-        payload: {
-          id: selectedTask.id || selectedTask.key,
-          scheduledTime: null
-        }
+        type: ACTION_TYPES.SCHEDULE_TASKS,
+        payload: { tasks: [taskForReschedule] }
       });
       setShowContextMenu(false);
     }

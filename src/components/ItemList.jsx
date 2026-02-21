@@ -16,7 +16,7 @@ import alldone from "../img/alldone.svg";
 import { getActiveSchedule } from "../utils/scheduleTemplates.js";
 
 // List of todo items
-function ItemList() {
+function ItemList({ onNavigateToCalendar }) {
 	const dispatch = useAppReducer();
 	const { activeSchedule } = useAppState();
 	const { pending, paused, completed } = useItems();
@@ -25,9 +25,11 @@ function ItemList() {
 	const unscheduledPending = pending.filter((i) => !i.scheduledTime);
 	const scheduledPending = pending.filter((i) => i.scheduledTime);
 
-	function scheduleAllPending() {
-		if (unscheduledPending.length === 0) return;
-		dispatch({ type: 'SCHEDULE_TASKS', tasks: unscheduledPending });
+	function planAndOpenCalendar() {
+		if (unscheduledPending.length > 0) {
+			dispatch({ type: 'SCHEDULE_TASKS', payload: { tasks: unscheduledPending } });
+		}
+		onNavigateToCalendar?.();
 	}
 
 	function rescheduleAll() {
@@ -41,7 +43,7 @@ function ItemList() {
 				<div className={styles.onboardingTitle}>Step 2: Add tasks for AI scheduling</div>
 				<div className={styles.onboardingText}>
 					{currentSchedule
-						? `Active template: ${currentSchedule.name}. Add tasks and we will slot them into this routine.`
+						? `Active template: ${currentSchedule.name}. Add tasks, then use "Plan next slots" to auto-place unscheduled work and jump to Calendar.`
 						: "No active schedule yet. Open the Schedules tab first to pick a template foundation."}
 				</div>
 			</div>
@@ -50,11 +52,15 @@ function ItemList() {
 
 			<div className={styles.toolbar}>
 				<button
-					onClick={scheduleAllPending}
-					disabled={unscheduledPending.length === 0}
+					onClick={planAndOpenCalendar}
+					disabled={pending.length === 0}
 					className={styles.primary}
 				>
-					Schedule all pending {unscheduledPending.length > 0 ? `(${unscheduledPending.length})` : ''}
+					{unscheduledPending.length > 0
+						? `Plan next slots${onNavigateToCalendar ? " & open calendar" : ""} (${unscheduledPending.length})`
+						: onNavigateToCalendar
+							? "Open calendar timeline"
+							: "All pending tasks are slotted"}
 				</button>
 				<button
 					onClick={rescheduleAll}
@@ -62,7 +68,7 @@ function ItemList() {
 					className={styles.secondary}
 					title="Clear all scheduled times and reschedule tasks"
 				>
-					Reschedule all {scheduledPending.length > 0 ? `(${scheduledPending.length} scheduled)` : ''}
+					Re-optimize all {scheduledPending.length > 0 ? `(${scheduledPending.length} scheduled)` : ''}
 				</button>
 			</div>
 			{pending.length > 0 ? (

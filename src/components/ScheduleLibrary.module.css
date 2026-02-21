@@ -18,6 +18,37 @@
     var(--input-color);
 }
 
+.toneSwitcher {
+  display: inline-flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.toneButton {
+  border: none;
+  background: transparent;
+  color: var(--font-color-secondary);
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.toneButton:hover {
+  color: var(--font-color);
+}
+
+.toneButtonActive {
+  background: var(--accent-color);
+  color: white;
+}
+
 .storyEyebrow {
   margin: 0 0 8px 0;
   color: var(--green);
@@ -779,6 +810,16 @@
 
   .storyActions {
     flex-direction: column;
+  }
+
+  .toneSwitcher {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .toneButton {
+    flex: 1;
+    text-align: center;
   }
 
   .storyPrimaryButton,
