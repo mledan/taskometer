@@ -303,7 +303,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
         }
       });
 
-      showNotification(`Applied ${blocks.length} blocks from "${schedule.name}". Next: Tasks mini preview, then Calendar.`);
+      showNotification(`Applied ${blocks.length} labeled slots from "${schedule.name}". Add your tasks and auto-plan into these windows.`);
       setApplyDateRange(null);
     } else {
       showNotification('No blocks to apply for the selected date range', 'warning');
