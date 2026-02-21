@@ -42,150 +42,50 @@ function CardDescription({ text = '' }) {
   );
 }
 
-const FOUNDATION_OPTIONS = [
+const INSPIRATION_EXAMPLES = [
   {
-    id: 'balanced',
-    title: 'Balanced Default',
-    summary: 'Start with reliable sleep, meals, and focused work blocks.',
-    hardcoreSummary: 'Keep it clean and ruthless: stable sleep, precise meals, focused output windows.',
-    keywords: ['balanced', 'work', 'daily', 'office', 'standard'],
-    tags: ['balanced', 'daily', 'work', 'office'],
-    candidateIds: ['general_9to5', 'standard-9to5', 'balanced_tech_worker', 'remote-flexible']
+    id: 'elon',
+    title: 'Elon Musk',
+    summary: 'High-output days with tightly managed work blocks.',
+    scheduleIds: ['elon-musk', 'elon_musk']
   },
   {
-    id: 'hardcore',
-    title: 'Hardcore Grind',
-    summary: 'High-output structure inspired by elite founders and operators.',
-    hardcoreSummary: 'Run an elite execution cadence inspired by founders who move fast and ship daily.',
-    keywords: ['intense', 'entrepreneur', 'hustle', 'core work', 'innovation'],
-    tags: ['intense', 'entrepreneur', 'innovation', 'tech', 'minimal_sleep'],
-    candidateIds: ['elon_musk', 'elon-musk', 'tim-cook']
+    id: 'maya',
+    title: 'Maya Angelou',
+    summary: 'Long, distraction-free creative sessions built around writing.',
+    scheduleIds: ['maya-angelou', 'maya_angelou']
   },
   {
-    id: 'athlete',
-    title: 'Athlete Discipline',
-    summary: 'Train-first routine with intentional recovery and strong energy.',
-    hardcoreSummary: 'Train like a pro: effort blocks, recovery windows, and disciplined fuel timing.',
-    keywords: ['fitness', 'exercise', 'wellness', 'health'],
-    tags: ['fitness', 'exercise', 'wellness', 'healthy'],
-    candidateIds: ['tim-cook', 'oprah-winfrey', 'balanced_tech_worker']
-  },
-  {
-    id: 'creator',
-    title: 'Creator Focus',
-    summary: 'Deep creative blocks for writing, building, and shipping.',
-    hardcoreSummary: 'Protect deep-work blocks and ship creative output without distraction.',
-    keywords: ['creative', 'writer', 'writing', 'focus'],
-    tags: ['creative', 'writer', 'writing', 'focus'],
-    candidateIds: ['maya_angelou', 'maya-angelou', 'stephen_king']
-  },
-  {
-    id: 'chill',
-    title: 'Chill Reset',
-    summary: 'Low-pressure template for recovery, planning, and life balance.',
-    hardcoreSummary: 'Strategic reset mode: recover hard, reset priorities, and come back stronger.',
-    keywords: ['self-care', 'weekend', 'leisure', 'mindfulness'],
-    tags: ['self-care', 'weekend', 'leisure', 'mindfulness', 'wellness'],
-    candidateIds: ['self-care-day', 'weekend-reflection', 'general_shift_worker']
+    id: 'oprah',
+    title: 'Oprah Winfrey',
+    summary: 'Wellness-first mornings with balanced work and reflection.',
+    scheduleIds: ['oprah-winfrey']
   }
 ];
 
-const COPY_TONES = {
-  professional: {
-    id: 'professional',
-    label: 'Professional',
-    heroEyebrow: 'Template-driven onboarding',
-    heroTitle: 'Build your day from a proven routine.',
-    heroCopy: 'Choose a routine from founders, athletes, politicians, creators, or a balanced default. Then add tasks and let AI place your work into your calendar.',
-    heroPrimaryCta: 'Explore Templates',
-    heroSecondaryCta: 'Continue to Tasks',
-    journeySteps: [
-      'Set your base schedule',
-      'Choose a template that inspires you',
-      'Add tasks and let AI map your day'
-    ],
-    step1Title: 'Set your foundation first',
-    step1Subtitle: 'Start with the big rocks: sleep, meals, and core activity blocks.',
-    step2Title: 'Pick your full schedule template',
-    step2Subtitle: 'Explore famous schedules, community ideas, and your own custom routines.',
-    step3Title: 'Enter tasks and let AI plan your day',
-    step3Inactive: 'Activate a schedule template first, then continue to Tasks to auto-plan your day.',
-    step3Active: (scheduleName) =>
-      `You are currently following "${scheduleName}". Add tasks now and AI will place them into this schedule.`,
-    foundationSelectedLabel: 'Foundation selected',
-    foundationSummaryPrefix: 'Foundation selected',
-    foundationSummaryTemplateLabel: 'Suggested template',
-    recommendationPrefix: 'Recommended',
-    noRecommendation: 'No template recommendation available',
-    useFoundationLabel: 'Use this foundation',
-    searchPlaceholder: 'Search schedules...',
-    reviewActiveButton: 'Review Active Schedule',
-    modalLaunchTasksButton: 'Activate and Continue to Tasks',
-    foundationActivatedToast: (scheduleName) =>
-      `Base schedule set to "${scheduleName}". Next: add your tasks and let AI slot your day.`
-  },
-  hardcore: {
-    id: 'hardcore',
-    label: 'Hardcore',
-    heroEyebrow: 'Execution mode onboarding',
-    heroTitle: 'Stop calendar chaos. Run a high-performance schedule.',
-    heroCopy: 'Not great at planning your day? Borrow an elite routine, dump in your tasks, and let our AI auto-block your execution windows.',
-    heroPrimaryCta: 'Show Me Elite Schedules',
-    heroSecondaryCta: 'Lock In and Add Tasks',
-    journeySteps: [
-      'Lock your base routine',
-      'Choose a high-performance template',
-      'Feed tasks and execute'
-    ],
-    step1Title: 'Choose your operating system',
-    step1Subtitle: 'Anchor sleep, meals, training, and deep-work blocks before distractions take over.',
-    step2Title: 'Pick the schedule you will run',
-    step2Subtitle: 'Browse founders, athletes, politicians, creators, and reset-day templates.',
-    step3Title: 'Feed tasks and run the day',
-    step3Inactive: 'Lock in a schedule first, then push tasks and let AI assign execution slots.',
-    step3Active: (scheduleName) =>
-      `"${scheduleName}" is locked in. Add tasks and AI will auto-place them into your execution windows.`,
-    foundationSelectedLabel: 'Locked in',
-    foundationSummaryPrefix: 'Operating mode',
-    foundationSummaryTemplateLabel: 'Best-fit template',
-    recommendationPrefix: 'Best fit',
-    noRecommendation: 'No direct template match available',
-    useFoundationLabel: 'Lock this foundation',
-    searchPlaceholder: 'Search elite and lifestyle schedules...',
-    reviewActiveButton: 'Review Locked Schedule',
-    modalLaunchTasksButton: 'Lock In and Attack Tasks',
-    foundationActivatedToast: (scheduleName) =>
-      `Base schedule locked: "${scheduleName}". Next move: add tasks and let AI map execution blocks.`
-  }
+const SCHEDULE_COPY = {
+  heroEyebrow: 'Schedule templates',
+  heroTitle: 'Find a routine that fits your life.',
+  heroCopy: 'Start with an example schedule from people you know, then browse all templates or build your own.',
+  heroPrimaryCta: 'Browse Templates',
+  heroSecondaryCta: 'Continue to Tasks',
+  journeySteps: [
+    'Get inspired by an example schedule',
+    'Choose or customize a full template',
+    'Add tasks and let AI map your day'
+  ],
+  step1Title: 'Get inspired by a schedule, or create your own',
+  step1Subtitle: 'Start with examples like Elon, Maya Angelou, and Oprah, or build a custom schedule from scratch.',
+  step2Title: 'Pick your full schedule template',
+  step2Subtitle: 'Explore famous schedules, community ideas, and your own custom routines.',
+  step3Title: 'Enter tasks and let AI plan your day',
+  step3Inactive: 'Activate a schedule template first, then continue to Tasks to auto-plan your day.',
+  step3Active: (scheduleName) =>
+    `You are currently following "${scheduleName}". Add tasks now and AI will place them into this schedule.`,
+  searchPlaceholder: 'Search schedules...',
+  reviewActiveButton: 'Review Active Schedule',
+  modalLaunchTasksButton: 'Activate and Continue to Tasks'
 };
-
-function scoreScheduleForFoundation(schedule, option) {
-  if (!schedule || !option) return -1;
-
-  const normalizedId = (schedule.id || '').toLowerCase();
-  const textBlob = `${schedule.name || ''} ${schedule.description || ''} ${schedule.author || ''}`.toLowerCase();
-  const tags = (schedule.tags || []).map(tag => String(tag).toLowerCase());
-
-  let score = 0;
-
-  if (option.candidateIds.some(id => id.toLowerCase() === normalizedId)) {
-    score += 100;
-  }
-
-  option.tags.forEach((tag) => {
-    if (tags.includes(tag)) {
-      score += 12;
-    }
-  });
-
-  option.keywords.forEach((keyword) => {
-    if (textBlob.includes(keyword)) {
-      score += 8;
-    }
-  });
-
-  return score;
-}
 
 function ScheduleLibrary({ onNavigateToTasks }) {
   const [state, dispatch] = useAppContext();
@@ -200,8 +100,6 @@ function ScheduleLibrary({ onNavigateToTasks }) {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'chronomap'
   const [notification, setNotification] = useState(null);
   const [applyDateRange, setApplyDateRange] = useState(null); // { startDate, endDate }
-  const [foundationChoice, setFoundationChoice] = useState('balanced');
-  const [copyTone, setCopyTone] = useState('professional');
   const templatesSectionRef = useRef(null);
 
   // Show notification helper
@@ -233,36 +131,27 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     }
   }, [state.activeScheduleId]);
 
-  const recommendedByFoundation = useMemo(() => {
-    const recommendationMap = {};
-    FOUNDATION_OPTIONS.forEach((option) => {
-      let bestMatch = null;
-      let bestScore = -1;
-
-      schedules.forEach((schedule) => {
-        const score = scoreScheduleForFoundation(schedule, option);
-        if (score > bestScore) {
-          bestScore = score;
-          bestMatch = schedule;
-        }
-      });
-
-      if (bestMatch && bestScore > 0) {
-        recommendationMap[option.id] = bestMatch;
-      }
-    });
-
-    return recommendationMap;
-  }, [schedules]);
-
   const activeSchedule = useMemo(
     () => schedules.find(schedule => schedule.id === activeScheduleId) || null,
     [schedules, activeScheduleId]
   );
-  const toneCopy = COPY_TONES[copyTone] || COPY_TONES.professional;
 
-  const selectedFoundation = FOUNDATION_OPTIONS.find(option => option.id === foundationChoice) || FOUNDATION_OPTIONS[0];
-  const selectedFoundationRecommendation = recommendedByFoundation[selectedFoundation.id] || null;
+  const inspirationSchedules = useMemo(
+    () => INSPIRATION_EXAMPLES.map((example) => {
+      const directMatch = schedules.find((schedule) => example.scheduleIds.includes(schedule.id));
+      if (directMatch) {
+        return { ...example, schedule: directMatch };
+      }
+
+      const fuzzyMatch = schedules.find((schedule) => {
+        const text = `${schedule.name || ''} ${schedule.author || ''}`.toLowerCase();
+        return text.includes(example.title.toLowerCase());
+      });
+
+      return { ...example, schedule: fuzzyMatch || null };
+    }),
+    [schedules]
+  );
 
   const scrollToTemplates = useCallback(() => {
     templatesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -321,21 +210,16 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     showNotification(successMessage || `"${schedule.name}" is now your active schedule!`);
   }
 
-  function handleFoundationSelect(optionId) {
-    setFoundationChoice(optionId);
-    const recommended = recommendedByFoundation[optionId];
-
-    if (!recommended) {
-      showNotification('No template match found for this foundation yet.', 'warning');
+  function handleInspirationSelect(schedule) {
+    if (!schedule) {
+      showNotification('That inspiration schedule is not available yet.', 'warning');
       return;
     }
 
     setFilter('all');
     setSearchTerm('');
-    handleActivateSchedule(
-      recommended.id,
-      toneCopy.foundationActivatedToast(recommended.name)
-    );
+    handleActivateSchedule(schedule.id, `"${schedule.name}" is now your active schedule.`);
+    setSelectedSchedule(schedule);
   }
 
   // Apply schedule blocks to a date range
@@ -380,7 +264,6 @@ function ScheduleLibrary({ onNavigateToTasks }) {
 
   function renderScheduleCard(schedule) {
     const isActive = schedule.id === activeScheduleId;
-    const isFoundationRecommendation = selectedFoundationRecommendation?.id === schedule.id;
     const likes = schedule._likes || { count: 0, liked: false };
     
     return (
@@ -392,7 +275,6 @@ function ScheduleLibrary({ onNavigateToTasks }) {
         <div className={styles.cardHeader}>
           <h3>{schedule.name}</h3>
           <div className={styles.cardHeaderBadges}>
-            {isFoundationRecommendation && <span className={styles.recommendedLabel}>Foundation Pick</span>}
             {isActive && <span className={styles.activeLabel}>Active</span>}
           </div>
         </div>
@@ -465,24 +347,12 @@ function ScheduleLibrary({ onNavigateToTasks }) {
       )}
       
       <section className={styles.storyHero}>
-        <div className={styles.toneSwitcher} role="group" aria-label="Messaging tone">
-          {Object.values(COPY_TONES).map((tone) => (
-            <button
-              key={tone.id}
-              type="button"
-              className={`${styles.toneButton} ${copyTone === tone.id ? styles.toneButtonActive : ''}`}
-              onClick={() => setCopyTone(tone.id)}
-            >
-              {tone.label}
-            </button>
-          ))}
-        </div>
-        <p className={styles.storyEyebrow}>{toneCopy.heroEyebrow}</p>
-        <h1>{toneCopy.heroTitle}</h1>
-        <p className={styles.storyCopy}>{toneCopy.heroCopy}</p>
+        <p className={styles.storyEyebrow}>{SCHEDULE_COPY.heroEyebrow}</p>
+        <h1>{SCHEDULE_COPY.heroTitle}</h1>
+        <p className={styles.storyCopy}>{SCHEDULE_COPY.heroCopy}</p>
         <div className={styles.storyActions}>
           <button type="button" className={styles.storyPrimaryButton} onClick={scrollToTemplates}>
-            {toneCopy.heroPrimaryCta}
+            {SCHEDULE_COPY.heroPrimaryCta}
           </button>
           <button
             type="button"
@@ -490,47 +360,60 @@ function ScheduleLibrary({ onNavigateToTasks }) {
             onClick={() => onNavigateToTasks?.()}
             disabled={!onNavigateToTasks || !activeScheduleId}
           >
-            {toneCopy.heroSecondaryCta}
+            {SCHEDULE_COPY.heroSecondaryCta}
           </button>
         </div>
         <div className={styles.journeySteps}>
-          <div className={styles.journeyStep}><span>1</span>{toneCopy.journeySteps[0]}</div>
-          <div className={styles.journeyStep}><span>2</span>{toneCopy.journeySteps[1]}</div>
-          <div className={styles.journeyStep}><span>3</span>{toneCopy.journeySteps[2]}</div>
+          <div className={styles.journeyStep}><span>1</span>{SCHEDULE_COPY.journeySteps[0]}</div>
+          <div className={styles.journeyStep}><span>2</span>{SCHEDULE_COPY.journeySteps[1]}</div>
+          <div className={styles.journeyStep}><span>3</span>{SCHEDULE_COPY.journeySteps[2]}</div>
         </div>
       </section>
 
       <section className={styles.foundationSection}>
         <div className={styles.sectionHeading}>
           <span className={styles.stepBadge}>Step 1</span>
-          <h2>{toneCopy.step1Title}</h2>
-          <p>{toneCopy.step1Subtitle}</p>
+          <h2>{SCHEDULE_COPY.step1Title}</h2>
+          <p>{SCHEDULE_COPY.step1Subtitle}</p>
         </div>
         <div className={styles.foundationGrid}>
-          {FOUNDATION_OPTIONS.map((option) => {
-            const recommendation = recommendedByFoundation[option.id];
-            const isSelected = option.id === foundationChoice;
-            const optionSummary = copyTone === 'hardcore'
-              ? (option.hardcoreSummary || option.summary)
-              : option.summary;
+          {inspirationSchedules.map((example) => {
+            const schedule = example.schedule;
+            const isSelected = schedule?.id === activeScheduleId;
+
             return (
               <button
-                key={option.id}
+                key={example.id}
                 type="button"
                 className={`${styles.foundationCard} ${isSelected ? styles.foundationCardSelected : ''}`}
-                onClick={() => handleFoundationSelect(option.id)}
+                onClick={() => handleInspirationSelect(schedule)}
               >
-                <h3>{option.title}</h3>
-                <p>{optionSummary}</p>
+                <h3>{example.title}</h3>
+                <p>{example.summary}</p>
                 <div className={styles.foundationRecommendation}>
-                  {recommendation ? `${toneCopy.recommendationPrefix}: ${recommendation.name}` : toneCopy.noRecommendation}
+                  {schedule ? `Template: ${schedule.name}` : 'Template unavailable'}
                 </div>
                 <span className={styles.foundationAction}>
-                  {isSelected ? toneCopy.foundationSelectedLabel : toneCopy.useFoundationLabel}
+                  {isSelected ? 'Selected' : 'Use this schedule'}
                 </span>
               </button>
             );
           })}
+          <button
+            type="button"
+            className={styles.foundationCard}
+            onClick={() => {
+              setScheduleToCustomize(null);
+              setShowBuilder(true);
+            }}
+          >
+            <h3>Create Your Own</h3>
+            <p>Start from scratch and build a schedule that matches your life.</p>
+            <div className={styles.foundationRecommendation}>
+              Open the schedule builder to define your own time blocks.
+            </div>
+            <span className={styles.foundationAction}>Create custom schedule</span>
+          </button>
         </div>
       </section>
 
@@ -538,8 +421,8 @@ function ScheduleLibrary({ onNavigateToTasks }) {
         <div className={styles.header}>
           <div>
             <span className={styles.stepBadge}>Step 2</span>
-            <h2>{toneCopy.step2Title}</h2>
-            <p>{toneCopy.step2Subtitle}</p>
+            <h2>{SCHEDULE_COPY.step2Title}</h2>
+            <p>{SCHEDULE_COPY.step2Subtitle}</p>
           </div>
           <div className={styles.headerActions}>
             <div className={styles.viewToggle}>
@@ -562,19 +445,6 @@ function ScheduleLibrary({ onNavigateToTasks }) {
           </div>
         </div>
 
-        {selectedFoundationRecommendation && (
-          <div className={styles.foundationSummary}>
-            {toneCopy.foundationSummaryPrefix}: <strong>{selectedFoundation.title}</strong>. {toneCopy.foundationSummaryTemplateLabel}:&nbsp;
-            <button
-              type="button"
-              className={styles.linkButton}
-              onClick={() => setSelectedSchedule(selectedFoundationRecommendation)}
-            >
-              {selectedFoundationRecommendation.name}
-            </button>
-          </div>
-        )}
-
         {viewMode === 'chronomap' ? (
           <HistoricalFiguresGantt />
         ) : (
@@ -582,7 +452,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
             <div className={styles.controls}>
               <input
                 type="text"
-                placeholder={toneCopy.searchPlaceholder}
+                placeholder={SCHEDULE_COPY.searchPlaceholder}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={styles.searchInput}
@@ -629,11 +499,11 @@ function ScheduleLibrary({ onNavigateToTasks }) {
       <section className={styles.tasksCtaSection}>
         <div>
           <span className={styles.stepBadge}>Step 3</span>
-          <h3>{toneCopy.step3Title}</h3>
+          <h3>{SCHEDULE_COPY.step3Title}</h3>
           <p>
             {activeSchedule
-              ? toneCopy.step3Active(activeSchedule.name)
-              : toneCopy.step3Inactive}
+              ? SCHEDULE_COPY.step3Active(activeSchedule.name)
+              : SCHEDULE_COPY.step3Inactive}
           </p>
         </div>
         <div className={styles.tasksCtaActions}>
@@ -643,7 +513,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
             onClick={() => onNavigateToTasks?.()}
             disabled={!onNavigateToTasks || !activeScheduleId}
           >
-            {toneCopy.heroSecondaryCta}
+            {SCHEDULE_COPY.heroSecondaryCta}
           </button>
           {activeSchedule && (
             <button
@@ -651,7 +521,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
               className={styles.previewButton}
               onClick={() => setSelectedSchedule(activeSchedule)}
             >
-              {toneCopy.reviewActiveButton}
+              {SCHEDULE_COPY.reviewActiveButton}
             </button>
           )}
         </div>
@@ -760,7 +630,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
                   }}
                   className={styles.launchTasksButton}
                 >
-                  {toneCopy.modalLaunchTasksButton}
+                  {SCHEDULE_COPY.modalLaunchTasksButton}
                 </button>
               )}
               <button
