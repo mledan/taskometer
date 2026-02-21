@@ -351,14 +351,30 @@ function appReducer(state, action) {
       const tasksToSchedule = action.payload?.tasks || action.tasks || [];
       const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
 
-      if (!activeSchedule) {
+      if (!activeSchedule || tasksToSchedule.length === 0) {
         return state;
       }
 
-      const scheduledTasks = batchScheduleTasks(tasksToSchedule, activeSchedule, state.tasks, state.taskTypes);
+      // Exclude tasks being (re)scheduled from conflict detection to avoid
+      // self-collisions with their previous scheduled slot.
+      const schedulingIds = new Set(
+        tasksToSchedule
+          .map(task => task?.id?.toString() || task?.key?.toString() || null)
+          .filter(Boolean)
+      );
+      const existingTasks = state.tasks.filter(task => {
+        const taskId = task?.id?.toString() || task?.key?.toString() || null;
+        return taskId ? !schedulingIds.has(taskId) : true;
+      });
+
+      const scheduledTasks = batchScheduleTasks(tasksToSchedule, activeSchedule, existingTasks, state.taskTypes);
+      const scheduledTaskMap = new Map(
+        scheduledTasks.map(task => [task?.id?.toString() || task?.key?.toString(), task])
+      );
 
       const newTasks = state.tasks.map(task => {
-        const scheduled = scheduledTasks.find(s => s.key === task.key || s.id === task.id);
+        const taskId = task?.id?.toString() || task?.key?.toString();
+        const scheduled = scheduledTaskMap.get(taskId);
         return scheduled || task;
       });
 

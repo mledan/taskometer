@@ -61,7 +61,7 @@ function Item({ item }) {
 
     dispatch({ 
       type: 'SCHEDULE_TASKS',
-      tasks: [updatedItem]
+      payload: { tasks: [updatedItem] }
     });
 
     setIsRescheduling(false);
