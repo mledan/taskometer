@@ -10,6 +10,7 @@ import { ENHANCED_FAMOUS_SCHEDULES, applyTemplateToDateRange } from '../utils/en
 import CircularSchedule from './CircularSchedule.jsx';
 import { getLikes, toggleLike } from '../utils/community.js';
 import { ACTION_TYPES, useAppContext } from '../context/AppContext.jsx';
+import { buildTemplateApplicationSummary } from '../utils/templateApplicationSummary.js';
 
 function Community() {
   const [state, dispatch] = useAppContext();
@@ -49,10 +50,12 @@ function Community() {
   function handleApplySchedule(schedule) {
     const weekStart = startOfWeek(new Date());
     const weekEnd = addDays(weekStart, 6);
+    const startDate = format(weekStart, 'yyyy-MM-dd');
+    const endDate = format(weekEnd, 'yyyy-MM-dd');
     const blocks = applyTemplateToDateRange(
       schedule,
-      format(weekStart, 'yyyy-MM-dd'),
-      format(weekEnd, 'yyyy-MM-dd')
+      startDate,
+      endDate
     );
 
     if (blocks.length === 0) {
@@ -68,7 +71,29 @@ function Community() {
         options: { mergeWithExisting: true }
       }
     });
-    setMessage(`Applied ${blocks.length} blocks from "${schedule.name}"`);
+
+    const applicationSummary = buildTemplateApplicationSummary({
+      schedule,
+      blocks,
+      startDate,
+      endDate,
+      source: 'community'
+    });
+
+    dispatch({
+      type: ACTION_TYPES.UPDATE_SETTINGS,
+      payload: {
+        lastTemplateApplication: applicationSummary
+      }
+    });
+
+    dispatch({
+      type: ACTION_TYPES.SET_ACTIVE_SCHEDULE,
+      payload: { schedule, scheduleId: schedule.id }
+    });
+    setActiveScheduleStorage(schedule.id);
+
+    setMessage(`Applied ${blocks.length} blocks from "${schedule.name}". Check Tasks then Calendar.`);
     setTimeout(() => setMessage(null), 2500);
   }
 

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAppState, useAppReducer } from '../AppContext';
+import { useAppReducer, ACTION_TYPES } from '../AppContext';
 import { ENHANCED_FAMOUS_SCHEDULES, BLOCK_CATEGORIES, applyTemplateToDateRange } from '../utils/enhancedTemplates';
+import { buildTemplateApplicationSummary } from '../utils/templateApplicationSummary.js';
 import '../styles/CalendarTemplateOverlay.css';
 
 const CalendarTemplateOverlay = ({ currentWeekStart, onTemplateApplied }) => {
-  const state = useAppState();
   const dispatch = useAppReducer();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -66,7 +66,7 @@ const CalendarTemplateOverlay = ({ currentWeekStart, onTemplateApplied }) => {
 
     // Dispatch action to apply template blocks
     dispatch({
-      type: 'APPLY_TEMPLATE_BLOCKS',
+      type: ACTION_TYPES.APPLY_TEMPLATE_BLOCKS,
       payload: {
         blocks: previewBlocks,
         options: applyOptions
@@ -76,12 +76,27 @@ const CalendarTemplateOverlay = ({ currentWeekStart, onTemplateApplied }) => {
     // If auto-slot is enabled, also schedule unscheduled tasks
     if (applyOptions.autoSlotTasks) {
       dispatch({
-        type: 'AUTO_SLOT_TASKS_INTO_TEMPLATE',
+        type: ACTION_TYPES.AUTO_SLOT_TASKS_INTO_TEMPLATE,
         payload: {
           templateBlocks: previewBlocks
         }
       });
     }
+
+    const applicationSummary = buildTemplateApplicationSummary({
+      schedule: selectedTemplate,
+      blocks: previewBlocks,
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+      source: 'calendar-overlay'
+    });
+
+    dispatch({
+      type: ACTION_TYPES.UPDATE_SETTINGS,
+      payload: {
+        lastTemplateApplication: applicationSummary
+      }
+    });
 
     // Notify parent component
     if (onTemplateApplied) {
