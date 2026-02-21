@@ -152,7 +152,7 @@ function ScheduleBuilder({ onClose, onCreated, initialSchedule }) {
 
         <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div>
-            <CircularSchedule timeBlocks={blocks} showLegend={true} title={name} />
+            <CircularSchedule timeBlocks={blocks} showLegend={true} showNow={false} title={name} />
           </div>
           <div style={{ flex: '1 1 320px', minWidth: 320 }}>
             <div style={{ display: 'grid', gap: 8 }}>

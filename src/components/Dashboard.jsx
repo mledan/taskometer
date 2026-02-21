@@ -304,6 +304,7 @@ function Dashboard() {
                 <CircularSchedule 
                   timeBlocks={schedule.timeBlocks} 
                   showLegend={false} 
+                  showNow={true}
                   title="" 
                 />
               </div>
