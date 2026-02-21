@@ -47,6 +47,7 @@ const FOUNDATION_OPTIONS = [
     id: 'balanced',
     title: 'Balanced Default',
     summary: 'Start with reliable sleep, meals, and focused work blocks.',
+    hardcoreSummary: 'Keep it clean and ruthless: stable sleep, precise meals, focused output windows.',
     keywords: ['balanced', 'work', 'daily', 'office', 'standard'],
     tags: ['balanced', 'daily', 'work', 'office'],
     candidateIds: ['general_9to5', 'standard-9to5', 'balanced_tech_worker', 'remote-flexible']
@@ -55,6 +56,7 @@ const FOUNDATION_OPTIONS = [
     id: 'hardcore',
     title: 'Hardcore Grind',
     summary: 'High-output structure inspired by elite founders and operators.',
+    hardcoreSummary: 'Run an elite execution cadence inspired by founders who move fast and ship daily.',
     keywords: ['intense', 'entrepreneur', 'hustle', 'core work', 'innovation'],
     tags: ['intense', 'entrepreneur', 'innovation', 'tech', 'minimal_sleep'],
     candidateIds: ['elon_musk', 'elon-musk', 'tim-cook']
@@ -63,6 +65,7 @@ const FOUNDATION_OPTIONS = [
     id: 'athlete',
     title: 'Athlete Discipline',
     summary: 'Train-first routine with intentional recovery and strong energy.',
+    hardcoreSummary: 'Train like a pro: effort blocks, recovery windows, and disciplined fuel timing.',
     keywords: ['fitness', 'exercise', 'wellness', 'health'],
     tags: ['fitness', 'exercise', 'wellness', 'healthy'],
     candidateIds: ['tim-cook', 'oprah-winfrey', 'balanced_tech_worker']
@@ -71,6 +74,7 @@ const FOUNDATION_OPTIONS = [
     id: 'creator',
     title: 'Creator Focus',
     summary: 'Deep creative blocks for writing, building, and shipping.',
+    hardcoreSummary: 'Protect deep-work blocks and ship creative output without distraction.',
     keywords: ['creative', 'writer', 'writing', 'focus'],
     tags: ['creative', 'writer', 'writing', 'focus'],
     candidateIds: ['maya_angelou', 'maya-angelou', 'stephen_king']
@@ -79,11 +83,81 @@ const FOUNDATION_OPTIONS = [
     id: 'chill',
     title: 'Chill Reset',
     summary: 'Low-pressure template for recovery, planning, and life balance.',
+    hardcoreSummary: 'Strategic reset mode: recover hard, reset priorities, and come back stronger.',
     keywords: ['self-care', 'weekend', 'leisure', 'mindfulness'],
     tags: ['self-care', 'weekend', 'leisure', 'mindfulness', 'wellness'],
     candidateIds: ['self-care-day', 'weekend-reflection', 'general_shift_worker']
   }
 ];
+
+const COPY_TONES = {
+  professional: {
+    id: 'professional',
+    label: 'Professional',
+    heroEyebrow: 'Template-driven onboarding',
+    heroTitle: 'Build your day from a proven routine.',
+    heroCopy: 'Choose a routine from founders, athletes, politicians, creators, or a balanced default. Then add tasks and let AI place your work into your calendar.',
+    heroPrimaryCta: 'Explore Templates',
+    heroSecondaryCta: 'Continue to Tasks',
+    journeySteps: [
+      'Set your base schedule',
+      'Choose a template that inspires you',
+      'Add tasks and let AI map your day'
+    ],
+    step1Title: 'Set your foundation first',
+    step1Subtitle: 'Start with the big rocks: sleep, meals, and core activity blocks.',
+    step2Title: 'Pick your full schedule template',
+    step2Subtitle: 'Explore famous schedules, community ideas, and your own custom routines.',
+    step3Title: 'Enter tasks and let AI plan your day',
+    step3Inactive: 'Activate a schedule template first, then continue to Tasks to auto-plan your day.',
+    step3Active: (scheduleName) =>
+      `You are currently following "${scheduleName}". Add tasks now and AI will place them into this schedule.`,
+    foundationSelectedLabel: 'Foundation selected',
+    foundationSummaryPrefix: 'Foundation selected',
+    foundationSummaryTemplateLabel: 'Suggested template',
+    recommendationPrefix: 'Recommended',
+    noRecommendation: 'No template recommendation available',
+    useFoundationLabel: 'Use this foundation',
+    searchPlaceholder: 'Search schedules...',
+    reviewActiveButton: 'Review Active Schedule',
+    modalLaunchTasksButton: 'Activate and Continue to Tasks',
+    foundationActivatedToast: (scheduleName) =>
+      `Base schedule set to "${scheduleName}". Next: add your tasks and let AI slot your day.`
+  },
+  hardcore: {
+    id: 'hardcore',
+    label: 'Hardcore',
+    heroEyebrow: 'Execution mode onboarding',
+    heroTitle: 'Stop calendar chaos. Run a high-performance schedule.',
+    heroCopy: 'Not great at planning your day? Borrow an elite routine, dump in your tasks, and let our AI auto-block your execution windows.',
+    heroPrimaryCta: 'Show Me Elite Schedules',
+    heroSecondaryCta: 'Lock In and Add Tasks',
+    journeySteps: [
+      'Lock your base routine',
+      'Choose a high-performance template',
+      'Feed tasks and execute'
+    ],
+    step1Title: 'Choose your operating system',
+    step1Subtitle: 'Anchor sleep, meals, training, and deep-work blocks before distractions take over.',
+    step2Title: 'Pick the schedule you will run',
+    step2Subtitle: 'Browse founders, athletes, politicians, creators, and reset-day templates.',
+    step3Title: 'Feed tasks and run the day',
+    step3Inactive: 'Lock in a schedule first, then push tasks and let AI assign execution slots.',
+    step3Active: (scheduleName) =>
+      `"${scheduleName}" is locked in. Add tasks and AI will auto-place them into your execution windows.`,
+    foundationSelectedLabel: 'Locked in',
+    foundationSummaryPrefix: 'Operating mode',
+    foundationSummaryTemplateLabel: 'Best-fit template',
+    recommendationPrefix: 'Best fit',
+    noRecommendation: 'No direct template match available',
+    useFoundationLabel: 'Lock this foundation',
+    searchPlaceholder: 'Search elite and lifestyle schedules...',
+    reviewActiveButton: 'Review Locked Schedule',
+    modalLaunchTasksButton: 'Lock In and Attack Tasks',
+    foundationActivatedToast: (scheduleName) =>
+      `Base schedule locked: "${scheduleName}". Next move: add tasks and let AI map execution blocks.`
+  }
+};
 
 function scoreScheduleForFoundation(schedule, option) {
   if (!schedule || !option) return -1;
@@ -127,6 +201,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
   const [notification, setNotification] = useState(null);
   const [applyDateRange, setApplyDateRange] = useState(null); // { startDate, endDate }
   const [foundationChoice, setFoundationChoice] = useState('balanced');
+  const [copyTone, setCopyTone] = useState('professional');
   const templatesSectionRef = useRef(null);
 
   // Show notification helper
@@ -184,6 +259,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     () => schedules.find(schedule => schedule.id === activeScheduleId) || null,
     [schedules, activeScheduleId]
   );
+  const toneCopy = COPY_TONES[copyTone] || COPY_TONES.professional;
 
   const selectedFoundation = FOUNDATION_OPTIONS.find(option => option.id === foundationChoice) || FOUNDATION_OPTIONS[0];
   const selectedFoundationRecommendation = recommendedByFoundation[selectedFoundation.id] || null;
@@ -258,7 +334,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     setSearchTerm('');
     handleActivateSchedule(
       recommended.id,
-      `Base schedule set to "${recommended.name}". Next: add your tasks and let AI slot your day.`
+      toneCopy.foundationActivatedToast(recommended.name)
     );
   }
 
@@ -389,16 +465,24 @@ function ScheduleLibrary({ onNavigateToTasks }) {
       )}
       
       <section className={styles.storyHero}>
-        <p className={styles.storyEyebrow}>Template-driven onboarding</p>
-        <h1>Build your day from a proven routine.</h1>
-        <p className={styles.storyCopy}>
-          Sick of scheduling your own calendar? Borrow a routine from a CEO, athlete, politician, creator,
-          or choose a standard chill day. Enter tasks next and our AI scheduler places the work into your
-          timeline automatically.
-        </p>
+        <div className={styles.toneSwitcher} role="group" aria-label="Messaging tone">
+          {Object.values(COPY_TONES).map((tone) => (
+            <button
+              key={tone.id}
+              type="button"
+              className={`${styles.toneButton} ${copyTone === tone.id ? styles.toneButtonActive : ''}`}
+              onClick={() => setCopyTone(tone.id)}
+            >
+              {tone.label}
+            </button>
+          ))}
+        </div>
+        <p className={styles.storyEyebrow}>{toneCopy.heroEyebrow}</p>
+        <h1>{toneCopy.heroTitle}</h1>
+        <p className={styles.storyCopy}>{toneCopy.heroCopy}</p>
         <div className={styles.storyActions}>
           <button type="button" className={styles.storyPrimaryButton} onClick={scrollToTemplates}>
-            Explore Templates
+            {toneCopy.heroPrimaryCta}
           </button>
           <button
             type="button"
@@ -406,26 +490,29 @@ function ScheduleLibrary({ onNavigateToTasks }) {
             onClick={() => onNavigateToTasks?.()}
             disabled={!onNavigateToTasks || !activeScheduleId}
           >
-            Continue to Tasks
+            {toneCopy.heroSecondaryCta}
           </button>
         </div>
         <div className={styles.journeySteps}>
-          <div className={styles.journeyStep}><span>1</span>Set your base schedule</div>
-          <div className={styles.journeyStep}><span>2</span>Choose a template that inspires you</div>
-          <div className={styles.journeyStep}><span>3</span>Add tasks and let AI map your day</div>
+          <div className={styles.journeyStep}><span>1</span>{toneCopy.journeySteps[0]}</div>
+          <div className={styles.journeyStep}><span>2</span>{toneCopy.journeySteps[1]}</div>
+          <div className={styles.journeyStep}><span>3</span>{toneCopy.journeySteps[2]}</div>
         </div>
       </section>
 
       <section className={styles.foundationSection}>
         <div className={styles.sectionHeading}>
           <span className={styles.stepBadge}>Step 1</span>
-          <h2>Set your foundation first</h2>
-          <p>Start with the big rocks: sleep, meals, and core activity blocks.</p>
+          <h2>{toneCopy.step1Title}</h2>
+          <p>{toneCopy.step1Subtitle}</p>
         </div>
         <div className={styles.foundationGrid}>
           {FOUNDATION_OPTIONS.map((option) => {
             const recommendation = recommendedByFoundation[option.id];
             const isSelected = option.id === foundationChoice;
+            const optionSummary = copyTone === 'hardcore'
+              ? (option.hardcoreSummary || option.summary)
+              : option.summary;
             return (
               <button
                 key={option.id}
@@ -434,12 +521,12 @@ function ScheduleLibrary({ onNavigateToTasks }) {
                 onClick={() => handleFoundationSelect(option.id)}
               >
                 <h3>{option.title}</h3>
-                <p>{option.summary}</p>
+                <p>{optionSummary}</p>
                 <div className={styles.foundationRecommendation}>
-                  {recommendation ? `Recommended: ${recommendation.name}` : 'No template recommendation available'}
+                  {recommendation ? `${toneCopy.recommendationPrefix}: ${recommendation.name}` : toneCopy.noRecommendation}
                 </div>
                 <span className={styles.foundationAction}>
-                  {isSelected ? 'Foundation selected' : 'Use this foundation'}
+                  {isSelected ? toneCopy.foundationSelectedLabel : toneCopy.useFoundationLabel}
                 </span>
               </button>
             );
@@ -451,8 +538,8 @@ function ScheduleLibrary({ onNavigateToTasks }) {
         <div className={styles.header}>
           <div>
             <span className={styles.stepBadge}>Step 2</span>
-            <h2>Pick your full schedule template</h2>
-            <p>Explore famous schedules, community ideas, and your own custom routines.</p>
+            <h2>{toneCopy.step2Title}</h2>
+            <p>{toneCopy.step2Subtitle}</p>
           </div>
           <div className={styles.headerActions}>
             <div className={styles.viewToggle}>
@@ -477,7 +564,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
 
         {selectedFoundationRecommendation && (
           <div className={styles.foundationSummary}>
-            Foundation selected: <strong>{selectedFoundation.title}</strong>. Suggested template:&nbsp;
+            {toneCopy.foundationSummaryPrefix}: <strong>{selectedFoundation.title}</strong>. {toneCopy.foundationSummaryTemplateLabel}:&nbsp;
             <button
               type="button"
               className={styles.linkButton}
@@ -495,7 +582,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
             <div className={styles.controls}>
               <input
                 type="text"
-                placeholder="Search schedules..."
+                placeholder={toneCopy.searchPlaceholder}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={styles.searchInput}
@@ -542,11 +629,11 @@ function ScheduleLibrary({ onNavigateToTasks }) {
       <section className={styles.tasksCtaSection}>
         <div>
           <span className={styles.stepBadge}>Step 3</span>
-          <h3>Enter tasks and let AI plan your day</h3>
+          <h3>{toneCopy.step3Title}</h3>
           <p>
             {activeSchedule
-              ? `You are currently following "${activeSchedule.name}". Add tasks now and AI will place them into this schedule.`
-              : 'Activate a schedule template first, then continue to Tasks to auto-plan your day.'}
+              ? toneCopy.step3Active(activeSchedule.name)
+              : toneCopy.step3Inactive}
           </p>
         </div>
         <div className={styles.tasksCtaActions}>
@@ -556,7 +643,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
             onClick={() => onNavigateToTasks?.()}
             disabled={!onNavigateToTasks || !activeScheduleId}
           >
-            Continue to Tasks
+            {toneCopy.heroSecondaryCta}
           </button>
           {activeSchedule && (
             <button
@@ -564,7 +651,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
               className={styles.previewButton}
               onClick={() => setSelectedSchedule(activeSchedule)}
             >
-              Review Active Schedule
+              {toneCopy.reviewActiveButton}
             </button>
           )}
         </div>
@@ -673,7 +760,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
                   }}
                   className={styles.launchTasksButton}
                 >
-                  Activate and Continue to Tasks
+                  {toneCopy.modalLaunchTasksButton}
                 </button>
               )}
               <button
