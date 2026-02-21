@@ -97,7 +97,7 @@ function Community() {
                 <span className={styles.activeLabel}>{isActive ? 'Active' : 'Community'}</span>
               </div>
               <div className={styles.cardPreview}>
-                <CircularSchedule timeBlocks={s.timeBlocks} showLegend={false} title={''} />
+                <CircularSchedule timeBlocks={s.timeBlocks} showLegend={false} showNow={false} title={''} />
               </div>
               <p className={styles.author}>by {s.author}</p>
               <p className={styles.description}>{s.description}</p>

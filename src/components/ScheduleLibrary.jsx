@@ -398,7 +398,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
         </div>
         <div className={styles.cardPreview}
              aria-label={`Preview of ${schedule.name} as a 24-hour circle`}>
-          <CircularSchedule timeBlocks={schedule.timeBlocks} showLegend={false} title={''} />
+          <CircularSchedule timeBlocks={schedule.timeBlocks} showLegend={false} showNow={false} title={''} />
         </div>
         <p className={styles.author}>by {schedule.author}</p>
         <CardDescription text={schedule.description} />
@@ -689,7 +689,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
             <div className={styles.timelineContainer}>
               <h3>Daily Timeline</h3>
               <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
-                <CircularSchedule timeBlocks={selectedSchedule.timeBlocks} showLegend={true} title={'24h view'} />
+                <CircularSchedule timeBlocks={selectedSchedule.timeBlocks} showLegend={true} showNow={true} title={'24h view'} />
                 <div className={styles.timeline}>
                   {selectedSchedule.timeBlocks.map(block => renderTimeBlock(block))}
                 </div>
