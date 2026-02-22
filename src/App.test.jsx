@@ -1,31 +1,28 @@
 import { test, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { format } from "date-fns";
 import App from "./App.jsx";
 
-test("starts on the simplified schedules view", () => {
+test("starts on the defaults setup view", () => {
   render(<App />);
-  expect(screen.getByRole("heading", { name: /schedule templates/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /default schedule by day/i })).toBeInTheDocument();
 });
 
-test("renders the weekday on dashboard after navigation", () => {
+test("shows the narrowed workflow tabs", () => {
   render(<App />);
-  fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
-  const weekdayElement = screen.getByText(format(new Date(), "EEEE"));
-  expect(weekdayElement).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Defaults" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Tasks" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Calendar" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Palace" })).toBeInTheDocument();
 });
 
-test("renders the full date on dashboard after navigation", () => {
+test("navigates to tasks tab", () => {
   render(<App />);
-  fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
-  const fullDate = format(new Date(), "MMMM d, yyyy");
-  expect(screen.getByText(fullDate)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Tasks" }));
+  expect(screen.getByText(/task intake by type/i)).toBeInTheDocument();
 });
 
-test("renders task-related elements", () => {
+test("navigates to palace tab", () => {
   render(<App />);
-  // Dashboard has navigation tabs
-  expect(screen.getByText('Tasks')).toBeInTheDocument();
-  expect(screen.getByText('Calendar')).toBeInTheDocument();
-  expect(screen.getByText('Schedules')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Palace" }));
+  expect(screen.getByRole("heading", { name: "Memory Palace", level: 2 })).toBeInTheDocument();
 });
