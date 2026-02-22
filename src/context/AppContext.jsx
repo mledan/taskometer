@@ -157,6 +157,77 @@ export const ACTION_TYPES = {
   AUTO_SLOT_TASKS_INTO_TEMPLATE: 'AUTO_SLOT_TASKS_INTO_TEMPLATE'
 };
 
+function normalizeTemplateBlockToSlot(block = {}, index = 0) {
+  const date = resolveTemplateBlockDate(block);
+  const sourceScheduleId = block.sourceScheduleId || block.templateId || null;
+  const sourceBlockId = block.sourceBlockId ||
+    block.id ||
+    `${sourceScheduleId || 'template'}-${date}-${index}`;
+
+  return {
+    date,
+    startTime: resolveTemplateBlockTime(block.start, block.startTime, '09:00'),
+    endTime: resolveTemplateBlockTime(block.end, block.endTime, '10:00'),
+    // Keep template category/type for slot labeling and matching.
+    slotType: block.slotType || block.type || block.category || null,
+    allowedTags: Array.isArray(block.allowedTags) ? block.allowedTags : [],
+    label: block.label || block.name || `${block.type || block.category || 'Template'} block`,
+    description: block.description || null,
+    color: block.color,
+    flexibility: block.flexibility || 'preferred',
+    sourceScheduleId,
+    sourceBlockId,
+    isRecurring: false
+  };
+}
+
+function resolveTemplateBlockDate(block = {}) {
+  if (typeof block.date === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(block.date)) {
+      return block.date;
+    }
+    const parsedDate = new Date(block.date);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return format(parsedDate, 'yyyy-MM-dd');
+    }
+  }
+
+  if (block.date instanceof Date && !Number.isNaN(block.date.getTime())) {
+    return format(block.date, 'yyyy-MM-dd');
+  }
+
+  if (block.startTime) {
+    const parsedStart = new Date(block.startTime);
+    if (!Number.isNaN(parsedStart.getTime())) {
+      return format(parsedStart, 'yyyy-MM-dd');
+    }
+  }
+
+  return format(new Date(), 'yyyy-MM-dd');
+}
+
+function resolveTemplateBlockTime(rawTime, isoTime, fallback) {
+  if (typeof rawTime === 'string') {
+    const strictMatch = rawTime.match(/^(\d{2}):(\d{2})$/);
+    if (strictMatch) {
+      return rawTime;
+    }
+    const looseMatch = rawTime.match(/^(\d{1,2}):(\d{2})$/);
+    if (looseMatch) {
+      return `${looseMatch[1].padStart(2, '0')}:${looseMatch[2]}`;
+    }
+  }
+
+  if (isoTime) {
+    const parsedTime = new Date(isoTime);
+    if (!Number.isNaN(parsedTime.getTime())) {
+      return format(parsedTime, 'HH:mm');
+    }
+  }
+
+  return fallback;
+}
+
 // ============================================
 // REDUCER
 // ============================================
@@ -551,44 +622,54 @@ function appReducer(state, action) {
 
     case ACTION_TYPES.APPLY_SCHEDULE:
     case ACTION_TYPES.APPLY_TEMPLATE_BLOCKS: {
-      const { blocks, options = {} } = action.payload;
+      const { blocks = [], options = {} } = action.payload || {};
       const { overrideExisting = false, mergeWithExisting = true } = options;
 
-      // Create task items from blocks
-      const templateItems = blocks.map((block, index) => createTask({
-        key: `template-${block.templateId || 'custom'}-${new Date(block.startTime).getTime()}-${index}`,
-        text: block.label || block.name || `${block.type} block`,
-        description: block.description || '',
-        status: 'pending',
-        primaryType: block.type,
-        taskType: block.type,
-        duration: Math.round((new Date(block.endTime) - new Date(block.startTime)) / 60000),
-        scheduledTime: block.startTime,
-        specificTime: new Date(block.startTime).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        }),
-        scheduledFor: new Date(block.startTime).toISOString().split('T')[0],
-        specificDay: format(new Date(block.startTime), 'EEEE'),
-        color: block.color,
-        isTemplateBlock: true,
-        sourceTemplateId: block.templateId
-      }));
-
-      let newTasks;
-      if (overrideExisting) {
-        newTasks = [
-          ...state.tasks.filter(item => !item.isTemplateBlock),
-          ...templateItems
-        ];
-      } else if (mergeWithExisting) {
-        newTasks = [...state.tasks, ...templateItems];
-      } else {
-        newTasks = templateItems;
+      if (!Array.isArray(blocks) || blocks.length === 0) {
+        return state;
       }
 
-      return { ...state, tasks: newTasks, items: newTasks };
+      const generatedSlots = blocks.map((block, index) =>
+        createCalendarSlot(normalizeTemplateBlockToSlot(block, index))
+      );
+
+      const affectedDates = new Set(generatedSlots.map(slot => slot.date));
+      let baseSlots = state.slots;
+
+      if (overrideExisting || !mergeWithExisting) {
+        baseSlots = baseSlots.filter(slot => !affectedDates.has(slot.date));
+      }
+
+      // Prevent duplicate slots when re-applying the same schedule/range.
+      const slotSignature = (slot) => [
+        slot.date,
+        slot.startTime,
+        slot.endTime,
+        slot.label || '',
+        slot.sourceScheduleId || '',
+        slot.sourceBlockId || ''
+      ].join('|');
+
+      const existingSignatures = new Set(baseSlots.map(slotSignature));
+      const uniqueGeneratedSlots = generatedSlots.filter(slot => {
+        const signature = slotSignature(slot);
+        if (existingSignatures.has(signature)) {
+          return false;
+        }
+        existingSignatures.add(signature);
+        return true;
+      });
+
+      // Legacy template-created tasks should be removed: templates now define
+      // scheduling windows/slots, while user tasks fill those windows.
+      const nonTemplateTasks = state.tasks.filter(task => !task.isTemplateBlock);
+
+      return {
+        ...state,
+        slots: [...baseSlots, ...uniqueGeneratedSlots],
+        tasks: nonTemplateTasks,
+        items: nonTemplateTasks
+      };
     }
 
     case ACTION_TYPES.AUTO_SLOT_TASKS_INTO_TEMPLATE: {

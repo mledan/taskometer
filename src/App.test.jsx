@@ -3,9 +3,9 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { format } from "date-fns";
 import App from "./App.jsx";
 
-test("starts on the schedules onboarding view", () => {
+test("starts on the simplified schedules view", () => {
   render(<App />);
-  expect(screen.getByRole("heading", { name: /find a routine that fits your life/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /schedule templates/i })).toBeInTheDocument();
 });
 
 test("renders the weekday on dashboard after navigation", () => {

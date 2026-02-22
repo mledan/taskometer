@@ -93,7 +93,7 @@ function Community() {
     });
     setActiveScheduleStorage(schedule.id);
 
-    setMessage(`Applied ${blocks.length} blocks from "${schedule.name}". Check Tasks then Calendar.`);
+    setMessage(`Applied ${blocks.length} labeled slots from "${schedule.name}". Add your own tasks to auto-plan into those windows.`);
     setTimeout(() => setMessage(null), 2500);
   }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, addDays } from 'date-fns';
 import {
   FAMOUS_SCHEDULES,
@@ -17,7 +17,6 @@ import styles from './ScheduleLibrary.module.css';
 import CircularSchedule from './CircularSchedule.jsx';
 import ScheduleBuilder from './ScheduleBuilder.jsx';
 import ScheduleDiscussion from './ScheduleDiscussion.jsx';
-import HistoricalFiguresGantt from './HistoricalFiguresGantt.jsx';
 import { getLikes, toggleLike } from '../utils/community.js';
 import { buildTemplateApplicationSummary } from '../utils/templateApplicationSummary.js';
 
@@ -42,53 +41,6 @@ function CardDescription({ text = '' }) {
     </p>
   );
 }
-
-const INSPIRATION_EXAMPLES = [
-  {
-    id: 'elon',
-    title: 'Elon Musk',
-    summary: 'High-output days with tightly managed work blocks.',
-    scheduleIds: ['elon-musk', 'elon_musk']
-  },
-  {
-    id: 'maya',
-    title: 'Maya Angelou',
-    summary: 'Long, distraction-free creative sessions built around writing.',
-    scheduleIds: ['maya-angelou', 'maya_angelou']
-  },
-  {
-    id: 'oprah',
-    title: 'Oprah Winfrey',
-    summary: 'Wellness-first mornings with balanced work and reflection.',
-    scheduleIds: ['oprah-winfrey']
-  }
-];
-
-const SCHEDULE_COPY = {
-  heroEyebrow: 'Schedule templates',
-  heroTitle: 'Find a routine that fits your life.',
-  heroCopy: 'Start with an example schedule from people you know, then browse all templates or build your own.',
-  heroPrimaryCta: 'Browse Templates',
-  heroSecondaryCta: 'Continue to Tasks',
-  journeySteps: [
-    'Get inspired by an example schedule',
-    'Choose or customize a full template',
-    'Add tasks and let AI map your day'
-  ],
-  step1Title: 'Get inspired by a schedule, or create your own',
-  step1Subtitle: 'Start with examples like Elon, Maya Angelou, and Oprah, or build a custom schedule from scratch.',
-  step2Title: 'Pick your full schedule template',
-  step2Subtitle: 'Explore famous schedules, community ideas, and your own custom routines.',
-  step3Title: 'Enter tasks and let AI plan your day',
-  step3Inactive: 'Activate a schedule template first, then continue to Tasks to auto-plan your day.',
-  step3Active: (scheduleName) =>
-    `You are currently following "${scheduleName}". Add tasks now and AI will place them into this schedule.`,
-  searchPlaceholder: 'Search schedules...',
-  reviewActiveButton: 'Review Active Schedule',
-  modalLaunchTasksButton: 'Activate and Continue to Tasks',
-  variationTitle: 'Variation view: compare and apply fast',
-  variationSubtitle: 'See schedule shape at a glance, then apply in one click to your calendar window.'
-};
 
 function timeToMinutes(timeString) {
   if (!timeString || !timeString.includes(':')) return 0;
@@ -126,12 +78,10 @@ function ScheduleLibrary({ onNavigateToTasks }) {
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showBuilder, setShowBuilder] = useState(false);
   const [scheduleToCustomize, setScheduleToCustomize] = useState(null);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid', 'variation', or 'chronomap'
   const [notification, setNotification] = useState(null);
   const [applyDateRange, setApplyDateRange] = useState(null); // { startDate, endDate }
   const [quickApplyStartDate, setQuickApplyStartDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [quickApplyDays, setQuickApplyDays] = useState(7);
-  const templatesSectionRef = useRef(null);
 
   // Show notification helper
   const showNotification = useCallback((message, type = 'success') => {
@@ -161,32 +111,6 @@ function ScheduleLibrary({ onNavigateToTasks }) {
       if (match) setSelectedSchedule(match);
     }
   }, [state.activeScheduleId]);
-
-  const activeSchedule = useMemo(
-    () => schedules.find(schedule => schedule.id === activeScheduleId) || null,
-    [schedules, activeScheduleId]
-  );
-
-  const inspirationSchedules = useMemo(
-    () => INSPIRATION_EXAMPLES.map((example) => {
-      const directMatch = schedules.find((schedule) => example.scheduleIds.includes(schedule.id));
-      if (directMatch) {
-        return { ...example, schedule: directMatch };
-      }
-
-      const fuzzyMatch = schedules.find((schedule) => {
-        const text = `${schedule.name || ''} ${schedule.author || ''}`.toLowerCase();
-        return text.includes(example.title.toLowerCase());
-      });
-
-      return { ...example, schedule: fuzzyMatch || null };
-    }),
-    [schedules]
-  );
-
-  const scrollToTemplates = useCallback(() => {
-    templatesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
 
   const quickApplyEndDate = useMemo(() => {
     const baseDate = new Date(quickApplyStartDate);
@@ -256,18 +180,6 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     }
   }
 
-  function handleInspirationSelect(schedule) {
-    if (!schedule) {
-      showNotification('That inspiration schedule is not available yet.', 'warning');
-      return;
-    }
-
-    setFilter('all');
-    setSearchTerm('');
-    handleActivateSchedule(schedule.id, `"${schedule.name}" is now your active schedule.`);
-    setSelectedSchedule(schedule);
-  }
-
   // Apply schedule blocks to a date range
   function handleApplyToCalendar(schedule, startDate, endDate, options = {}) {
     const { source = 'schedule-library', activate = true } = options;
@@ -303,7 +215,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
         }
       });
 
-      showNotification(`Applied ${blocks.length} blocks from "${schedule.name}". Next: Tasks mini preview, then Calendar.`);
+      showNotification(`Applied ${blocks.length} labeled slots from "${schedule.name}". Add your tasks and auto-plan into these windows.`);
       setApplyDateRange(null);
     } else {
       showNotification('No blocks to apply for the selected date range', 'warning');
@@ -319,7 +231,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     }
 
     const endDate = format(addDays(start, quickApplyDays - 1), 'yyyy-MM-dd');
-    handleApplyToCalendar(schedule, startDate, endDate, { source: 'variation-view', activate: true });
+    handleApplyToCalendar(schedule, startDate, endDate, { source: 'quick-apply', activate: true });
 
     if (shouldNavigateToTasks && onNavigateToTasks) {
       onNavigateToTasks();
@@ -433,79 +345,6 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     );
   }
 
-  function renderVariationCard(schedule) {
-    const isActive = schedule.id === activeScheduleId;
-    const snapshot = getScheduleSnapshot(schedule);
-    const blocks = schedule.timeBlocks || [];
-    const listedBlocks = blocks.slice(0, 4);
-
-    return (
-      <div
-        key={`variation-${schedule.id}`}
-        className={`${styles.variationCard} ${isActive ? styles.variationCardActive : ''}`}
-      >
-        <div className={styles.variationHeader}>
-          <div>
-            <h3>{schedule.name}</h3>
-            <p>by {schedule.author}</p>
-          </div>
-          {isActive && <span className={styles.activeLabel}>Active</span>}
-        </div>
-
-        <div className={styles.variationStats}>
-          <span>{snapshot.blockCount} blocks</span>
-          <span>Starts {snapshot.firstStart}</span>
-          <span>{snapshot.categoryCount} categories</span>
-        </div>
-
-        <div className={styles.variationBlockPreview}>
-          {listedBlocks.map((block, idx) => (
-            <div
-              key={`${schedule.id}-block-${idx}`}
-              className={styles.variationBlock}
-            >
-              <span>{block.start} - {block.end}</span>
-              <span>{block.label}</span>
-            </div>
-          ))}
-          {blocks.length > listedBlocks.length && (
-            <div className={styles.variationMore}>
-              +{blocks.length - listedBlocks.length} more blocks
-            </div>
-          )}
-        </div>
-
-        <div className={styles.variationActions}>
-          <button
-            type="button"
-            className={styles.activateButton}
-            onClick={() => handleQuickApply(schedule)}
-          >
-            Apply ({quickApplyDays}d)
-          </button>
-          <button
-            type="button"
-            className={styles.previewButton}
-            onClick={() => {
-              handleQuickApply(schedule, true);
-            }}
-            disabled={!onNavigateToTasks}
-            title={onNavigateToTasks ? 'Apply and continue to Tasks tab' : 'Tasks navigation unavailable'}
-          >
-            Apply + Next Tab
-          </button>
-          <button
-            type="button"
-            className={styles.previewButton}
-            onClick={() => setSelectedSchedule(schedule)}
-          >
-            Preview
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={styles.container}>
       {/* Notification Toast */}
@@ -516,265 +355,106 @@ function ScheduleLibrary({ onNavigateToTasks }) {
           {notification.message}
         </div>
       )}
-      
-      <section className={styles.storyHero}>
-        <p className={styles.storyEyebrow}>{SCHEDULE_COPY.heroEyebrow}</p>
-        <h1>{SCHEDULE_COPY.heroTitle}</h1>
-        <p className={styles.storyCopy}>{SCHEDULE_COPY.heroCopy}</p>
-        <div className={styles.storyActions}>
-          <button type="button" className={styles.storyPrimaryButton} onClick={scrollToTemplates}>
-            {SCHEDULE_COPY.heroPrimaryCta}
-          </button>
-          <button
-            type="button"
-            className={styles.storySecondaryButton}
-            onClick={() => onNavigateToTasks?.()}
-            disabled={!onNavigateToTasks || !activeScheduleId}
-          >
-            {SCHEDULE_COPY.heroSecondaryCta}
-          </button>
-        </div>
-        <div className={styles.journeySteps}>
-          <div className={styles.journeyStep}><span>1</span>{SCHEDULE_COPY.journeySteps[0]}</div>
-          <div className={styles.journeyStep}><span>2</span>{SCHEDULE_COPY.journeySteps[1]}</div>
-          <div className={styles.journeyStep}><span>3</span>{SCHEDULE_COPY.journeySteps[2]}</div>
-        </div>
-      </section>
-
-      <section className={styles.foundationSection}>
-        <div className={styles.sectionHeading}>
-          <span className={styles.stepBadge}>Step 1</span>
-          <h2>{SCHEDULE_COPY.step1Title}</h2>
-          <p>{SCHEDULE_COPY.step1Subtitle}</p>
-        </div>
-        <div className={styles.foundationGrid}>
-          {inspirationSchedules.map((example) => {
-            const schedule = example.schedule;
-            const isSelected = schedule?.id === activeScheduleId;
-
-            return (
-              <button
-                key={example.id}
-                type="button"
-                className={`${styles.foundationCard} ${isSelected ? styles.foundationCardSelected : ''}`}
-                onClick={() => handleInspirationSelect(schedule)}
-              >
-                <h3>{example.title}</h3>
-                <p>{example.summary}</p>
-                <div className={styles.foundationRecommendation}>
-                  {schedule ? `Template: ${schedule.name}` : 'Template unavailable'}
-                </div>
-                <span className={styles.foundationAction}>
-                  {isSelected ? 'Selected' : 'Use this schedule'}
-                </span>
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            className={styles.foundationCard}
-            onClick={() => {
-              setScheduleToCustomize(null);
-              setShowBuilder(true);
-            }}
-          >
-            <h3>Create Your Own</h3>
-            <p>Start from scratch and build a schedule that matches your life.</p>
-            <div className={styles.foundationRecommendation}>
-              Open the schedule builder to define your own time blocks.
-            </div>
-            <span className={styles.foundationAction}>Create custom schedule</span>
-          </button>
-        </div>
-      </section>
-
-      <section className={styles.templatesSection} ref={templatesSectionRef}>
+      <section className={styles.templatesSection}>
         <div className={styles.header}>
           <div>
-            <span className={styles.stepBadge}>Step 2</span>
-            <h2>{SCHEDULE_COPY.step2Title}</h2>
-            <p>{SCHEDULE_COPY.step2Subtitle}</p>
+            <h1>Schedule templates</h1>
+            <p>Pick a template, activate it, and apply labeled time slots to your calendar.</p>
           </div>
           <div className={styles.headerActions}>
-            <div className={styles.viewToggle}>
-              <button
-                className={`${styles.viewToggleBtn} ${viewMode === 'grid' ? styles.viewToggleActive : ''}`}
-                onClick={() => setViewMode('grid')}
-                title="Grid View"
-              >
-                Grid
-              </button>
-              <button
-                className={`${styles.viewToggleBtn} ${viewMode === 'variation' ? styles.viewToggleActive : ''}`}
-                onClick={() => setViewMode('variation')}
-                title="Variation View"
-              >
-                Variation
-              </button>
-              <button
-                className={`${styles.viewToggleBtn} ${viewMode === 'chronomap' ? styles.viewToggleActive : ''}`}
-                onClick={() => setViewMode('chronomap')}
-                title="ChronoMap View"
-              >
-                ChronoMap
-              </button>
-            </div>
-            <button className={styles.activateButton} onClick={() => setShowBuilder(true)}>Create Schedule</button>
-          </div>
-        </div>
-
-        {viewMode === 'chronomap' ? (
-          <HistoricalFiguresGantt />
-        ) : viewMode === 'variation' ? (
-          <>
-            <div className={styles.variationToolbar}>
-              <div>
-                <h3>{SCHEDULE_COPY.variationTitle}</h3>
-                <p>{SCHEDULE_COPY.variationSubtitle}</p>
-              </div>
-              <div className={styles.variationQuickApplyControls}>
-                <label>
-                  Start
-                  <input
-                    type="date"
-                    value={quickApplyStartDate}
-                    onChange={(e) => setQuickApplyStartDate(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Span
-                  <select
-                    value={quickApplyDays}
-                    onChange={(e) => setQuickApplyDays(Number(e.target.value))}
-                  >
-                    <option value={1}>1 day</option>
-                    <option value={3}>3 days</option>
-                    <option value={7}>7 days</option>
-                    <option value={14}>14 days</option>
-                  </select>
-                </label>
-                <div className={styles.variationQuickApplySummary}>
-                  Through {quickApplyEndDate}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.controls}>
-              <input
-                type="text"
-                placeholder={SCHEDULE_COPY.searchPlaceholder}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={styles.searchInput}
-              />
-              <div className={styles.filters}>
-                <button
-                  className={filter === 'all' ? styles.filterActive : ''}
-                  onClick={() => setFilter('all')}
-                >
-                  All
-                </button>
-                <button
-                  className={filter === 'famous' ? styles.filterActive : ''}
-                  onClick={() => setFilter('famous')}
-                >
-                  Famous People
-                </button>
-                <button
-                  className={filter === 'community' ? styles.filterActive : ''}
-                  onClick={() => setFilter('community')}
-                >
-                  Community
-                </button>
-                <button
-                  className={filter === 'custom' ? styles.filterActive : ''}
-                  onClick={() => setFilter('custom')}
-                >
-                  My Schedules
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.variationGrid}>
-              {sortedSchedules.map((schedule) => renderVariationCard(schedule))}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className={styles.controls}>
-              <input
-                type="text"
-                placeholder={SCHEDULE_COPY.searchPlaceholder}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={styles.searchInput}
-              />
-              <div className={styles.filters}>
-                <button
-                  className={filter === 'all' ? styles.filterActive : ''}
-                  onClick={() => setFilter('all')}
-                >
-                  All
-                </button>
-                <button
-                  className={filter === 'famous' ? styles.filterActive : ''}
-                  onClick={() => setFilter('famous')}
-                >
-                  Famous People
-                </button>
-                <button
-                  className={filter === 'community' ? styles.filterActive : ''}
-                  onClick={() => setFilter('community')}
-                >
-                  Community
-                </button>
-                <button
-                  className={filter === 'custom' ? styles.filterActive : ''}
-                  onClick={() => setFilter('custom')}
-                >
-                  My Schedules
-                </button>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ marginLeft: 12 }}>
-                  <option value="default">Sort: Default</option>
-                  <option value="most_liked">Sort: Most Liked</option>
-                </select>
-              </div>
-            </div>
-
-            <div className={styles.scheduleGrid}>
-              {sortedSchedules.map(schedule => renderScheduleCard(schedule))}
-            </div>
-          </>
-        )}
-      </section>
-
-      <section className={styles.tasksCtaSection}>
-        <div>
-          <span className={styles.stepBadge}>Step 3</span>
-          <h3>{SCHEDULE_COPY.step3Title}</h3>
-          <p>
-            {activeSchedule
-              ? SCHEDULE_COPY.step3Active(activeSchedule.name)
-              : SCHEDULE_COPY.step3Inactive}
-          </p>
-        </div>
-        <div className={styles.tasksCtaActions}>
-          <button
-            type="button"
-            className={styles.activateButton}
-            onClick={() => onNavigateToTasks?.()}
-            disabled={!onNavigateToTasks || !activeScheduleId}
-          >
-            {SCHEDULE_COPY.heroSecondaryCta}
-          </button>
-          {activeSchedule && (
+            <button className={styles.activateButton} onClick={() => setShowBuilder(true)}>
+              Create Schedule
+            </button>
             <button
               type="button"
               className={styles.previewButton}
-              onClick={() => setSelectedSchedule(activeSchedule)}
+              onClick={() => onNavigateToTasks?.()}
+              disabled={!onNavigateToTasks || !activeScheduleId}
+              title={activeScheduleId ? 'Go to Tasks tab' : 'Activate a schedule first'}
             >
-              {SCHEDULE_COPY.reviewActiveButton}
+              Continue to Tasks
             </button>
+          </div>
+        </div>
+
+        <div className={styles.variationToolbar}>
+          <div>
+            <h3>Quick apply window</h3>
+            <p>Quick Apply on a card uses this date range.</p>
+          </div>
+          <div className={styles.variationQuickApplyControls}>
+            <label>
+              Start
+              <input
+                type="date"
+                value={quickApplyStartDate}
+                onChange={(e) => setQuickApplyStartDate(e.target.value)}
+              />
+            </label>
+            <label>
+              Span
+              <select
+                value={quickApplyDays}
+                onChange={(e) => setQuickApplyDays(Number(e.target.value))}
+              >
+                <option value={1}>1 day</option>
+                <option value={3}>3 days</option>
+                <option value={7}>7 days</option>
+                <option value={14}>14 days</option>
+              </select>
+            </label>
+            <div className={styles.variationQuickApplySummary}>
+              Through {quickApplyEndDate}
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.controls}>
+          <input
+            type="text"
+            placeholder="Search schedules..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={styles.searchInput}
+          />
+          <div className={styles.filters}>
+            <button
+              className={filter === 'all' ? styles.filterActive : ''}
+              onClick={() => setFilter('all')}
+            >
+              All
+            </button>
+            <button
+              className={filter === 'famous' ? styles.filterActive : ''}
+              onClick={() => setFilter('famous')}
+            >
+              Famous
+            </button>
+            <button
+              className={filter === 'community' ? styles.filterActive : ''}
+              onClick={() => setFilter('community')}
+            >
+              Community
+            </button>
+            <button
+              className={filter === 'custom' ? styles.filterActive : ''}
+              onClick={() => setFilter('custom')}
+            >
+              Mine
+            </button>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ marginLeft: 12 }}>
+              <option value="default">Sort: Default</option>
+              <option value="most_liked">Sort: Most Liked</option>
+            </select>
+          </div>
+        </div>
+
+        <div className={styles.scheduleGrid}>
+          {sortedSchedules.map(schedule => renderScheduleCard(schedule))}
+          {sortedSchedules.length === 0 && (
+            <div className={styles.foundationSummary}>
+              No schedules match your filters.
+            </div>
           )}
         </div>
       </section>
@@ -883,7 +563,7 @@ function ScheduleLibrary({ onNavigateToTasks }) {
                   }}
                   className={styles.launchTasksButton}
                 >
-                  {SCHEDULE_COPY.modalLaunchTasksButton}
+                  Activate and Continue to Tasks
                 </button>
               )}
               <button
