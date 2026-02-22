@@ -24,5 +24,5 @@ test("navigates to tasks tab", () => {
 test("navigates to palace tab", () => {
   render(<App />);
   fireEvent.click(screen.getByRole("button", { name: "Palace" }));
-  expect(screen.getByRole("heading", { name: /memory palace/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Memory Palace", level: 2 })).toBeInTheDocument();
 });
