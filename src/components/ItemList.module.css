@@ -149,6 +149,14 @@
   cursor: not-allowed;
 }
 
+.metaInfo {
+  display: flex;
+  align-items: center;
+  color: var(--font-color-secondary);
+  font-size: 13px;
+  padding: 0 6px;
+}
+
 .alldone {
 	display: flex;
 	justify-content: center;
@@ -196,6 +204,21 @@
 
 .panel {
 	animation: slidedown 0.2s ease;
+}
+
+.group {
+  margin-top: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--input-color);
+}
+
+.group summary {
+  cursor: pointer;
+  color: var(--font-color);
+  font-weight: 600;
+  margin-bottom: 10px;
 }
 
 .reset {
