@@ -23,6 +23,7 @@ import { createAuditEntry, AUDIT_ACTIONS, ENTITY_TYPES, CHANGE_SOURCES } from '.
 import { findOptimalTimeSlot, batchScheduleTasks } from '../utils/intelligentScheduler';
 import { batchMatchTasksToSlots } from '../utils/slotMatcher';
 import { getActiveSchedule as getLegacyActiveSchedule } from '../utils/scheduleTemplates';
+import { scheduleTask as engineScheduleTask, scheduleMultipleTasks as engineScheduleMultiple } from '../utils/schedulingEngine';
 
 // ============================================
 // CONTEXT CREATION
@@ -500,31 +501,65 @@ function appReducer(state, action) {
       let newTasks = [...state.tasks, newTask];
       let newSlots = state.slots;
 
-      // Auto-schedule if enabled and no specific time set.
-      // Preferred path: next available matching slot.
       if (state.settings.autoSchedule && !skipAutoSchedule && !newTask.scheduledTime && !newTask.specificTime) {
-        const slotScheduled = scheduleTasksIntoSlots(
-          { ...state, tasks: newTasks },
-          [newTask],
-          timestamp
-        );
+        // Primary path: unified scheduling engine (handles all cases)
+        const engineResult = engineScheduleTask(newTask, {
+          slots: state.slots,
+          tasks: state.tasks,
+          settings: state.settings,
+          taskTypes: state.taskTypes,
+        });
 
-        if (slotScheduled) {
-          newTasks = slotScheduled.tasks;
-          newSlots = slotScheduled.slots;
+        if (engineResult) {
+          newTask = {
+            ...newTask,
+            scheduledTime: engineResult.scheduledTime,
+            scheduledFor: engineResult.scheduledTime,
+            specificTime: engineResult.specificTime,
+            specificDay: engineResult.specificDay,
+            scheduledSlotId: engineResult.slotId || null,
+            metadata: {
+              ...newTask.metadata,
+              schedulingReason: engineResult.reason,
+              schedulingConfidence: engineResult.confidence,
+              scheduledLabel: engineResult.label,
+              scheduledDate: engineResult.date,
+            },
+          };
+          newTasks = [...state.tasks, newTask];
+
+          // If the engine matched a slot, update slot assignment
+          if (engineResult.slotId) {
+            newSlots = state.slots.map(slot =>
+              slot.id === engineResult.slotId
+                ? { ...slot, assignedTaskId: newTask.id || newTask.key, updatedAt: timestamp }
+                : slot
+            );
+          }
         } else {
-          // Backwards-compatible fallback for legacy schedule templates.
-          const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
-          if (activeSchedule) {
-            const optimalSlot = findOptimalTimeSlot(newTask, activeSchedule, state.tasks, state.taskTypes);
-            if (optimalSlot) {
-              newTask = {
-                ...newTask,
-                scheduledTime: optimalSlot.scheduledFor,
-                scheduledFor: optimalSlot.scheduledFor,
-                specificTime: optimalSlot.specificTime
-              };
-              newTasks = [...state.tasks, newTask];
+          // Fallback: legacy slot-based scheduling
+          const slotScheduled = scheduleTasksIntoSlots(
+            { ...state, tasks: newTasks },
+            [newTask],
+            timestamp
+          );
+
+          if (slotScheduled) {
+            newTasks = slotScheduled.tasks;
+            newSlots = slotScheduled.slots;
+          } else {
+            const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
+            if (activeSchedule) {
+              const optimalSlot = findOptimalTimeSlot(newTask, activeSchedule, state.tasks, state.taskTypes);
+              if (optimalSlot) {
+                newTask = {
+                  ...newTask,
+                  scheduledTime: optimalSlot.scheduledFor,
+                  scheduledFor: optimalSlot.scheduledFor,
+                  specificTime: optimalSlot.specificTime
+                };
+                newTasks = [...state.tasks, newTask];
+              }
             }
           }
         }
@@ -534,7 +569,7 @@ function appReducer(state, action) {
         ...state,
         tasks: newTasks,
         slots: newSlots,
-        items: newTasks // Legacy compatibility
+        items: newTasks
       };
     }
 
@@ -719,6 +754,68 @@ function appReducer(state, action) {
         return state;
       }
 
+      // Primary path: unified scheduling engine
+      const schedulingIds = new Set(
+        tasksToSchedule
+          .map(task => task?.id?.toString() || task?.key?.toString() || null)
+          .filter(Boolean)
+      );
+
+      const stateForEngine = {
+        slots: state.slots,
+        tasks: state.tasks.filter(task => {
+          const id = task?.id?.toString() || task?.key?.toString() || null;
+          return id ? !schedulingIds.has(id) : true;
+        }),
+        settings: state.settings,
+        taskTypes: state.taskTypes,
+      };
+
+      const engineResults = engineScheduleMultiple(tasksToSchedule, stateForEngine);
+      const engineScheduledMap = new Map();
+      const slotUpdates = new Map();
+
+      engineResults.forEach(({ task, result }) => {
+        if (!result) return;
+        const taskId = task?.id?.toString() || task?.key?.toString();
+        if (!taskId) return;
+        engineScheduledMap.set(taskId, {
+          scheduledTime: result.scheduledTime,
+          scheduledFor: result.scheduledTime,
+          specificTime: result.specificTime,
+          specificDay: result.specificDay,
+          scheduledSlotId: result.slotId || null,
+          metadata: {
+            ...(task.metadata || {}),
+            schedulingReason: result.reason,
+            schedulingConfidence: result.confidence,
+            scheduledLabel: result.label,
+            scheduledDate: result.date,
+          },
+        });
+        if (result.slotId) {
+          slotUpdates.set(result.slotId, taskId);
+        }
+      });
+
+      if (engineScheduledMap.size > 0) {
+        const newTasks = state.tasks.map(task => {
+          const taskId = task?.id?.toString() || task?.key?.toString();
+          const updates = engineScheduledMap.get(taskId);
+          if (!updates) return task;
+          return { ...task, ...updates, updatedAt: timestamp };
+        });
+
+        const newSlots = state.slots.map(slot => {
+          const assignedTaskId = slotUpdates.get(slot.id);
+          if (!assignedTaskId) return slot;
+          return { ...slot, assignedTaskId, updatedAt: timestamp };
+        });
+
+        return { ...state, tasks: newTasks, slots: newSlots, items: newTasks };
+      }
+
+      // Fallback: slot-based scheduling
       const slotScheduled = scheduleTasksIntoSlots(state, tasksToSchedule, timestamp);
       if (slotScheduled) {
         return {
@@ -734,12 +831,6 @@ function appReducer(state, action) {
         return state;
       }
 
-      // Backwards-compatible fallback using legacy template blocks.
-      const schedulingIds = new Set(
-        tasksToSchedule
-          .map(task => task?.id?.toString() || task?.key?.toString() || null)
-          .filter(Boolean)
-      );
       const existingTasks = state.tasks.filter(task => {
         const id = task?.id?.toString() || task?.key?.toString() || null;
         return id ? !schedulingIds.has(id) : true;
@@ -750,13 +841,13 @@ function appReducer(state, action) {
         scheduledTasks.map(task => [task?.id?.toString() || task?.key?.toString(), task])
       );
 
-      const newTasks = state.tasks.map(task => {
+      const fallbackTasks = state.tasks.map(task => {
         const id = task?.id?.toString() || task?.key?.toString();
         const scheduled = scheduledTaskMap.get(id);
         return scheduled || task;
       });
 
-      return { ...state, tasks: newTasks, items: newTasks };
+      return { ...state, tasks: fallbackTasks, items: fallbackTasks };
     }
 
     case ACTION_TYPES.RESCHEDULE_ALL_TASKS: {
@@ -771,6 +862,66 @@ function appReducer(state, action) {
           scheduledSlotId: null
         }));
 
+      if (pendingTasks.length === 0) return state;
+
+      // Clear old slot assignments for tasks being rescheduled
+      const reschedulingIds = new Set(
+        pendingTasks.map(t => (t.id || t.key)?.toString()).filter(Boolean)
+      );
+      const clearedSlots = clearSlotAssignmentsForTaskIds(state.slots, reschedulingIds, timestamp);
+
+      const stateForEngine = {
+        slots: clearedSlots,
+        tasks: state.tasks.filter(t =>
+          !reschedulingIds.has((t.id || t.key)?.toString())
+        ),
+        settings: state.settings,
+        taskTypes: state.taskTypes,
+      };
+
+      const engineResults = engineScheduleMultiple(pendingTasks, stateForEngine);
+      const scheduledMap = new Map();
+      const slotUpdates = new Map();
+
+      engineResults.forEach(({ task, result }) => {
+        if (!result) return;
+        const taskId = (task.id || task.key)?.toString();
+        if (!taskId) return;
+        scheduledMap.set(taskId, {
+          scheduledTime: result.scheduledTime,
+          scheduledFor: result.scheduledTime,
+          specificTime: result.specificTime,
+          specificDay: result.specificDay,
+          scheduledSlotId: result.slotId || null,
+          metadata: {
+            ...(task.metadata || {}),
+            schedulingReason: result.reason,
+            scheduledLabel: result.label,
+          },
+        });
+        if (result.slotId) {
+          slotUpdates.set(result.slotId, taskId);
+        }
+      });
+
+      if (scheduledMap.size > 0) {
+        const newTasks = state.tasks.map(task => {
+          const taskId = (task.id || task.key)?.toString();
+          const updates = scheduledMap.get(taskId);
+          if (!updates) return task;
+          return { ...task, ...updates, updatedAt: timestamp };
+        });
+
+        const newSlots = clearedSlots.map(slot => {
+          const assignedTaskId = slotUpdates.get(slot.id);
+          if (!assignedTaskId) return slot;
+          return { ...slot, assignedTaskId, updatedAt: timestamp };
+        });
+
+        return { ...state, tasks: newTasks, slots: newSlots, items: newTasks };
+      }
+
+      // Fallback paths
       const slotScheduled = scheduleTasksIntoSlots(state, pendingTasks, timestamp);
       if (slotScheduled) {
         return {
@@ -782,14 +933,12 @@ function appReducer(state, action) {
       }
 
       const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
-
       if (activeSchedule) {
         const scheduledTasks = batchScheduleTasks(pendingTasks, activeSchedule, [], state.taskTypes);
         const newTasks = state.tasks.map(item => {
           const scheduledItem = scheduledTasks.find(s => s.key === item.key || s.id === item.id);
           return scheduledItem || item;
         });
-
         return { ...state, tasks: newTasks, items: newTasks };
       }
 
