@@ -113,12 +113,19 @@
 
 .toolbar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 10px;
   margin: 10px 0 15px 0;
   width: 100%;
   box-sizing: border-box;
   flex-wrap: wrap;
+}
+
+.toolbarLeft {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .toolbar .primary {
@@ -152,9 +159,21 @@
 .metaInfo {
   display: flex;
   align-items: center;
+  gap: 6px;
   color: var(--font-color-secondary);
   font-size: 13px;
   padding: 0 6px;
+}
+
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 100px;
+  font-size: 12px;
+  background: var(--input-color);
+  white-space: nowrap;
 }
 
 .alldone {

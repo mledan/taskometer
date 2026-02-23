@@ -22,7 +22,7 @@ test("navigates to tasks tab", () => {
   render(<App />);
   const allTasksBtns = screen.getAllByRole("button", { name: "Tasks" });
   fireEvent.click(allTasksBtns[0]);
-  expect(screen.getByText(/task intake by type/i)).toBeInTheDocument();
+  expect(screen.getByPlaceholderText(/what needs to be done/i)).toBeInTheDocument();
 });
 
 test("navigates to dashboard tab", () => {
