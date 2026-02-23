@@ -18,26 +18,62 @@
 
 .dayToolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 10px;
-  align-items: flex-end;
 }
 
-.dayPicker {
+.dayPills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.dayPill {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--font-color-secondary);
-}
-
-.dayPicker select {
-  min-width: 180px;
+  align-items: center;
+  gap: 3px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg-color);
   color: var(--font-color);
-  padding: 8px 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  min-width: 52px;
+}
+
+.dayPill:hover {
+  border-color: var(--accent-color);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.dayPillActive {
+  border-color: var(--accent-color);
+  background: rgba(59, 130, 246, 0.18);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.dayPillLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dayPillBadge {
+  font-size: 10px;
+  background: rgba(59, 130, 246, 0.25);
+  color: var(--accent-color);
+  border-radius: 999px;
+  padding: 1px 6px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.dayToolbarActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .rangeBadge {
@@ -435,15 +471,10 @@
   padding: 10px;
 }
 
-.summary h3 {
-  margin: 0 0 8px;
-  font-size: 14px;
-}
-
 .summaryList {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .summaryItem {
@@ -451,15 +482,18 @@
   border-radius: 8px;
   background: transparent;
   color: var(--font-color);
-  padding: 8px;
+  padding: 8px 10px;
   cursor: pointer;
   display: flex;
-  justify-content: space-between;
-  font-size: 12px;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  transition: all 0.15s ease;
 }
 
 .summaryItem:hover {
   border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .section {
@@ -502,6 +536,422 @@
   font-size: 14px;
 }
 
+/* Custom split/interval inputs */
+.customInput {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.customInput input {
+  width: 52px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--font-color);
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.customInput input::placeholder {
+  color: var(--font-color-secondary);
+  opacity: 0.6;
+}
+
+.customInput button {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--font-color);
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 12px;
+  transition: all 0.18s ease;
+}
+
+.customInput button:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  background: rgba(59, 130, 246, 0.16);
+}
+
+.customInput button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Add slot form */
+.addSlotForm {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-color);
+  animation: fadeSlideIn 0.2s ease-out;
+}
+
+.addSlotForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--font-color-secondary);
+}
+
+.addSlotForm input[type="time"] {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--font-color);
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.addSlotForm button {
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-color);
+  color: #fff;
+  padding: 9px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.addSlotForm button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Enhanced picker panel */
+.pickerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.pickerHeader h3 {
+  margin: 0;
+}
+
+.deleteSlotBtn {
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  color: #ef4444;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.deleteSlotBtn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+}
+
+.fieldInput {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--font-color);
+  padding: 7px 10px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.fieldInput:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.timeInputRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.timeInputRow .fieldInput {
+  flex: 1;
+}
+
+.timeSeparator {
+  font-size: 12px;
+  color: var(--font-color-secondary);
+}
+
+.flexibilityToggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.flexibilityToggle button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--font-color);
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border-right: 1px solid var(--border-color);
+}
+
+.flexibilityToggle button:last-child {
+  border-right: none;
+}
+
+.flexibilityToggle button:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.flexActive {
+  background: rgba(59, 130, 246, 0.18) !important;
+  color: var(--accent-color) !important;
+}
+
+.colorRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.colorInput {
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.colorLabel {
+  font-size: 12px;
+  color: var(--font-color-secondary);
+  font-family: monospace;
+}
+
+/* Enhanced summary */
+.summaryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.summaryHeader h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.summaryActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.copyDayWrap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.copyDayLabel {
+  font-size: 11px;
+  color: var(--font-color-secondary);
+}
+
+.copyDaySelect {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-color);
+  color: var(--font-color);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.summaryItemActive {
+  border-color: var(--accent-color) !important;
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.summaryItemColor {
+  width: 4px;
+  min-height: 24px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.summaryItemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.summaryItemLabel {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summaryItemTime {
+  font-size: 11px;
+  color: var(--font-color-secondary);
+}
+
+.summaryItemTags {
+  font-size: 10px;
+  color: var(--font-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summaryItemFlex {
+  font-size: 10px;
+  color: var(--font-color-secondary);
+  text-transform: capitalize;
+  flex-shrink: 0;
+}
+
+/* Week overview */
+.weekOverview {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-color);
+  padding: 12px;
+  animation: fadeSlideIn 0.2s ease-out;
+}
+
+.weekOverview h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.weekGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.weekDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--font-color);
+  padding: 6px 4px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.weekDay:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.weekDayActive {
+  border-color: var(--accent-color);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.weekDayName {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.weekDayBar {
+  position: relative;
+  width: 100%;
+  height: 60px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.weekDaySlot {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 3px;
+  opacity: 0.7;
+}
+
+.weekDayEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 9px;
+  color: var(--font-color-secondary);
+  opacity: 0.5;
+}
+
+.weekDayCount {
+  font-size: 9px;
+  color: var(--font-color-secondary);
+}
+
+/* Navigation actions */
+.navActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-color);
+}
+
+.navHint {
+  font-size: 13px;
+  color: var(--font-color-secondary);
+}
+
+.navButton {
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-color);
+  color: #fff;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.18s ease;
+}
+
+.navButton:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.navButtonSecondary {
+  background: transparent;
+  color: var(--font-color);
+  border: 1px solid var(--border-color);
+}
+
+.navButtonSecondary:hover {
+  border-color: var(--accent-color);
+}
+
 @media (max-width: 1024px) {
   .editorLayout {
     grid-template-columns: 1fr;
@@ -509,6 +959,10 @@
 
   .timeline {
     height: 520px;
+  }
+
+  .weekGrid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -537,7 +991,33 @@
     font-size: 10px;
   }
 
-  .dayPicker select {
-    min-width: 150px;
+  .dayPills {
+    gap: 3px;
+  }
+
+  .dayPill {
+    padding: 6px 10px;
+    min-width: 42px;
+  }
+
+  .dayPillLabel {
+    font-size: 11px;
+  }
+
+  .weekGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .addSlotForm {
+    flex-wrap: wrap;
+  }
+
+  .navActions {
+    flex-wrap: wrap;
+  }
+
+  .summaryHeader {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
