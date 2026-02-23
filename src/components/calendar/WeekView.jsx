@@ -47,10 +47,11 @@ function WeekView({
     }
   }, [externalSelectedWeek]);
 
-  // Task context menu state
   const [selectedTask, setSelectedTask] = useState(null);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [editingTask, setEditingTask] = useState(null);
+  const [editForm, setEditForm] = useState({ text: '', taskType: '', duration: 30, priority: 'medium' });
 
   // Update current time every minute
   useEffect(() => {
@@ -235,6 +236,39 @@ function WeekView({
     }
   }
 
+  function handleEditTask() {
+    if (selectedTask) {
+      setEditingTask(selectedTask);
+      setEditForm({
+        text: selectedTask.text || '',
+        taskType: selectedTask.taskType || selectedTask.primaryType || '',
+        duration: selectedTask.duration || 30,
+        priority: selectedTask.priority || 'medium',
+      });
+      setShowContextMenu(false);
+    }
+  }
+
+  function handleSaveEdit() {
+    if (!editingTask || !editForm.text.trim()) return;
+    dispatch({
+      type: ACTION_TYPES.UPDATE_TASK,
+      payload: {
+        id: editingTask.id || editingTask.key,
+        text: editForm.text.trim(),
+        taskType: editForm.taskType,
+        primaryType: editForm.taskType,
+        duration: editForm.duration,
+        priority: editForm.priority,
+      }
+    });
+    setEditingTask(null);
+  }
+
+  function handleCancelEdit() {
+    setEditingTask(null);
+  }
+
   /**
    * Week navigation
    */
@@ -407,6 +441,7 @@ function WeekView({
             zIndex: 1000
           }}
         >
+          <button onClick={handleEditTask}>✏️ Edit</button>
           <button onClick={handleCompleteTask}>✓ Complete</button>
           <button onClick={handlePauseTask}>⏸ Pause</button>
           <button onClick={handleRescheduleTask}>🔄 Reschedule</button>
@@ -421,6 +456,68 @@ function WeekView({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <div className={styles.editOverlay} onClick={handleCancelEdit}>
+          <div className={styles.editModal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.editTitle}>Edit Task</h3>
+            <div className={styles.editField}>
+              <label>Task</label>
+              <input
+                type="text"
+                value={editForm.text}
+                onChange={(e) => setEditForm(prev => ({ ...prev, text: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEdit(); if (e.key === 'Escape') handleCancelEdit(); }}
+                autoFocus
+              />
+            </div>
+            <div className={styles.editRow}>
+              <div className={styles.editField}>
+                <label>Type</label>
+                <select
+                  value={editForm.taskType}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, taskType: e.target.value }))}
+                >
+                  <option value="">None</option>
+                  {taskTypes.map(t => (
+                    <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.editField}>
+                <label>Duration</label>
+                <div className={styles.editDurationRow}>
+                  {[15, 30, 60, 90, 120].map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`${styles.editDurationChip} ${editForm.duration === d ? styles.editDurationActive : ''}`}
+                      onClick={() => setEditForm(prev => ({ ...prev, duration: d }))}
+                    >{d}m</button>
+                  ))}
+                </div>
+              </div>
+              <div className={styles.editField}>
+                <label>Priority</label>
+                <select
+                  value={editForm.priority}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, priority: e.target.value }))}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+            <div className={styles.editActions}>
+              <button className={styles.editSaveBtn} onClick={handleSaveEdit}>Save</button>
+              <button className={styles.editCancelBtn} onClick={handleCancelEdit}>Cancel</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

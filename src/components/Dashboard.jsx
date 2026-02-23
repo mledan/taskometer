@@ -117,7 +117,6 @@ function Dashboard() {
     };
 
     dispatch({ type: 'ADD_ITEM', item: newTask });
-    dispatch({ type: 'SCHEDULE_TASKS', tasks: [newTask] });
     setQuickTaskText('');
   }
 

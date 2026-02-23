@@ -286,9 +286,15 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   const [showCustomBlock, setShowCustomBlock] = useState(false);
   const [customBlockForm, setCustomBlockForm] = useState({ name: '', icon: '📌', color: '#94A3B8', duration: 60, start: '', end: '' });
   const [eventForm, setEventForm] = useState({ name: '', date: format(new Date(), 'yyyy-MM-dd'), start: '19:00', end: '21:00' });
+  const [editingEventId, setEditingEventId] = useState(null);
   const [events, setEvents] = useState(() => {
     return Array.isArray(settings.scheduledEvents) ? settings.scheduledEvents : [];
   });
+
+  useEffect(() => {
+    const settingsEvents = Array.isArray(settings.scheduledEvents) ? settings.scheduledEvents : [];
+    setEvents(settingsEvents);
+  }, [settings.scheduledEvents]);
 
   const catalogByCategory = useMemo(() => getCatalogByCategory(), []);
 
@@ -941,26 +947,54 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
 
   function addEvent() {
     if (!eventForm.name.trim()) return;
-    const newEvent = {
-      id: createTemplateId(),
-      name: eventForm.name.trim(),
-      date: eventForm.date,
-      start: eventForm.start,
-      end: eventForm.end,
-      isException: true,
-    };
-    const updatedEvents = [...events, newEvent];
-    setEvents(updatedEvents);
-    dispatch({ type: ACTION_TYPES.UPDATE_SETTINGS, payload: { scheduledEvents: updatedEvents } });
+
+    if (editingEventId) {
+      const updatedEvents = events.map(e =>
+        e.id === editingEventId
+          ? { ...e, name: eventForm.name.trim(), date: eventForm.date, start: eventForm.start, end: eventForm.end }
+          : e
+      );
+      setEvents(updatedEvents);
+      dispatch({ type: ACTION_TYPES.UPDATE_SETTINGS, payload: { scheduledEvents: updatedEvents } });
+      setFrameworkMessage(`Updated "${eventForm.name.trim()}".`);
+      setEditingEventId(null);
+    } else {
+      const newEvent = {
+        id: createTemplateId(),
+        name: eventForm.name.trim(),
+        date: eventForm.date,
+        start: eventForm.start,
+        end: eventForm.end,
+        isException: true,
+      };
+      const updatedEvents = [...events, newEvent];
+      setEvents(updatedEvents);
+      dispatch({ type: ACTION_TYPES.UPDATE_SETTINGS, payload: { scheduledEvents: updatedEvents } });
+      setFrameworkMessage(`Added "${newEvent.name}" on ${newEvent.date}. It will override any framework blocks at that time.`);
+    }
+
     setEventForm({ name: '', date: format(new Date(), 'yyyy-MM-dd'), start: '19:00', end: '21:00' });
-    setFrameworkMessage(`Added "${newEvent.name}" on ${newEvent.date}. It will override any framework blocks at that time.`);
     setTimeout(() => setFrameworkMessage(''), 3000);
+  }
+
+  function startEditEvent(ev) {
+    setEditingEventId(ev.id);
+    setEventForm({ name: ev.name, date: ev.date, start: ev.start, end: ev.end });
+  }
+
+  function cancelEditEvent() {
+    setEditingEventId(null);
+    setEventForm({ name: '', date: format(new Date(), 'yyyy-MM-dd'), start: '19:00', end: '21:00' });
   }
 
   function removeEvent(eventId) {
     const updatedEvents = events.filter(e => e.id !== eventId);
     setEvents(updatedEvents);
     dispatch({ type: ACTION_TYPES.UPDATE_SETTINGS, payload: { scheduledEvents: updatedEvents } });
+    if (editingEventId === eventId) {
+      setEditingEventId(null);
+      setEventForm({ name: '', date: format(new Date(), 'yyyy-MM-dd'), start: '19:00', end: '21:00' });
+    }
   }
 
   function applyEventsToCalendar() {
@@ -1492,19 +1526,25 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                 />
               </div>
               <button type="button" className={styles.cardBtnAccent} onClick={addEvent}>
-                + Add Event
+                {editingEventId ? 'Save Changes' : '+ Add Event'}
               </button>
+              {editingEventId && (
+                <button type="button" className={styles.cardBtn} onClick={cancelEditEvent}>
+                  Cancel Edit
+                </button>
+              )}
             </div>
 
             {events.length > 0 && (
               <div className={styles.eventList}>
                 {events.map(ev => (
-                  <div key={ev.id} className={styles.eventItem}>
+                  <div key={ev.id} className={`${styles.eventItem} ${editingEventId === ev.id ? styles.eventItemEditing : ''}`}>
                     <span className={styles.eventIcon}>🎉</span>
                     <div className={styles.eventInfo}>
                       <span className={styles.eventName}>{ev.name}</span>
                       <span className={styles.eventMeta}>{ev.date} &middot; {minutesToDisplay(parseTimeToMinutes(ev.start))} - {minutesToDisplay(parseTimeToMinutes(ev.end))}</span>
                     </div>
+                    <button type="button" className={styles.editBtn} onClick={() => startEditEvent(ev)}>Edit</button>
                     <button type="button" className={styles.deleteBtn} onClick={() => removeEvent(ev.id)}>Remove</button>
                   </div>
                 ))}

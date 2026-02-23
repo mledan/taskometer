@@ -368,6 +368,124 @@
   font-size: 12px;
 }
 
+/* Edit Task Modal */
+.editOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.editModal {
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 360px;
+  max-width: 500px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+}
+
+.editTitle {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.editField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.editField label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--font-color);
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.editField input,
+.editField select {
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 14px;
+}
+
+.editRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.editRow .editField {
+  flex: 1;
+  min-width: 100px;
+}
+
+.editDurationRow {
+  display: flex;
+  gap: 4px;
+}
+
+.editDurationChip {
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--font-color);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.editDurationChip:hover {
+  border-color: var(--accent-color);
+}
+
+.editDurationActive {
+  background: var(--accent-color) !important;
+  color: white !important;
+  border-color: var(--accent-color) !important;
+}
+
+.editActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+.editSaveBtn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent-color);
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.editCancelBtn {
+  padding: 8px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--font-color);
+  cursor: pointer;
+  font-size: 13px;
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .navigation {

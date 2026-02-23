@@ -205,11 +205,17 @@ function TaskInput({ onTaskAdded }) {
 
         {/* Live scheduling preview */}
         {taskText.trim() && (
-          <div className={`${styles.previewBar} ${preview ? styles.previewBarActive : styles.previewBarEmpty}`}>
+          <div className={`${styles.previewBar} ${preview ? (preview.overflowed ? styles.previewBarOverflow : styles.previewBarActive) : styles.previewBarEmpty}`}>
             {preview ? (
               <>
                 <span className={styles.previewIcon}>
-                  {hasFramework ? (
+                  {preview.overflowed ? (
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                      <path d="M7 4v4l2.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M10 2l2 2M10 6l2-2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.6" />
+                    </svg>
+                  ) : hasFramework ? (
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                       <rect x="1" y="2" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" />
                       <line x1="1" y1="5.5" x2="13" y2="5.5" stroke="currentColor" strokeWidth="1" />
@@ -236,7 +242,12 @@ function TaskInput({ onTaskAdded }) {
                     {preview.label}
                   </span>
                 )}
-                {!hasFramework && (
+                {preview.overflowed && (
+                  <span className={styles.previewOverflowHint}>
+                    Today is full — flows to {previewInfo?.dayLabel}
+                  </span>
+                )}
+                {!hasFramework && !preview.overflowed && (
                   <span className={styles.previewHint}>no framework</span>
                 )}
               </>
@@ -315,18 +326,39 @@ function TaskInput({ onTaskAdded }) {
 
       {/* Post-schedule confirmation toast */}
       {justScheduled && (
-        <div className={styles.toast}>
+        <div className={`${styles.toast} ${justScheduled.overflowed ? styles.toastOverflow : ''}`}>
           <span className={styles.toastCheck}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" fill="#10B981" />
-              <path d="M5 8.5L7 10.5L11 6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            {justScheduled.overflowed ? (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" fill="#F59E0B" />
+                <path d="M8 5v4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="8" cy="11.5" r="0.75" fill="white" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" fill="#10B981" />
+                <path d="M5 8.5L7 10.5L11 6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
           </span>
           <span>
-            Scheduled {justScheduled.label
-              ? <strong>{justScheduled.label}</strong>
-              : formatPreviewTime(justScheduled)?.full
-            }
+            {justScheduled.overflowed ? (
+              <>
+                Flows to{' '}
+                <strong>{formatPreviewTime(justScheduled)?.dayLabel}</strong>
+                {' '}at {formatPreviewTime(justScheduled)?.timeStr}
+                <span className={styles.toastOverflowMessage}>
+                  — can't fit it all today, and that's okay. Time is cyclical.
+                </span>
+              </>
+            ) : (
+              <>
+                Scheduled {justScheduled.label
+                  ? <strong>{justScheduled.label}</strong>
+                  : formatPreviewTime(justScheduled)?.full
+                }
+              </>
+            )}
           </span>
         </div>
       )}

@@ -3,11 +3,15 @@ import { useAppReducer, useAppState } from "../AppContext.jsx";
 import { formatLocalTime, getLocalDateString, getLocalTimeString } from '../utils/timeDisplay.js';
 import styles from "./Item.module.css";
 
-// Individual todo item
 function Item({ item }) {
   const dispatch = useAppReducer();
   const { taskTypes, palaces = [] } = useAppState();
   const [isRescheduling, setIsRescheduling] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(item.text);
+  const [editType, setEditType] = useState(item.taskType || item.primaryType || '');
+  const [editDuration, setEditDuration] = useState(item.duration || 30);
+  const [editPriority, setEditPriority] = useState(item.priority || 'medium');
   const [rescheduleDate, setRescheduleDate] = useState(
     item.scheduledTime ? 
       getLocalDateString(item.scheduledTime) : 
@@ -57,8 +61,37 @@ function Item({ item }) {
     dispatch({ type: "UPDATE_ITEM", item: completedItem });
   }
 
+  function startEdit() {
+    setEditText(item.text);
+    setEditType(item.taskType || item.primaryType || '');
+    setEditDuration(item.duration || 30);
+    setEditPriority(item.priority || 'medium');
+    setIsEditing(true);
+    setIsRescheduling(false);
+  }
+
+  function cancelEdit() {
+    setIsEditing(false);
+  }
+
+  function submitEdit() {
+    if (!editText.trim()) return;
+
+    const updatedItem = {
+      ...item,
+      text: editText.trim(),
+      taskType: editType,
+      primaryType: editType,
+      duration: editDuration,
+      priority: editPriority,
+    };
+    dispatch({ type: "UPDATE_ITEM", item: updatedItem });
+    setIsEditing(false);
+  }
+
   function startReschedule() {
     setIsRescheduling(true);
+    setIsEditing(false);
   }
 
   function cancelReschedule() {
@@ -84,6 +117,11 @@ function Item({ item }) {
     setIsRescheduling(false);
   }
 
+  function handleKeyDown(e) {
+    if (e.key === 'Enter') submitEdit();
+    if (e.key === 'Escape') cancelEdit();
+  }
+
   return (
     <div 
       className={`${styles.item} ${
@@ -92,8 +130,58 @@ function Item({ item }) {
       tabIndex="0"
     >
       <div className={styles.itemContent}>
-        <div className={styles.itemname}>{text}</div>
-        {item.scheduledTime && !isRescheduling && (
+        {!isEditing ? (
+          <div className={styles.itemname} onDoubleClick={startEdit}>{text}</div>
+        ) : (
+          <div className={styles.editForm}>
+            <input
+              type="text"
+              className={styles.editTextInput}
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              autoFocus
+            />
+            <div className={styles.editRow}>
+              <label className={styles.editLabel}>
+                Type
+                <select value={editType} onChange={(e) => setEditType(e.target.value)}>
+                  <option value="">None</option>
+                  {taskTypes.map(t => (
+                    <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.editLabel}>
+                Duration
+                <div className={styles.editDurationRow}>
+                  {[15, 30, 60, 90].map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`${styles.editDurationChip} ${editDuration === d ? styles.editDurationActive : ''}`}
+                      onClick={() => setEditDuration(d)}
+                    >{d}m</button>
+                  ))}
+                </div>
+              </label>
+              <label className={styles.editLabel}>
+                Priority
+                <select value={editPriority} onChange={(e) => setEditPriority(e.target.value)}>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </label>
+            </div>
+            <div className={styles.editActions}>
+              <button className={styles.editSaveBtn} onClick={submitEdit}>Save</button>
+              <button className={styles.editCancelBtn} onClick={cancelEdit}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {!isEditing && item.scheduledTime && !isRescheduling && (
           <div className={styles.scheduleInfo}>
             <span className={styles.scheduleTime}>
               {formatLocalTime(item.scheduledTime, 'MMM d, h:mm a')}
@@ -116,17 +204,14 @@ function Item({ item }) {
                 @{linkedLocation}
               </span>
             )}
-            <button
-              className={styles.rescheduleButton}
-              onClick={startReschedule}
-            >
-              Reschedule
-            </button>
+            <button className={styles.editButton} onClick={startEdit}>Edit</button>
+            <button className={styles.rescheduleButton} onClick={startReschedule}>Reschedule</button>
           </div>
         )}
-        {!item.scheduledTime && item.status === 'pending' && (
-          <div className={styles.unscheduledBadge}>
-            Unscheduled
+        {!isEditing && !item.scheduledTime && item.status === 'pending' && (
+          <div className={styles.unscheduledInfo}>
+            <div className={styles.unscheduledBadge}>Unscheduled</div>
+            <button className={styles.editButton} onClick={startEdit}>Edit</button>
           </div>
         )}
         {isRescheduling && (

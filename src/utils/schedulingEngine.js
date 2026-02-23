@@ -175,6 +175,7 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
 
 function scheduleWithoutFramework(task, existingTasks, taskTypes) {
   const now = new Date();
+  const todayStr = format(now, 'yyyy-MM-dd');
   const taskDuration = task.duration || DEFAULT_DURATION;
   const taskTypeId = task.primaryType || task.taskType || 'work';
   const typeConfig = Array.isArray(taskTypes)
@@ -208,15 +209,21 @@ function scheduleWithoutFramework(task, existingTasks, taskTypes) {
       if (candidateEnd > dayEnd) break;
 
       if (!hasConflict(candidate, candidateEnd, existingTasks)) {
+        const scheduledDate = format(candidate, 'yyyy-MM-dd');
+        const overflowedFromToday = dayOffset > 0 && scheduledDate !== todayStr;
         return {
           scheduledTime: candidate.toISOString(),
           specificTime: formatHHMM(candidate),
           specificDay: dayName,
-          date: format(candidate, 'yyyy-MM-dd'),
+          date: scheduledDate,
           slotId: null,
           label: null,
-          reason: 'Next available time (no framework)',
+          reason: overflowedFromToday
+            ? `Overflowed to ${dayName} — today is full`
+            : 'Next available time (no framework)',
           confidence: 60,
+          overflowed: overflowedFromToday,
+          overflowDaysAhead: dayOffset,
         };
       }
 
@@ -309,16 +316,27 @@ function findFirstAvailable(candidates, task, existingTasks, filterFn) {
 
 function buildResult(match, task, reason) {
   const { slot, startTime } = match;
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const scheduledDate = format(startTime, 'yyyy-MM-dd');
+  const overflowedFromToday = scheduledDate !== todayStr;
+  const daysDiff = overflowedFromToday
+    ? Math.round((startTime.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
   return {
     scheduledTime: startTime.toISOString(),
     specificTime: formatHHMM(startTime),
     specificDay: format(startTime, 'EEEE'),
-    date: format(startTime, 'yyyy-MM-dd'),
+    date: scheduledDate,
     slotId: slot.id,
     label: slot.label,
     slotColor: slot.color,
-    reason,
+    reason: overflowedFromToday
+      ? `${reason} — overflowed to ${format(startTime, 'EEEE')}`
+      : reason,
     confidence: slot.slotType === (task.primaryType || task.taskType) ? 95 : 75,
+    overflowed: overflowedFromToday,
+    overflowDaysAhead: Math.max(0, daysDiff),
   };
 }
 

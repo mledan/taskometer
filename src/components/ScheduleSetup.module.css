@@ -1422,6 +1422,29 @@
   border: 1px solid var(--border-color);
   border-radius: 10px;
   background: var(--input-color);
+  transition: border-color 0.15s ease;
+}
+
+.eventItemEditing {
+  border-color: var(--accent-color);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.editBtn {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--font-color-secondary);
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.editBtn:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  background: rgba(59, 130, 246, 0.08);
 }
 
 .eventIcon {
