@@ -3,27 +3,25 @@ import ThemeToggle from './ThemeToggle';
 
 export const VIEWS = {
   DASHBOARD: 'dashboard',
-  SCHEDULES: 'schedules',
-  DEFAULTS: 'defaults',
+  SCHEDULE: 'schedule',
   TASKS: 'tasks',
   CALENDAR: 'calendar',
-  PALACE: 'palace',
-  TASK_TYPES: 'task-types',
   HISTORY: 'history',
-  COMMUNITY: 'community',
+  // Legacy aliases kept for URL backwards-compatibility
+  SCHEDULES: 'schedule',
+  DEFAULTS: 'schedule',
+  PALACE: 'dashboard',
+  TASK_TYPES: 'dashboard',
+  COMMUNITY: 'dashboard',
 };
 
 function TabNavigation({ activeView, onViewChange }) {
   const tabs = [
     { view: VIEWS.DASHBOARD, label: 'Dashboard', tour: 'dashboard' },
-    { view: VIEWS.SCHEDULES, label: 'Schedules', tour: 'schedules' },
-    { view: VIEWS.DEFAULTS, label: 'Defaults', tour: 'defaults' },
+    { view: VIEWS.SCHEDULE, label: 'Schedule', tour: 'schedules' },
     { view: VIEWS.TASKS, label: 'Tasks', tour: 'add-task' },
     { view: VIEWS.CALENDAR, label: 'Calendar', tour: 'calendar' },
-    { view: VIEWS.PALACE, label: 'Palace', tour: 'palace' },
-    { view: VIEWS.TASK_TYPES, label: 'Task Types', tour: 'task-types' },
     { view: VIEWS.HISTORY, label: 'History', tour: 'history' },
-    { view: VIEWS.COMMUNITY, label: 'Community', tour: 'community' },
   ];
 
   return (

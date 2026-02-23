@@ -339,20 +339,10 @@ function Dashboard() {
           </div>
         </section>
 
-        {/* Memory Palace Preview */}
+        {/* Overall Progress */}
         <section className={styles.palacePreview}>
-          <h2>Memory Palace</h2>
-          {palaces && palaces.length > 0 ? (
-            <div className={styles.palaceCard}>
-              <h3>{palaces[0].name}</h3>
-              <p>{palaces[0].locations?.length || 0} locations</p>
-            </div>
-          ) : (
-            <div className={styles.emptyState}>
-              <p>Create a Memory Palace to link tasks with locations</p>
-              <p className={styles.hint}>Navigate to the Palace tab to get started</p>
-            </div>
-          )}
+          <h2>Overall Progress</h2>
+          <Progress />
         </section>
       </div>
     </div>
