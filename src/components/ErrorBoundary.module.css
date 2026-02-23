@@ -1,0 +1,27 @@
+.container {
+  margin: 32px auto;
+  padding: 20px;
+  max-width: 560px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--input-color);
+  color: var(--font-color);
+  display: grid;
+  gap: 12px;
+  text-align: center;
+}
+
+.message {
+  color: var(--font-color-secondary);
+  margin: 0;
+}
+
+.container button {
+  justify-self: center;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: var(--accent-color);
+  color: #fff;
+  cursor: pointer;
+}
