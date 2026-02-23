@@ -297,10 +297,11 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     selectedBlocks.forEach(id => {
       const config = blockConfigs[id];
       const catalog = getCatalogBlock(id);
-      total += config?.duration || catalog?.defaultDuration || 0;
+      const customType = !catalog ? (taskTypes || []).find(t => t.id === id) : null;
+      total += config?.duration || catalog?.defaultDuration || customType?.defaultDuration || 0;
     });
     return { allocated: total, remaining: 24 * 60 - total };
-  }, [selectedBlocks, blockConfigs]);
+  }, [selectedBlocks, blockConfigs, taskTypes]);
 
   useEffect(() => {
     const ids = new Set((taskTypes || []).map(t => t.id));
@@ -730,39 +731,49 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     // Collect configured blocks (skip sleep and event)
     const blocks = [];
     selectedBlocks.forEach(id => {
+      if (id === 'sleep' || id === 'event') return;
       const catalog = getCatalogBlock(id);
-      if (!catalog || id === 'sleep' || id === 'event') return;
+      const customType = !catalog ? (taskTypes || []).find(t => t.id === id) : null;
+      const source = catalog || customType;
+      if (!source) return;
       const config = blockConfigs[id] || {};
       blocks.push({
-        ...catalog,
-        configDuration: config.duration || catalog.defaultDuration,
-        configStart: config.preferredStart || catalog.preferredStart,
-        configEnd: config.preferredEnd || catalog.preferredEnd,
+        id: source.id,
+        name: source.name,
+        icon: source.icon,
+        color: source.color,
+        isFixed: catalog?.isFixed || false,
+        configDuration: config.duration || source.defaultDuration || 60,
+        configStart: config.preferredStart || catalog?.preferredStart || source.constraints?.preferredTimeStart || null,
+        configEnd: config.preferredEnd || catalog?.preferredEnd || source.constraints?.preferredTimeEnd || null,
       });
     });
 
-    // Separate fixed-time blocks (those with explicit preferred start) from flexible
-    const fixedBlocks = blocks.filter(b => b.configStart).sort((a, b) => a.configStart.localeCompare(b.configStart));
-    const flexBlocks = blocks.filter(b => !b.configStart);
+    // Sort all blocks by specificity: shorter/fixed blocks get priority
+    // over longer blocks so meals split work blocks correctly.
+    const sortedBlocks = [...blocks].sort((a, b) => {
+      // Blocks with preferred times first
+      const aHasTime = a.configStart ? 1 : 0;
+      const bHasTime = b.configStart ? 1 : 0;
+      if (aHasTime !== bHasTime) return bHasTime - aHasTime;
+      // Among timed blocks, shorter ones first (lunch before work)
+      if (aHasTime && bHasTime) return a.configDuration - b.configDuration;
+      return 0;
+    });
 
     const allDaySlots = [];
 
     DAY_NAMES.forEach(day => {
       const daySlots = [];
-      const occupied = []; // [{start, end}] tracking placed slots
+      const occupied = []; // [{start, end, blockId}]
 
-      // Phase 1: Place fixed-time blocks at their preferred times
-      fixedBlocks.forEach(block => {
+      // Phase 1: Place time-specific blocks (shorter first so meals carve into work)
+      sortedBlocks.filter(b => b.configStart).forEach(block => {
         const start = parseTimeToMinutes(block.configStart);
         if (start === null) return;
         let end = start + block.configDuration;
-        const rangeEnd = preferredRange.end;
-        if (end > rangeEnd) end = rangeEnd;
+        if (end > preferredRange.end) end = preferredRange.end;
         if (end - start < MIN_SLOT_MINUTES) return;
-
-        // Check for overlaps with already-placed fixed blocks
-        const overlaps = occupied.some(o => start < o.end && end > o.start);
-        if (overlaps) return;
 
         daySlots.push({
           id: createTemplateId(),
@@ -775,13 +786,72 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
           color: block.color,
           allowedTags: [],
         });
-        occupied.push({ start, end });
+        occupied.push({ start, end, blockId: block.id });
+      });
+
+      // Phase 2: For large timed blocks (like work) that got overlapped
+      // by smaller blocks (like lunch), split them around the interruptions.
+      // Re-check: find blocks in sortedBlocks that have configStart + long
+      // duration but whose full range overlaps with already-placed shorter blocks.
+      sortedBlocks.filter(b => b.configStart && b.configDuration >= 180).forEach(bigBlock => {
+        const bigStart = parseTimeToMinutes(bigBlock.configStart);
+        if (bigStart === null) return;
+        const bigEnd = Math.min(bigStart + bigBlock.configDuration, preferredRange.end);
+
+        // If this big block is already placed, we need to check if smaller
+        // blocks carved into its time range.
+        const interrupters = occupied
+          .filter(o => o.blockId !== bigBlock.id && o.start >= bigStart && o.end <= bigEnd)
+          .sort((a, b) => a.start - b.start);
+
+        if (interrupters.length === 0) return;
+
+        // Remove the original big block slot
+        const bigSlotIdx = daySlots.findIndex(s => s.slotType === bigBlock.id);
+        if (bigSlotIdx === -1) return;
+        daySlots.splice(bigSlotIdx, 1);
+        const bigOccIdx = occupied.findIndex(o => o.blockId === bigBlock.id);
+        if (bigOccIdx !== -1) occupied.splice(bigOccIdx, 1);
+
+        // Create segments around interrupters
+        let segStart = bigStart;
+        interrupters.forEach(inter => {
+          if (inter.start > segStart + MIN_SLOT_MINUTES) {
+            daySlots.push({
+              id: createTemplateId(),
+              day,
+              startTime: minutesToTime(segStart),
+              endTime: minutesToTime(inter.start),
+              slotType: bigBlock.id,
+              label: bigBlock.name,
+              flexibility: bigBlock.isFixed ? 'fixed' : 'preferred',
+              color: bigBlock.color,
+              allowedTags: [],
+            });
+            occupied.push({ start: segStart, end: inter.start, blockId: bigBlock.id });
+          }
+          segStart = inter.end;
+        });
+        if (segStart < bigEnd - MIN_SLOT_MINUTES) {
+          daySlots.push({
+            id: createTemplateId(),
+            day,
+            startTime: minutesToTime(segStart),
+            endTime: minutesToTime(bigEnd),
+            slotType: bigBlock.id,
+            label: bigBlock.name,
+            flexibility: bigBlock.isFixed ? 'fixed' : 'preferred',
+            color: bigBlock.color,
+            allowedTags: [],
+          });
+          occupied.push({ start: segStart, end: bigEnd, blockId: bigBlock.id });
+        }
       });
 
       // Sort occupied spans for gap-finding
       occupied.sort((a, b) => a.start - b.start);
 
-      // Phase 2: Find gaps and fill with flexible blocks
+      // Phase 3: Find gaps and fill with flexible (no preferred time) blocks
       const gaps = [];
       let cursor = preferredRange.start;
       occupied.forEach(span => {
@@ -794,6 +864,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
         gaps.push({ start: cursor, end: preferredRange.end });
       }
 
+      const flexBlocks = sortedBlocks.filter(b => !b.configStart);
       let flexIndex = 0;
       gaps.forEach(gap => {
         let gapCursor = gap.start;
@@ -822,7 +893,6 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
         }
       });
 
-      // Sort by start time
       daySlots.sort((a, b) => a.startTime.localeCompare(b.startTime));
       allDaySlots.push(...daySlots);
     });
@@ -1149,11 +1219,13 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
             <div className={styles.timeBudgetChips}>
               {Array.from(selectedBlocks).map(id => {
                 const catalog = getCatalogBlock(id);
-                if (!catalog) return null;
-                const dur = blockConfigs[id]?.duration || catalog.defaultDuration;
+                const customType = !catalog ? (taskTypes || []).find(t => t.id === id) : null;
+                const block = catalog || customType;
+                if (!block) return null;
+                const dur = blockConfigs[id]?.duration || block.defaultDuration || 60;
                 return (
-                  <span key={id} className={styles.budgetChip} style={{ borderColor: catalog.color, color: catalog.color }}>
-                    {catalog.icon} {catalog.name} {formatDuration(dur)}
+                  <span key={id} className={styles.budgetChip} style={{ borderColor: block.color, color: block.color }}>
+                    {block.icon} {block.name} {formatDuration(dur)}
                   </span>
                 );
               })}
@@ -1230,6 +1302,72 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
               </div>
             ))}
           </section>
+
+          {/* Custom Types (user-created, not in catalog) */}
+          {(taskTypes || []).filter(t => !getCatalogBlock(t.id)).length > 0 && (
+            <section className={styles.catalogSection}>
+              <h3 className={styles.catalogSectionTitle}>📌 My Custom Blocks</h3>
+              <div className={styles.catalogGrid}>
+                {(taskTypes || []).filter(t => !getCatalogBlock(t.id)).map(type => {
+                  const isSelected = selectedBlocks.has(type.id);
+                  const config = blockConfigs[type.id];
+                  return (
+                    <div key={type.id} className={`${styles.catalogCard} ${isSelected ? styles.catalogCardSelected : ''}`}>
+                      <button
+                        type="button"
+                        className={styles.catalogCardToggle}
+                        onClick={() => toggleBlock(type.id)}
+                        style={isSelected ? { borderColor: type.color, background: `${type.color}18` } : {}}
+                      >
+                        <span className={styles.catalogIcon}>{type.icon}</span>
+                        <span className={styles.catalogName}>{type.name}</span>
+                        <span className={styles.catalogDesc}>{type.description || `${formatDuration(type.defaultDuration || 60)} default`}</span>
+                        {isSelected && <span className={styles.catalogCheck} style={{ color: type.color }}>&#10003;</span>}
+                      </button>
+                      {isSelected && (
+                        <div className={styles.catalogConfig}>
+                          <div className={styles.catalogConfigRow}>
+                            <span className={styles.catalogConfigLabel}>Duration</span>
+                            <div className={styles.durationPresets}>
+                              {[30, 60, 90, 120].map(d => (
+                                <button
+                                  key={d}
+                                  type="button"
+                                  className={`${styles.durationBtn} ${(config?.duration || type.defaultDuration) === d ? styles.durationBtnActive : ''}`}
+                                  style={(config?.duration || type.defaultDuration) === d ? { borderColor: type.color, background: `${type.color}25`, color: type.color } : {}}
+                                  onClick={() => updateBlockConfig(type.id, 'duration', d)}
+                                >
+                                  {formatDuration(d)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className={styles.catalogConfigRow}>
+                            <span className={styles.catalogConfigLabel}>Preferred time</span>
+                            <div className={styles.timeInputRow}>
+                              <input
+                                type="time"
+                                className={styles.timeInput}
+                                value={config?.preferredStart || ''}
+                                onChange={e => updateBlockConfig(type.id, 'preferredStart', e.target.value)}
+                              />
+                              <span className={styles.timeSep}>to</span>
+                              <input
+                                type="time"
+                                className={styles.timeInput}
+                                value={config?.preferredEnd || ''}
+                                onChange={e => updateBlockConfig(type.id, 'preferredEnd', e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {/* Add Custom Block */}
           <section className={styles.customBlockSection}>
