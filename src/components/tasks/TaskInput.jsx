@@ -4,6 +4,7 @@ import { ACTION_TYPES } from '../../context/AppContext';
 import { createTask } from '../../models/Task';
 import { getSlotStartDateTime } from '../../models/CalendarSlot';
 import { findOptimalSlot } from '../../utils/slotMatcher';
+import { TagSelector } from '../tags';
 import styles from './TaskInput.module.css';
 
 function TaskInput({ onTaskAdded }) {
@@ -16,6 +17,7 @@ function TaskInput({ onTaskAdded }) {
   const [taskType, setTaskType] = useState(taskTypes[0]?.id || 'work');
   const [duration, setDuration] = useState(30);
   const [locationKey, setLocationKey] = useState('');
+  const [selectedTags, setSelectedTags] = useState([]);
   const [previewSlot, setPreviewSlot] = useState(null);
 
   const currentTypeConfig = useMemo(() => {
@@ -61,11 +63,12 @@ function TaskInput({ onTaskAdded }) {
       id: 'preview',
       taskType,
       primaryType: taskType,
+      tags: selectedTags,
       duration
     };
     const match = findOptimalSlot(previewTask, slots, tasks);
     setPreviewSlot(match?.slot || null);
-  }, [taskText, taskType, duration, slots, tasks]);
+  }, [taskText, taskType, duration, selectedTags, slots, tasks]);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -77,6 +80,7 @@ function TaskInput({ onTaskAdded }) {
       status: 'pending',
       primaryType: taskType,
       taskType,
+      tags: selectedTags,
       duration,
       priority: 'medium',
       scheduledTime: null
@@ -119,6 +123,7 @@ function TaskInput({ onTaskAdded }) {
 
     setTaskText('');
     setLocationKey('');
+    setSelectedTags([]);
     inputRef.current?.focus();
   }
 
@@ -203,6 +208,16 @@ function TaskInput({ onTaskAdded }) {
               </option>
             ))}
           </select>
+        </label>
+
+        <label className={styles.tagSelectorField}>
+          <span className={styles.labelText}>Tags (optional)</span>
+          <TagSelector
+            selectedTags={selectedTags}
+            onChange={setSelectedTags}
+            placeholder="Add task tags"
+            compact={true}
+          />
         </label>
       </div>
 

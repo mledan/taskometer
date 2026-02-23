@@ -60,6 +60,10 @@
   gap: 6px;
 }
 
+.tagSelectorField {
+  grid-column: 1 / -1;
+}
+
 .labelText {
   font-size: 12px;
   color: var(--font-color-secondary);

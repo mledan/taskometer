@@ -19,6 +19,21 @@
   box-sizing: border-box;
 }
 
+.statusBanner {
+  margin: 8px 12px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--input-color);
+  color: var(--font-color-secondary);
+  font-size: 13px;
+}
+
+.errorBanner {
+  border-color: var(--error-color, #ef4444);
+  color: var(--error-color, #ef4444);
+}
+
 /* Add responsive padding based on screen size */
 @media (min-width: 768px) {
   .content {
@@ -29,7 +44,12 @@
 .defaultsView,
 .todosView,
 .calendarView,
-.palaceView {
+.palaceView,
+.dashboardView,
+.schedulesView,
+.taskTypesView,
+.historyView,
+.communityView {
   width: 100%;
   margin: 0;
   height: 100%;
@@ -51,7 +71,12 @@
 }
 
 .defaultsView,
-.palaceView {
+.palaceView,
+.dashboardView,
+.schedulesView,
+.taskTypesView,
+.historyView,
+.communityView {
   flex: 1;
   display: flex;
   background: var(--bg-color);

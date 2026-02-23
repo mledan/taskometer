@@ -46,6 +46,7 @@ function ThemeToggle({ showLabel = false, variant = 'simple' }) {
   if (variant === 'simple' || variant === 'cycle') {
     return (
       <button
+        data-tour="theme"
         className={styles.toggleButton}
         onClick={handleClick}
         title={`Current: ${getLabel()}. Click to change.`}
@@ -62,6 +63,7 @@ function ThemeToggle({ showLabel = false, variant = 'simple' }) {
     return (
       <div className={styles.dropdown}>
         <button
+          data-tour="theme"
           className={styles.dropdownTrigger}
           title="Change theme"
           aria-label="Theme options"
@@ -100,7 +102,7 @@ function ThemeToggle({ showLabel = false, variant = 'simple' }) {
   // Switch variant (animated toggle)
   if (variant === 'switch') {
     return (
-      <label className={styles.switch}>
+      <label className={styles.switch} data-tour="theme">
         <input
           type="checkbox"
           checked={effectiveTheme === THEMES.DARK}
