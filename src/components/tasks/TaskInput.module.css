@@ -259,16 +259,6 @@
   border-color: var(--accent-color, #3B82F6);
 }
 
-.durationCustom {
-  width: 56px;
-  padding: 5px 6px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-color);
-  color: var(--font-color);
-  font-size: 12px;
-  text-align: center;
-}
 
 /* ---- Post-schedule toast ---- */
 

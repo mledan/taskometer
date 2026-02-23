@@ -109,11 +109,6 @@
   border-color: var(--green);
 }
 
-.field textarea {
-  resize: vertical;
-  min-height: 60px;
-}
-
 .hint {
   display: block;
   margin-top: 6px;
@@ -143,52 +138,38 @@
   padding-left: 30px;
 }
 
-/* Flexibility options */
-.flexibilityOptions {
+/* Flexibility toggle (compact) */
+.flexibilityToggle {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.flexOption {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: var(--input-color);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  cursor: pointer;
-  text-align: left;
+  overflow: hidden;
+}
+
+.flexToggleBtn {
+  flex: 1;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
   color: var(--font-color);
-  transition: all 0.2s ease;
-}
-
-.flexOption:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.flexOption.active {
-  border-color: var(--green);
-  background: rgba(98, 220, 165, 0.1);
-}
-
-.flexIcon {
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.flexLabel {
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.flexDescription {
-  width: 100%;
   font-size: 12px;
-  opacity: 0.6;
-  margin-top: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.flexToggleBtn:last-child {
+  border-right: none;
+}
+
+.flexToggleBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.flexToggleBtn.active {
+  background: rgba(98, 220, 165, 0.15);
+  color: var(--green);
 }
 
 /* Tags */
@@ -218,30 +199,6 @@
 
 .tagSelected {
   font-weight: 500;
-}
-
-/* Color input */
-.colorInput {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.colorInput input[type="color"] {
-  width: 48px;
-  height: 48px;
-  padding: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  cursor: pointer;
-  background: var(--input-color);
-}
-
-.colorInput span {
-  font-size: 13px;
-  color: var(--font-color);
-  opacity: 0.6;
-  font-family: monospace;
 }
 
 /* Actions */
@@ -310,13 +267,5 @@
     max-width: 100%;
     border-radius: 12px 12px 0 0;
     max-height: 80vh;
-  }
-
-  .flexibilityOptions {
-    gap: 6px;
-  }
-
-  .flexOption {
-    padding: 10px;
   }
 }

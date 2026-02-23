@@ -285,6 +285,8 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   const [frameworkMessage, setFrameworkMessage] = useState('');
   const [showCustomBlock, setShowCustomBlock] = useState(false);
   const [customBlockForm, setCustomBlockForm] = useState({ name: '', icon: '📌', color: '#94A3B8', duration: 60, start: '', end: '' });
+  const [expandedTimeConfig, setExpandedTimeConfig] = useState(new Set());
+  const [showEvents, setShowEvents] = useState(false);
   const [eventForm, setEventForm] = useState({ name: '', date: format(new Date(), 'yyyy-MM-dd'), start: '19:00', end: '21:00' });
   const [editingEventId, setEditingEventId] = useState(null);
   const [events, setEvents] = useState(() => {
@@ -1308,24 +1310,34 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                               </div>
                             </div>
                             {block.preferredStart && (
-                              <div className={styles.catalogConfigRow}>
-                                <span className={styles.catalogConfigLabel}>Preferred time</span>
-                                <div className={styles.timeInputRow}>
-                                  <input
-                                    type="time"
-                                    className={styles.timeInput}
-                                    value={config?.preferredStart || block.preferredStart}
-                                    onChange={e => updateBlockConfig(block.id, 'preferredStart', e.target.value)}
-                                  />
-                                  <span className={styles.timeSep}>to</span>
-                                  <input
-                                    type="time"
-                                    className={styles.timeInput}
-                                    value={config?.preferredEnd || block.preferredEnd || ''}
-                                    onChange={e => updateBlockConfig(block.id, 'preferredEnd', e.target.value)}
-                                  />
+                              expandedTimeConfig.has(block.id) ? (
+                                <div className={styles.catalogConfigRow}>
+                                  <span className={styles.catalogConfigLabel}>Preferred time</span>
+                                  <div className={styles.timeInputRow}>
+                                    <input
+                                      type="time"
+                                      className={styles.timeInput}
+                                      value={config?.preferredStart || block.preferredStart}
+                                      onChange={e => updateBlockConfig(block.id, 'preferredStart', e.target.value)}
+                                    />
+                                    <span className={styles.timeSep}>to</span>
+                                    <input
+                                      type="time"
+                                      className={styles.timeInput}
+                                      value={config?.preferredEnd || block.preferredEnd || ''}
+                                      onChange={e => updateBlockConfig(block.id, 'preferredEnd', e.target.value)}
+                                    />
+                                  </div>
                                 </div>
-                              </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className={styles.timeToggleBtn}
+                                  onClick={() => setExpandedTimeConfig(prev => new Set([...prev, block.id]))}
+                                >
+                                  Customize time &rarr;
+                                </button>
+                              )
                             )}
                           </div>
                         )}
@@ -1374,24 +1386,6 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                                   {formatDuration(d)}
                                 </button>
                               ))}
-                            </div>
-                          </div>
-                          <div className={styles.catalogConfigRow}>
-                            <span className={styles.catalogConfigLabel}>Preferred time</span>
-                            <div className={styles.timeInputRow}>
-                              <input
-                                type="time"
-                                className={styles.timeInput}
-                                value={config?.preferredStart || ''}
-                                onChange={e => updateBlockConfig(type.id, 'preferredStart', e.target.value)}
-                              />
-                              <span className={styles.timeSep}>to</span>
-                              <input
-                                type="time"
-                                className={styles.timeInput}
-                                value={config?.preferredEnd || ''}
-                                onChange={e => updateBlockConfig(type.id, 'preferredEnd', e.target.value)}
-                              />
                             </div>
                           </div>
                         </div>
@@ -1451,24 +1445,6 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                   </div>
                 </div>
                 <div className={styles.customBlockRow}>
-                  <label className={styles.catalogConfigLabel}>Preferred time (optional)</label>
-                  <div className={styles.timeInputRow}>
-                    <input
-                      type="time"
-                      className={styles.timeInput}
-                      value={customBlockForm.start}
-                      onChange={e => setCustomBlockForm(prev => ({ ...prev, start: e.target.value }))}
-                    />
-                    <span className={styles.timeSep}>to</span>
-                    <input
-                      type="time"
-                      className={styles.timeInput}
-                      value={customBlockForm.end}
-                      onChange={e => setCustomBlockForm(prev => ({ ...prev, end: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div className={styles.customBlockRow}>
                   <button type="button" className={styles.cardBtnAccent} onClick={addCustomBlock}>
                     Add Block
                   </button>
@@ -1480,21 +1456,27 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
             )}
           </section>
 
-          {/* Generate Actions */}
+          {/* Generate Action */}
           <section className={styles.frameworkActions}>
-            <button type="button" className={styles.applyBtn} onClick={applyFrameworkToTypes}>
-              Save Life Blocks
-            </button>
             <button type="button" className={`${styles.applyBtn} ${styles.generateBtn}`} onClick={generateFrameworkSlots}>
-              Generate Weekly Framework
+              Generate My Schedule
             </button>
             {frameworkMessage && <p className={styles.message}>{frameworkMessage}</p>}
           </section>
 
-          {/* Events & Exceptions */}
+          {/* Events & Exceptions (collapsible) */}
           <section className={styles.eventsSection}>
-            <h3>Events &amp; Exceptions</h3>
-            <p className={styles.eventsDesc}>Add one-off events like parties, appointments, or meetings. These override your framework at that time and displaced activities reschedule to the next available matching slot.</p>
+            <button
+              type="button"
+              className={styles.eventsSectionToggle}
+              onClick={() => setShowEvents(v => !v)}
+            >
+              <h3>Events &amp; Exceptions</h3>
+              <span className={styles.eventsToggleIcon}>{showEvents ? '\u25B2' : '\u25BC'}</span>
+            </button>
+
+            {showEvents && <>
+            <p className={styles.eventsDesc}>Add one-off events that override your framework.</p>
 
             <div className={styles.eventForm}>
               <input
@@ -1553,6 +1535,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                 </button>
               </div>
             )}
+            </>}
           </section>
         </div>
       )}
@@ -1737,19 +1720,6 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                   </div>
 
                   <div className={styles.configField}>
-                    <label>Color</label>
-                    <div className={styles.colorRow}>
-                      <input
-                        type="color"
-                        className={styles.colorPicker}
-                        value={activeSlot.color || '#3B82F6'}
-                        onChange={(e) => updateActiveSlotField('color', e.target.value)}
-                      />
-                      <span className={styles.colorHex}>{activeSlot.color || '#3B82F6'}</span>
-                    </div>
-                  </div>
-
-                  <div className={styles.configField}>
                     <label>Type</label>
                     <div className={styles.choiceGrid}>
                       <button
@@ -1796,22 +1766,6 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                       </div>
                     </div>
                   )}
-
-                  <div className={styles.configField}>
-                    <label>Flexibility</label>
-                    <div className={styles.flexToggle}>
-                      {['fixed', 'preferred', 'flexible'].map((level) => (
-                        <button
-                          key={level}
-                          type="button"
-                          className={activeSlot.flexibility === level ? styles.flexActive : ''}
-                          onClick={() => updateActiveSlotField('flexibility', level)}
-                        >
-                          {level.charAt(0).toUpperCase() + level.slice(1)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
@@ -1889,23 +1843,6 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
             </div>
           </div>
 
-          <div className={styles.quickApplyBar}>
-            <label>
-              Start
-              <input type="date" value={quickApplyStartDate} onChange={(e) => setQuickApplyStartDate(e.target.value)} />
-            </label>
-            <label>
-              Span
-              <select value={quickApplyDays} onChange={(e) => setQuickApplyDays(Number(e.target.value))}>
-                <option value={1}>1 day</option>
-                <option value={3}>3 days</option>
-                <option value={7}>7 days</option>
-                <option value={14}>14 days</option>
-              </select>
-            </label>
-            <span className={styles.quickApplySummary}>Through {quickApplyEndDate}</span>
-          </div>
-
           <div className={styles.templateGrid}>
             {filteredSchedules.map((schedule) => {
               const isActive = schedule.id === activeScheduleId;
@@ -1931,25 +1868,17 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                   <div className={styles.cardBtns}>
                     <button
                       type="button"
-                      className={styles.cardBtn}
+                      className={styles.cardBtnAccent}
                       onClick={(e) => { e.stopPropagation(); handleQuickApply(schedule); }}
                     >
-                      Apply
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.cardBtnAccent}
-                      disabled={isActive}
-                      onClick={(e) => { e.stopPropagation(); handleActivateSchedule(schedule.id); }}
-                    >
-                      {isActive ? 'Active' : 'Activate'}
+                      Use Template
                     </button>
                     <button
                       type="button"
                       className={styles.cardBtn}
-                      onClick={(e) => { e.stopPropagation(); handleApplyAsDefaults(schedule); }}
+                      onClick={(e) => { e.stopPropagation(); setSelectedSchedule(schedule); }}
                     >
-                      Import
+                      Details
                     </button>
                   </div>
                 </div>
