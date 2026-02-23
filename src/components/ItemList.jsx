@@ -1,10 +1,20 @@
 import { useMemo } from 'react';
+import { format, isToday } from 'date-fns';
 import { useAppReducer, useAppState, useItems } from '../AppContext.jsx';
+import { toLocalTime } from '../utils/timeDisplay.js';
 import Progress from './Progress.jsx';
 import TaskInput from './tasks/TaskInput.jsx';
 import Item from './Item.jsx';
 import styles from './ItemList.module.css';
 import alldone from '../img/alldone.svg';
+
+const OVERFLOW_MESSAGES = [
+	"Time is cyclical — these flow into tomorrow. Rest up.",
+	"Can't fit it all today, and that's okay. Tomorrow has its own slots.",
+	"Today's full — the rest rolls forward. You've done enough.",
+	"These shift to the next open day. Pace over rush.",
+	"Overflow is natural. These tasks will be there when you're ready.",
+];
 
 function ItemList() {
 	const dispatch = useAppReducer();
@@ -36,6 +46,31 @@ function ItemList() {
 			return start >= now && !slot.assignedTaskId;
 		}).length;
 	}, [slots]);
+
+	const overflowInfo = useMemo(() => {
+		const overflowedTasks = scheduledPending.filter((item) => {
+			if (!item.scheduledTime) return false;
+			const taskDate = toLocalTime(item.scheduledTime);
+			return !isToday(taskDate);
+		});
+
+		if (overflowedTasks.length === 0) return null;
+
+		const byDay = {};
+		overflowedTasks.forEach((item) => {
+			const dayLabel = format(toLocalTime(item.scheduledTime), 'EEEE');
+			if (!byDay[dayLabel]) byDay[dayLabel] = [];
+			byDay[dayLabel].push(item);
+		});
+
+		const seed = overflowedTasks.length % OVERFLOW_MESSAGES.length;
+		return {
+			count: overflowedTasks.length,
+			days: Object.keys(byDay),
+			byDay,
+			message: OVERFLOW_MESSAGES[seed],
+		};
+	}, [scheduledPending]);
 
 	function scheduleUnplannedTasks() {
 		if (unscheduledPending.length === 0) return;
@@ -102,6 +137,24 @@ function ItemList() {
 					)}
 				</div>
 			</div>
+
+			{overflowInfo && (
+				<div className={styles.overflowBanner}>
+					<div className={styles.overflowHeader}>
+						<span className={styles.overflowIcon}>
+							<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+								<circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+								<path d="M8 5v4l2.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+							</svg>
+						</span>
+						<span className={styles.overflowCount}>
+							{overflowInfo.count} task{overflowInfo.count !== 1 ? 's' : ''} flow to{' '}
+							{overflowInfo.days.join(', ')}
+						</span>
+					</div>
+					<p className={styles.overflowMessage}>{overflowInfo.message}</p>
+				</div>
+			)}
 
 			{pending.length > 0 ? (
 				pending.map((item) => <Item item={item} key={item.id || item.key} />)

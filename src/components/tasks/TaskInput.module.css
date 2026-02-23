@@ -165,6 +165,20 @@
   font-style: italic;
 }
 
+.previewBarOverflow {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(251, 191, 36, 0.06) 100%);
+  color: var(--font-color);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.previewOverflowHint {
+  margin-left: auto;
+  font-size: 11px;
+  color: #D97706;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .previewEmpty {
   color: var(--font-color-secondary);
   opacity: 0.7;
@@ -291,4 +305,22 @@
 .toastCheck {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+}
+
+.toastOverflow {
+  border-color: rgba(245, 158, 11, 0.35);
+  white-space: normal;
+  max-width: 420px;
+  border-radius: 12px;
+  text-align: left;
+  bottom: -72px;
+}
+
+.toastOverflowMessage {
+  display: block;
+  font-size: 11px;
+  color: var(--font-color-secondary);
+  margin-top: 2px;
+  font-style: italic;
 }

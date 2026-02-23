@@ -524,6 +524,8 @@ function appReducer(state, action) {
               schedulingConfidence: engineResult.confidence,
               scheduledLabel: engineResult.label,
               scheduledDate: engineResult.date,
+              overflowed: engineResult.overflowed || false,
+              overflowDaysAhead: engineResult.overflowDaysAhead || 0,
             },
           };
           newTasks = [...state.tasks, newTask];
