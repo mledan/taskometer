@@ -4,7 +4,7 @@ import App from "./App.jsx";
 
 test("starts on the defaults setup view", () => {
   render(<App />);
-  expect(screen.getByRole("heading", { name: /default schedule by day/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /daily slot builder/i })).toBeInTheDocument();
 });
 
 test("shows the narrowed workflow tabs", () => {
