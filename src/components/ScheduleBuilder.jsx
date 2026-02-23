@@ -3,11 +3,32 @@ import styles from './ScheduleLibrary.module.css';
 import CircularSchedule from './CircularSchedule.jsx';
 import { ACTIVITY_TYPES, createScheduleTemplate, saveScheduleToLocalStorage } from '../utils/scheduleTemplates.js';
 
+const MINUTES_PER_DAY = 24 * 60;
+const DEFAULT_NEW_BLOCK = { start: '07:00', end: '08:00', type: 'meals', label: 'Breakfast' };
+const SLOT_SLIDER_STEP_MINUTES = 15;
+
 // Helper to convert time string to minutes for comparison
 function timeToMinutes(timeStr) {
   if (!timeStr) return 0;
   const [hours, minutes] = timeStr.split(':').map(Number);
   return hours * 60 + minutes;
+}
+
+function minutesToTime(minutes) {
+  const normalized = ((Math.round(minutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const hours = Math.floor(normalized / 60);
+  const mins = normalized % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+function addMinutesToTime(timeStr, deltaMinutes) {
+  return minutesToTime(timeToMinutes(timeStr) + deltaMinutes);
+}
+
+function getDefaultLabelForType(type) {
+  const option = ACTIVITY_TYPES[String(type || 'buffer').toUpperCase()];
+  if (!option?.name) return 'New Slot';
+  return option.name.split('/')[0];
 }
 
 // Check if two time ranges overlap (handles overnight blocks)
@@ -52,7 +73,7 @@ function ScheduleBuilder({ onClose, onCreated, initialSchedule }) {
     ]
   );
 
-  const [newBlock, setNewBlock] = useState({ start: '07:00', end: '08:00', type: 'meals', label: 'Breakfast' });
+  const [newBlock, setNewBlock] = useState(DEFAULT_NEW_BLOCK);
   const [errors, setErrors] = useState([]);
 
   // Validation function
@@ -99,8 +120,16 @@ function ScheduleBuilder({ onClose, onCreated, initialSchedule }) {
     
     setErrors([]);
     setBlocks(prev => [...prev, { ...newBlock }]);
-    // Reset to defaults
-    setNewBlock({ start: '', end: '', type: 'buffer', label: '' });
+    // Keep the flow moving by starting the next draft where this one ends.
+    setNewBlock((prev) => {
+      const nextStart = prev.end || DEFAULT_NEW_BLOCK.start;
+      return {
+        start: nextStart,
+        end: addMinutesToTime(nextStart, 60),
+        type: prev.type || DEFAULT_NEW_BLOCK.type,
+        label: '',
+      };
+    });
   }
 
   function removeBlock(index) {
@@ -141,6 +170,19 @@ function ScheduleBuilder({ onClose, onCreated, initialSchedule }) {
   const scheduledMins = totalScheduledMinutes % 60;
 
   const activityOptions = useMemo(() => Object.values(ACTIVITY_TYPES).map(a => ({ id: a.id, name: a.name })), []);
+  const selectedActivity = useMemo(
+    () => ACTIVITY_TYPES[String(newBlock.type || 'buffer').toUpperCase()] || ACTIVITY_TYPES.BUFFER,
+    [newBlock.type]
+  );
+
+  const handleSliderBlockChange = useCallback((slotDraft) => {
+    setNewBlock(prev => ({
+      ...prev,
+      start: slotDraft.start,
+      end: slotDraft.end,
+    }));
+    setErrors(prevErrors => (prevErrors.length > 0 ? [] : prevErrors));
+  }, []);
 
   return (
     <div className={styles.modal} onClick={onClose}>
@@ -152,7 +194,16 @@ function ScheduleBuilder({ onClose, onCreated, initialSchedule }) {
 
         <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div>
-            <CircularSchedule timeBlocks={blocks} showLegend={true} showNow={false} title={name} />
+            <CircularSchedule
+              timeBlocks={blocks}
+              showLegend={true}
+              showNow={false}
+              title={name}
+              editableSlot={newBlock}
+              onEditableSlotChange={handleSliderBlockChange}
+              editableColor={selectedActivity.color}
+              sliderStepMinutes={SLOT_SLIDER_STEP_MINUTES}
+            />
           </div>
           <div style={{ flex: '1 1 320px', minWidth: 320 }}>
             <div style={{ display: 'grid', gap: 8 }}>
@@ -196,7 +247,7 @@ function ScheduleBuilder({ onClose, onCreated, initialSchedule }) {
               
               {blocks.length === 0 && (
                 <div style={{ padding: 16, textAlign: 'center', color: 'var(--font-color-secondary)', fontSize: 14 }}>
-                  No time blocks yet. Add one below.
+                  No time blocks yet. Inject one with the pie sliders below.
                 </div>
               )}
               
@@ -240,58 +291,91 @@ function ScheduleBuilder({ onClose, onCreated, initialSchedule }) {
               })}
 
               <div style={{ 
-                display: 'flex', 
-                gap: 8, 
-                alignItems: 'flex-end', 
+                display: 'grid',
+                gap: 10,
                 marginTop: 12, 
                 padding: 12, 
                 background: 'var(--bg-color)', 
                 borderRadius: 8,
                 border: '1px dashed var(--border-color)'
               }}>
-                <label title="Start time in your local time" style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
-                  Start
-                  <input style={{ width: 100, padding: 8 }} type="time" value={newBlock.start} onChange={(e) => setNewBlock({ ...newBlock, start: e.target.value })} />
-                </label>
-                <label title="End time in your local time" style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
-                  End
-                  <input style={{ width: 100, padding: 8 }} type="time" value={newBlock.end} onChange={(e) => setNewBlock({ ...newBlock, end: e.target.value })} />
-                </label>
-                <label title="Category used for intelligent task routing" style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'grid', gap: 2 }}>
+                    <span style={{ fontSize: 12, color: 'var(--font-color-secondary)' }}>Selected window</span>
+                    <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                      {newBlock.start} → {newBlock.end}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '4px 10px',
+                      borderRadius: 999,
+                      background: selectedActivity.color + '22',
+                      color: 'var(--font-color)',
+                      fontSize: 12,
+                      border: `1px solid ${selectedActivity.color}66`,
+                    }}
+                  >
+                    <span>{selectedActivity.icon}</span>
+                    <span>{selectedActivity.name}</span>
+                  </span>
+                </div>
+
+                <div style={{ fontSize: 12, color: 'var(--font-color-secondary)' }}>
+                  Drag the two slider dots on the circular graph to set start and end, then inject this slot.
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <label title="Category used for intelligent task routing" style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
                   Type
                   <select 
                     value={newBlock.type} 
-                    onChange={(e) => setNewBlock({ ...newBlock, type: e.target.value })}
+                    onChange={(e) => {
+                      const nextType = e.target.value;
+                      setNewBlock(prev => {
+                        const previousDefault = getDefaultLabelForType(prev.type);
+                        const shouldAutofillLabel = !prev.label?.trim() || prev.label === previousDefault;
+                        return {
+                          ...prev,
+                          type: nextType,
+                          label: shouldAutofillLabel ? getDefaultLabelForType(nextType) : prev.label,
+                        };
+                      });
+                    }}
                     style={{ padding: 8 }}
                   >
                   {activityOptions.map(o => (
                     <option key={o.id} value={o.id}>{o.name}</option>
                   ))}
                   </select>
-                </label>
-                <label title="Short label that appears in the list view" style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, flex: 1 }}>
-                  Label
-                  <input 
-                    placeholder="e.g., Deep work, Lunch" 
-                    value={newBlock.label} 
-                    onChange={(e) => setNewBlock({ ...newBlock, label: e.target.value })} 
-                    style={{ padding: 8 }}
-                  />
-                </label>
-                <button 
-                  onClick={addBlock}
-                  style={{
-                    padding: '8px 16px',
-                    background: 'var(--accent-color)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    fontWeight: 500
-                  }}
-                >
-                  + Add
-                </button>
+                  </label>
+                  <label title="Short label that appears in the list view" style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, flex: 1 }}>
+                    Label
+                    <input 
+                      placeholder="e.g., Deep work, Lunch" 
+                      value={newBlock.label} 
+                      onChange={(e) => setNewBlock({ ...newBlock, label: e.target.value })} 
+                      style={{ padding: 8 }}
+                    />
+                  </label>
+                  <button 
+                    onClick={addBlock}
+                    style={{
+                      padding: '8px 16px',
+                      background: 'var(--accent-color)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      fontWeight: 500
+                    }}
+                  >
+                    + Inject slot
+                  </button>
+                </div>
               </div>
 
               <div className={styles.modalActions} style={{ marginTop: 16 }}>

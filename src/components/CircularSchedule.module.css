@@ -10,6 +10,10 @@
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
+.interactive {
+  touch-action: none;
+}
+
 .ring {
   position: absolute;
   inset: 6px;
@@ -42,6 +46,12 @@
   -webkit-mask: radial-gradient(circle at center, transparent 0 56%, black 56% 100%);
   mask: radial-gradient(circle at center, transparent 0 56%, black 56% 100%);
   pointer-events: none;
+}
+
+.editableSegment {
+  opacity: 0.5;
+  filter: saturate(1.1);
+  z-index: 2;
 }
 
 .legend {
@@ -80,6 +90,11 @@
   box-shadow: 0 6px 18px rgba(0,0,0,0.1);
 }
 
+.circularContainer.interactive:hover {
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
 .centerLabel {
   position: absolute;
   left: 50%;
@@ -91,6 +106,34 @@
   z-index: 3;
   max-width: 86px;
   line-height: 1.25;
+}
+
+.sliderHandle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid var(--slider-color, var(--accent-color, #4f46e5));
+  background: #ffffff;
+  cursor: grab;
+  z-index: 6;
+  padding: 0;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18), 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.sliderHandle:hover {
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.24), 0 6px 14px rgba(0, 0, 0, 0.36);
+}
+
+.sliderHandle:active {
+  cursor: grabbing;
+}
+
+.sliderHandle:focus-visible {
+  outline: 2px solid var(--accent-color, #4f46e5);
+  outline-offset: 2px;
 }
 
 .nowHand {

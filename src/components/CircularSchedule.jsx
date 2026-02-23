@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import styles from './CircularSchedule.module.css';
 import { ACTIVITY_TYPES } from '../utils/scheduleTemplates.js';
 
@@ -6,6 +6,8 @@ const MINUTES_PER_DAY = 24 * 60;
 const CLOCK_OFFSET_DEG = -90; // Rotate so midnight starts at the top.
 const FALLBACK_COLORS = ['#2563EB', '#0EA5E9', '#7C3AED', '#10B981', '#F59E0B', '#EC4899', '#06B6D4'];
 const HOUR_MARKERS = [0, 6, 12, 18];
+const DEFAULT_SLIDER_STEP_MINUTES = 15;
+const HANDLE_DISTANCE_FROM_CENTER_PX = 82;
 
 function parseToMinutes(value) {
   if (!value || typeof value !== 'string') return 0;
@@ -16,6 +18,19 @@ function parseToMinutes(value) {
   const clampedHours = ((hours % 24) + 24) % 24;
   const clampedMinutes = Math.min(59, Math.max(0, minutes));
   return clampedHours * 60 + clampedMinutes;
+}
+
+function normalizeMinutes(minutes) {
+  const numericMinutes = Number.isFinite(minutes) ? minutes : 0;
+  const normalized = ((numericMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return normalized;
+}
+
+function minutesToTimeString(minutes) {
+  const normalizedMinutes = normalizeMinutes(Math.round(minutes));
+  const hours = Math.floor(normalizedMinutes / 60);
+  const mins = normalizedMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 }
 
 function formatTypeLabel(type) {
@@ -58,12 +73,124 @@ function minutesToDeg(minutes) {
   return (minutes / MINUTES_PER_DAY) * 360 + CLOCK_OFFSET_DEG;
 }
 
+function pointerToMinutes(clientX, clientY, rect, stepMinutes) {
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const dx = clientX - centerX;
+  const dy = clientY - centerY;
+  const angleFromTop = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+  const normalizedAngle = ((angleFromTop % 360) + 360) % 360;
+  const exactMinutes = (normalizedAngle / 360) * MINUTES_PER_DAY;
+  const safeStep = Math.max(1, Math.round(stepMinutes || DEFAULT_SLIDER_STEP_MINUTES));
+  const snapped = Math.round(exactMinutes / safeStep) * safeStep;
+  return normalizeMinutes(snapped);
+}
+
 // Props:
 // - timeBlocks: [{ start: 'HH:mm', end: 'HH:mm', type: 'work' | ... , label?: string }]
 // - showLegend?: boolean
 // - title?: string
 // - showNow?: boolean // draw current local time hand
-function CircularSchedule({ timeBlocks = [], showLegend = true, title = 'Daily', showNow = true }) {
+// - editableSlot?: { start: 'HH:mm', end: 'HH:mm', type?: string, label?: string }
+// - onEditableSlotChange?: (slot) => void
+// - editableColor?: string
+// - sliderStepMinutes?: number
+function CircularSchedule({
+  timeBlocks = [],
+  showLegend = true,
+  title = 'Daily',
+  showNow = true,
+  editableSlot = null,
+  onEditableSlotChange = null,
+  editableColor = null,
+  sliderStepMinutes = DEFAULT_SLIDER_STEP_MINUTES,
+}) {
+  const containerRef = useRef(null);
+  const [draggingHandle, setDraggingHandle] = useState(null); // 'start' | 'end' | null
+  const isEditable = Boolean(editableSlot && typeof onEditableSlotChange === 'function');
+
+  const editableStartMin = parseToMinutes(editableSlot?.start);
+  const editableEndMin = parseToMinutes(editableSlot?.end);
+
+  const resolvedEditableColor = useMemo(() => {
+    if (!isEditable) return null;
+    if (editableColor) return editableColor;
+    return getBlockVisual(editableSlot || {}).color;
+  }, [editableColor, editableSlot, isEditable]);
+
+  const updateEditableSlot = useCallback(
+    (handle, nextMinutes) => {
+      if (!isEditable || !editableSlot) return;
+      const next = normalizeMinutes(nextMinutes);
+      const currentStart = parseToMinutes(editableSlot.start);
+      const currentEnd = parseToMinutes(editableSlot.end);
+      let updatedStart = currentStart;
+      let updatedEnd = currentEnd;
+
+      if (handle === 'start') {
+        if (next === currentEnd) return;
+        updatedStart = next;
+      } else if (handle === 'end') {
+        if (next === currentStart) return;
+        updatedEnd = next;
+      } else {
+        return;
+      }
+
+      onEditableSlotChange({
+        ...editableSlot,
+        start: minutesToTimeString(updatedStart),
+        end: minutesToTimeString(updatedEnd),
+      });
+    },
+    [editableSlot, isEditable, onEditableSlotChange]
+  );
+
+  const nudgeEditableHandle = useCallback(
+    (handle, direction) => {
+      if (!isEditable || !editableSlot) return;
+      const step = Math.max(1, Math.round(sliderStepMinutes || DEFAULT_SLIDER_STEP_MINUTES));
+      const current = handle === 'start' ? parseToMinutes(editableSlot.start) : parseToMinutes(editableSlot.end);
+      updateEditableSlot(handle, current + step * direction);
+    },
+    [editableSlot, isEditable, sliderStepMinutes, updateEditableSlot]
+  );
+
+  const handleSliderKeyDown = useCallback(
+    (event, handle) => {
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        nudgeEditableHandle(handle, 1);
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        nudgeEditableHandle(handle, -1);
+      }
+    },
+    [nudgeEditableHandle]
+  );
+
+  useEffect(() => {
+    if (!draggingHandle || !isEditable || !containerRef.current) return undefined;
+
+    function handlePointerMove(event) {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const nextMinutes = pointerToMinutes(event.clientX, event.clientY, rect, sliderStepMinutes);
+      updateEditableSlot(draggingHandle, nextMinutes);
+    }
+
+    function handlePointerUp() {
+      setDraggingHandle(null);
+    }
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [draggingHandle, isEditable, sliderStepMinutes, updateEditableSlot]);
   // Normalize blocks to handle wrap across midnight.
   const normalizedBlocks = useMemo(() => {
     const blocks = [];
@@ -93,6 +220,30 @@ function CircularSchedule({ timeBlocks = [], showLegend = true, title = 'Daily',
       }),
     [normalizedBlocks]
   );
+
+  const editableSegments = useMemo(() => {
+    if (!isEditable || editableStartMin === editableEndMin) return [];
+
+    const previewParts = editableEndMin > editableStartMin
+      ? [{ startMin: editableStartMin, endMin: editableEndMin }]
+      : [
+          { startMin: editableStartMin, endMin: MINUTES_PER_DAY },
+          { startMin: 0, endMin: editableEndMin },
+        ];
+
+    return previewParts.map((part, idx) => {
+      const startDeg = minutesToDeg(part.startMin);
+      const endDeg = minutesToDeg(part.endMin);
+      const background = `conic-gradient(${resolvedEditableColor} ${startDeg}deg ${endDeg}deg, transparent ${endDeg}deg 360deg)`;
+      return (
+        <div
+          key={`editable-${part.startMin}-${part.endMin}-${idx}`}
+          className={`${styles.segment} ${styles.editableSegment}`}
+          style={{ background }}
+        />
+      );
+    });
+  }, [editableEndMin, editableStartMin, isEditable, resolvedEditableColor]);
 
   const legendEntries = useMemo(() => {
     const entriesByType = new Map();
@@ -131,13 +282,56 @@ function CircularSchedule({ timeBlocks = [], showLegend = true, title = 'Daily',
     return <div className={styles.nowHand} style={{ transform: `translateX(-50%) rotate(${deg}deg)` }} />;
   })() : null;
 
+  const sliderHandleStartStyle = {
+    transform: `translate(-50%, -50%) rotate(${minutesToDeg(editableStartMin)}deg) translateY(-${HANDLE_DISTANCE_FROM_CENTER_PX}px)`,
+    '--slider-color': resolvedEditableColor || '#3B82F6',
+  };
+
+  const sliderHandleEndStyle = {
+    transform: `translate(-50%, -50%) rotate(${minutesToDeg(editableEndMin)}deg) translateY(-${HANDLE_DISTANCE_FROM_CENTER_PX}px)`,
+    '--slider-color': resolvedEditableColor || '#3B82F6',
+  };
+
   return (
     <div>
-      <div className={styles.circularContainer} aria-label="Circular daily schedule">
+      <div
+        ref={containerRef}
+        className={`${styles.circularContainer} ${isEditable ? styles.interactive : ''}`}
+        aria-label={isEditable ? 'Circular daily schedule with editable slot sliders' : 'Circular daily schedule'}
+      >
         <div className={styles.ring} />
         {segments}
+        {editableSegments}
         {shouldShowHourMarkers ? hourMarkers : null}
         {nowHand}
+        {isEditable && (
+          <>
+            <button
+              type="button"
+              className={styles.sliderHandle}
+              style={sliderHandleStartStyle}
+              aria-label={`Adjust slot start time (${editableSlot.start})`}
+              title={`Slot start: ${editableSlot.start}`}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                setDraggingHandle('start');
+              }}
+              onKeyDown={(event) => handleSliderKeyDown(event, 'start')}
+            />
+            <button
+              type="button"
+              className={styles.sliderHandle}
+              style={sliderHandleEndStyle}
+              aria-label={`Adjust slot end time (${editableSlot.end})`}
+              title={`Slot end: ${editableSlot.end}`}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                setDraggingHandle('end');
+              }}
+              onKeyDown={(event) => handleSliderKeyDown(event, 'end')}
+            />
+          </>
+        )}
         {title ? <div className={styles.centerLabel}>{title}</div> : null}
       </div>
       {showLegend && legendEntries.length > 0 && (
