@@ -79,10 +79,6 @@ function ScheduleLibrary({ onNavigateToTasks, onNavigateToDefaults }) {
   const [showBuilder, setShowBuilder] = useState(false);
   const [scheduleToCustomize, setScheduleToCustomize] = useState(null);
   const [notification, setNotification] = useState(null);
-  const [applyDateRange, setApplyDateRange] = useState(null); // { startDate, endDate }
-  const [quickApplyStartDate, setQuickApplyStartDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-  const [quickApplyDays, setQuickApplyDays] = useState(7);
-
   // Show notification helper
   const showNotification = useCallback((message, type = 'success') => {
     setNotification({ message, type });
@@ -112,11 +108,6 @@ function ScheduleLibrary({ onNavigateToTasks, onNavigateToDefaults }) {
     }
   }, [state.activeScheduleId]);
 
-  const quickApplyEndDate = useMemo(() => {
-    const baseDate = new Date(quickApplyStartDate);
-    if (Number.isNaN(baseDate.getTime())) return quickApplyStartDate;
-    return format(addDays(baseDate, quickApplyDays - 1), 'yyyy-MM-dd');
-  }, [quickApplyStartDate, quickApplyDays]);
 
   const filteredSchedules = schedules.filter(schedule => {
     // Filter by search term
@@ -216,21 +207,14 @@ function ScheduleLibrary({ onNavigateToTasks, onNavigateToDefaults }) {
       });
 
       showNotification(`Applied ${blocks.length} labeled slots from "${schedule.name}". Add your tasks and auto-plan into these windows.`);
-      setApplyDateRange(null);
     } else {
       showNotification('No blocks to apply for the selected date range', 'warning');
     }
   }
 
   function handleQuickApply(schedule, shouldNavigateToTasks = false) {
-    const startDate = quickApplyStartDate || format(new Date(), 'yyyy-MM-dd');
-    const start = new Date(startDate);
-    if (Number.isNaN(start.getTime())) {
-      showNotification('Pick a valid start date for quick apply.', 'warning');
-      return;
-    }
-
-    const endDate = format(addDays(start, quickApplyDays - 1), 'yyyy-MM-dd');
+    const startDate = format(new Date(), 'yyyy-MM-dd');
+    const endDate = format(addDays(new Date(), 6), 'yyyy-MM-dd');
     handleApplyToCalendar(schedule, startDate, endDate, { source: 'quick-apply', activate: true });
 
     if (shouldNavigateToTasks && onNavigateToTasks) {
@@ -238,45 +222,6 @@ function ScheduleLibrary({ onNavigateToTasks, onNavigateToDefaults }) {
     }
   }
 
-  function handleApplyAsDefaults(schedule) {
-    const blocks = schedule.timeBlocks || [];
-    if (blocks.length === 0) {
-      showNotification('This schedule has no time blocks to import.', 'warning');
-      return;
-    }
-
-    const defaultDaySlots = blocks.map((block, index) => ({
-      id: `imported_${schedule.id}_${index}_${Date.now()}`,
-      day: 'Monday',
-      startTime: block.start || '09:00',
-      endTime: block.end || '10:00',
-      slotType: block.type || block.category || null,
-      label: block.label || block.name || `${block.type || 'Block'} slot`,
-      flexibility: 'preferred',
-      color: block.color || '#3B82F6',
-      allowedTags: []
-    }));
-
-    const allDaySlots = [];
-    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    dayNames.forEach((day) => {
-      defaultDaySlots.forEach((slot) => {
-        allDaySlots.push({ ...slot, id: `${slot.id}_${day}`, day });
-      });
-    });
-
-    dispatch({
-      type: ACTION_TYPES.UPDATE_SETTINGS,
-      payload: { defaultDaySlots: allDaySlots }
-    });
-
-    handleActivateSchedule(schedule.id, { silent: true });
-    showNotification(`Imported ${blocks.length} blocks from "${schedule.name}" as default day slots for all 7 days. Go to Defaults to customize.`);
-
-    if (onNavigateToDefaults) {
-      onNavigateToDefaults();
-    }
-  }
 
   function renderTimeBlock(block) {
     const activityType = ACTIVITY_TYPES[block.type.toUpperCase()] || ACTIVITY_TYPES.BUFFER;
@@ -352,25 +297,6 @@ function ScheduleLibrary({ onNavigateToTasks, onNavigateToDefaults }) {
           </button>
         </div>
         <div className={styles.cardActions}>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedSchedule(schedule);
-            }}
-            className={styles.previewButton}
-          >
-            Preview
-          </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleActivateSchedule(schedule.id);
-            }}
-            className={styles.activateButton}
-            disabled={isActive}
-          >
-            {isActive ? 'Active' : 'Activate'}
-          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -378,17 +304,16 @@ function ScheduleLibrary({ onNavigateToTasks, onNavigateToDefaults }) {
             }}
             className={styles.quickApplyButton}
           >
-            Quick Apply
+            Use Template
           </button>
-          <button
+          <button 
             onClick={(e) => {
               e.stopPropagation();
-              handleApplyAsDefaults(schedule);
+              setSelectedSchedule(schedule);
             }}
             className={styles.previewButton}
-            title="Import time blocks as default day slot templates"
           >
-            As Defaults
+            Details
           </button>
         </div>
       </div>
@@ -424,38 +349,6 @@ function ScheduleLibrary({ onNavigateToTasks, onNavigateToDefaults }) {
             >
               Continue to Tasks
             </button>
-          </div>
-        </div>
-
-        <div className={styles.variationToolbar}>
-          <div>
-            <h3>Quick apply window</h3>
-            <p>Quick Apply on a card uses this date range.</p>
-          </div>
-          <div className={styles.variationQuickApplyControls}>
-            <label>
-              Start
-              <input
-                type="date"
-                value={quickApplyStartDate}
-                onChange={(e) => setQuickApplyStartDate(e.target.value)}
-              />
-            </label>
-            <label>
-              Span
-              <select
-                value={quickApplyDays}
-                onChange={(e) => setQuickApplyDays(Number(e.target.value))}
-              >
-                <option value={1}>1 day</option>
-                <option value={3}>3 days</option>
-                <option value={7}>7 days</option>
-                <option value={14}>14 days</option>
-              </select>
-            </label>
-            <div className={styles.variationQuickApplySummary}>
-              Through {quickApplyEndDate}
-            </div>
           </div>
         </div>
 
@@ -550,79 +443,16 @@ function ScheduleLibrary({ onNavigateToTasks, onNavigateToDefaults }) {
 
             <ScheduleDiscussion scheduleId={selectedSchedule.id} />
 
-            {/* Apply to Calendar Section */}
-            <div className={styles.applyToCalendarSection}>
-              <h4>Apply to Calendar</h4>
-              <p className={styles.applyDescription}>
-                Apply this schedule's time blocks to your calendar for a date range.
-              </p>
-              <div className={styles.dateRangePicker}>
-                <label>
-                  Start Date
-                  <input 
-                    type="date" 
-                    value={applyDateRange?.startDate || format(new Date(), 'yyyy-MM-dd')}
-                    onChange={(e) => setApplyDateRange(prev => ({ 
-                      ...prev, 
-                      startDate: e.target.value,
-                      endDate: prev?.endDate || format(addDays(new Date(e.target.value), 6), 'yyyy-MM-dd')
-                    }))}
-                  />
-                </label>
-                <label>
-                  End Date
-                  <input 
-                    type="date" 
-                    value={applyDateRange?.endDate || format(addDays(new Date(), 6), 'yyyy-MM-dd')}
-                    onChange={(e) => setApplyDateRange(prev => ({ 
-                      ...prev, 
-                      endDate: e.target.value 
-                    }))}
-                  />
-                </label>
-                <button 
-                  className={styles.applyButton}
-                  onClick={() => handleApplyToCalendar(
-                    selectedSchedule, 
-                    applyDateRange?.startDate || format(new Date(), 'yyyy-MM-dd'),
-                    applyDateRange?.endDate || format(addDays(new Date(), 6), 'yyyy-MM-dd'),
-                    { source: 'schedule-modal', activate: true }
-                  )}
-                >
-                  Apply to Calendar
-                </button>
-                <button
-                  className={styles.previewButton}
-                  onClick={() => handleApplyAsDefaults(selectedSchedule)}
-                  title="Import as default day slot templates (editable in Defaults tab)"
-                >
-                  Apply as Defaults
-                </button>
-              </div>
-            </div>
-
             <div className={styles.modalActions}>
               <button 
-                onClick={() => handleActivateSchedule(selectedSchedule.id)}
-                className={styles.modalActivateButton}
-                disabled={selectedSchedule.id === activeScheduleId}
+                className={styles.applyButton}
+                onClick={() => {
+                  handleQuickApply(selectedSchedule);
+                  setSelectedSchedule(null);
+                }}
               >
-                {selectedSchedule.id === activeScheduleId ? 'Currently Active' : 'Activate This Schedule'}
+                Use This Template
               </button>
-              {onNavigateToTasks && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedSchedule.id !== activeScheduleId) {
-                      handleActivateSchedule(selectedSchedule.id);
-                    }
-                    onNavigateToTasks();
-                  }}
-                  className={styles.launchTasksButton}
-                >
-                  Activate and Continue to Tasks
-                </button>
-              )}
               <button
                 onClick={() => {
                   setScheduleToCustomize(selectedSchedule);
@@ -632,21 +462,6 @@ function ScheduleLibrary({ onNavigateToTasks, onNavigateToDefaults }) {
               >
                 Customize
               </button>
-              {selectedSchedule.isCustom && selectedSchedule.author !== 'Community' && (
-                <button
-                  onClick={() => {
-                    const updated = { ...selectedSchedule, author: 'Community', communityUploadedAt: new Date().toISOString() };
-                    saveScheduleToLocalStorage(updated);
-                    const custom = getSchedulesFromLocalStorage();
-                    setSchedules([...FAMOUS_SCHEDULES, ...ENHANCED_FAMOUS_SCHEDULES, ...custom]);
-                    setSelectedSchedule(updated);
-                    alert('Uploaded to Community');
-                  }}
-                  className={styles.activateButton}
-                >
-                  Upload to Community
-                </button>
-              )}
             </div>
           </div>
         </div>

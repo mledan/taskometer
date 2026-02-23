@@ -333,10 +333,6 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [notification, setNotification] = useState(null);
-  const [quickApplyStartDate, setQuickApplyStartDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-  const [quickApplyDays, setQuickApplyDays] = useState(7);
-  const [applyDateRange, setApplyDateRange] = useState(null);
-
   const defaultDaySlots = Array.isArray(settings.defaultDaySlots) ? settings.defaultDaySlots : [];
   const preferredRange = useMemo(() => resolvePreferredRange(settings, taskTypes), [settings, taskTypes]);
   const rangeDuration = preferredRange.end - preferredRange.start;
@@ -413,11 +409,6 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     if (active) setActiveScheduleId(active.id);
   }, [state.activeScheduleId]);
 
-  const quickApplyEndDate = useMemo(() => {
-    const baseDate = new Date(quickApplyStartDate);
-    if (Number.isNaN(baseDate.getTime())) return quickApplyStartDate;
-    return format(addDays(baseDate, quickApplyDays - 1), 'yyyy-MM-dd');
-  }, [quickApplyStartDate, quickApplyDays]);
 
   // ========== DAY BUILDER FUNCTIONS ==========
 
@@ -1110,13 +1101,8 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   }
 
   function handleQuickApply(schedule) {
-    const startDate = quickApplyStartDate || format(new Date(), 'yyyy-MM-dd');
-    const start = new Date(startDate);
-    if (Number.isNaN(start.getTime())) {
-      showNotification('Pick a valid start date.', 'warning');
-      return;
-    }
-    const endDate = format(addDays(start, quickApplyDays - 1), 'yyyy-MM-dd');
+    const startDate = format(new Date(), 'yyyy-MM-dd');
+    const endDate = format(addDays(new Date(), 6), 'yyyy-MM-dd');
     handleApplyToCalendar(schedule, startDate, endDate, { source: 'quick-apply', activate: true });
   }
 
@@ -1932,59 +1918,19 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
               </div>
             </div>
 
-            <div className={styles.modalApply}>
-              <h4>Apply to Calendar</h4>
-              <div className={styles.modalDateRow}>
-                <label>
-                  Start
-                  <input
-                    type="date"
-                    value={applyDateRange?.startDate || format(new Date(), 'yyyy-MM-dd')}
-                    onChange={(e) =>
-                      setApplyDateRange((prev) => ({
-                        ...prev,
-                        startDate: e.target.value,
-                        endDate: prev?.endDate || format(addDays(new Date(e.target.value), 6), 'yyyy-MM-dd'),
-                      }))
-                    }
-                  />
-                </label>
-                <label>
-                  End
-                  <input
-                    type="date"
-                    value={applyDateRange?.endDate || format(addDays(new Date(), 6), 'yyyy-MM-dd')}
-                    onChange={(e) => setApplyDateRange((prev) => ({ ...prev, endDate: e.target.value }))}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={styles.applyBtn}
-                  onClick={() =>
-                    handleApplyToCalendar(
-                      selectedSchedule,
-                      applyDateRange?.startDate || format(new Date(), 'yyyy-MM-dd'),
-                      applyDateRange?.endDate || format(addDays(new Date(), 6), 'yyyy-MM-dd'),
-                      { source: 'schedule-modal', activate: true }
-                    )
-                  }
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.applyBtn}
-                disabled={selectedSchedule.id === activeScheduleId}
-                onClick={() => handleActivateSchedule(selectedSchedule.id)}
+                onClick={() => {
+                  handleQuickApply(selectedSchedule);
+                  setSelectedSchedule(null);
+                }}
               >
-                {selectedSchedule.id === activeScheduleId ? 'Currently Active' : 'Activate'}
+                Use This Template
               </button>
               <button type="button" className={styles.cardBtn} onClick={() => handleApplyAsDefaults(selectedSchedule)}>
-                Import as Day Builder
+                Import to Day Builder
               </button>
             </div>
           </div>
