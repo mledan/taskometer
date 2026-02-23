@@ -2,16 +2,10 @@ import { useCallback, useMemo, useState } from 'react';
 import styles from './ClockFaceInput.module.css';
 
 const HOURS_PER_RING = 12;
-const MINUTES_PER_HOUR = 60;
 const MINUTE_OPTIONS = [0, 15, 30, 45];
 
 function pad(n) {
   return String(n).padStart(2, '0');
-}
-
-function hourToLabel(h24) {
-  const h12 = h24 % 12 || 12;
-  return String(h12);
 }
 
 function minutesToTimeStr(totalMin) {
@@ -57,9 +51,7 @@ function getHourPosition(hourIndex, ringRadius, containerSize) {
 function isHourInRange(hour, startHour, endHour) {
   if (startHour === null || endHour === null) return false;
   if (startHour === endHour) return hour === startHour;
-  if (startHour < endHour) {
-    return hour >= startHour && hour <= endHour;
-  }
+  if (startHour < endHour) return hour >= startHour && hour <= endHour;
   return hour >= startHour || hour <= endHour;
 }
 
@@ -69,12 +61,12 @@ function computeRangeDuration(startMin, endMin) {
 }
 
 function describeArc(cx, cy, r, startAngle, endAngle) {
-  const start = ((startAngle - 90) * Math.PI) / 180;
-  const end = ((endAngle - 90) * Math.PI) / 180;
-  const x1 = cx + r * Math.cos(start);
-  const y1 = cy + r * Math.sin(start);
-  const x2 = cx + r * Math.cos(end);
-  const y2 = cy + r * Math.sin(end);
+  const startRad = ((startAngle - 90) * Math.PI) / 180;
+  const endRad = ((endAngle - 90) * Math.PI) / 180;
+  const x1 = cx + r * Math.cos(startRad);
+  const y1 = cy + r * Math.sin(startRad);
+  const x2 = cx + r * Math.cos(endRad);
+  const y2 = cy + r * Math.sin(endRad);
   const sweep = endAngle - startAngle;
   const largeArc = sweep > 180 ? 1 : 0;
   return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`;
@@ -83,16 +75,9 @@ function describeArc(cx, cy, r, startAngle, endAngle) {
 /**
  * ClockFaceInput - A dual-ring 24-hour clock for selecting time ranges.
  *
- * Inner ring: 12AM-11AM. Outer ring: 12PM-11PM.
- * Click an hour to set start, click again to set end.
- *
- * Props:
- *  - startTime: 'HH:mm' string
- *  - endTime: 'HH:mm' string
- *  - onChange: ({ start, end }) => void
- *  - timeBlocks: array of { start, end, color, label } for background arcs
- *  - showNow: boolean
- *  - size: number (default 280)
+ * Inner ring: 12AM-11AM (midnight-noon). Outer ring: 12PM-11PM (noon-midnight).
+ * Click an hour to set start, click again to set end. A minute picker appears
+ * after each click for fine-grained control.
  */
 function ClockFaceInput({
   startTime = '09:00',
@@ -104,7 +89,7 @@ function ClockFaceInput({
 }) {
   const [selectingEnd, setSelectingEnd] = useState(false);
   const [minutePickHour, setMinutePickHour] = useState(null);
-  const [minutePickFor, setMinutePickFor] = useState(null); // 'start' | 'end'
+  const [minutePickFor, setMinutePickFor] = useState(null);
 
   const startMin = timeStrToMinutes(startTime);
   const endMin = timeStrToMinutes(endTime);
@@ -123,28 +108,25 @@ function ClockFaceInput({
 
   const handleHourClick = useCallback((h24) => {
     if (!selectingEnd) {
-      const newStart = h24 * 60;
       setSelectingEnd(true);
       setMinutePickHour(h24);
       setMinutePickFor('start');
       if (onChange) {
-        onChange({ start: minutesToTimeStr(newStart), end: endTime });
+        onChange({ start: minutesToTimeStr(h24 * 60), end: endTime });
       }
     } else {
-      const newEnd = h24 * 60;
       setSelectingEnd(false);
       setMinutePickHour(h24);
       setMinutePickFor('end');
       if (onChange) {
-        onChange({ start: startTime, end: minutesToTimeStr(newEnd) });
+        onChange({ start: startTime, end: minutesToTimeStr(h24 * 60) });
       }
     }
   }, [selectingEnd, startTime, endTime, onChange]);
 
   const handleMinuteSelect = useCallback((minute) => {
-    const hour = minutePickHour;
-    if (hour === null) return;
-    const totalMin = hour * 60 + minute;
+    if (minutePickHour === null) return;
+    const totalMin = minutePickHour * 60 + minute;
     const timeStr = minutesToTimeStr(totalMin);
 
     if (minutePickFor === 'start') {
@@ -172,7 +154,7 @@ function ClockFaceInput({
       const bStart = timeStrToMinutes(block.start);
       const bEnd = timeStrToMinutes(block.end);
 
-      const renderArcForRange = (rangeStart, rangeEnd, ring) => {
+      const renderArc = (rangeStart, rangeEnd, ring) => {
         const radius = ring === 'inner' ? innerRadius : outerRadius;
         const ringOffset = ring === 'inner' ? 0 : 12;
         const startFrac = ((rangeStart / 60) - ringOffset) / 12;
@@ -189,27 +171,27 @@ function ClockFaceInput({
             stroke={block.color || 'rgba(59,130,246,0.3)'}
             strokeWidth={18}
             strokeLinecap="round"
-            opacity={0.25}
+            opacity={0.3}
           />
         );
       };
 
-      const processRange = (s, e) => {
+      const splitAndRender = (s, e) => {
         if (s < 720 && e <= 720) {
-          arcs.push(renderArcForRange(s, e, 'inner'));
+          arcs.push(renderArc(s, e, 'inner'));
         } else if (s >= 720 && e > 720) {
-          arcs.push(renderArcForRange(s, e, 'outer'));
+          arcs.push(renderArc(s, e, 'outer'));
         } else if (s < 720 && e > 720) {
-          arcs.push(renderArcForRange(s, 720, 'inner'));
-          arcs.push(renderArcForRange(720, e, 'outer'));
+          arcs.push(renderArc(s, 720, 'inner'));
+          arcs.push(renderArc(720, e, 'outer'));
         }
       };
 
       if (bEnd > bStart) {
-        processRange(bStart, bEnd);
+        splitAndRender(bStart, bEnd);
       } else if (bEnd < bStart) {
-        processRange(bStart, 1440);
-        processRange(0, bEnd);
+        splitAndRender(bStart, 1440);
+        splitAndRender(0, bEnd);
       }
     });
 
@@ -220,56 +202,52 @@ function ClockFaceInput({
     const cx = size / 2;
     const cy = size / 2;
     const arcs = [];
+    const selColor = 'rgba(59,130,246,0.55)';
 
-    const renderSelArc = (rangeStart, rangeEnd, ring, color) => {
+    const renderSelArc = (rangeStart, rangeEnd, ring) => {
       const radius = ring === 'inner' ? innerRadius : outerRadius;
       const ringOffset = ring === 'inner' ? 0 : 12;
-      const startFrac = ((rangeStart / 60) - ringOffset) / 12;
-      const endFrac = ((rangeEnd / 60) - ringOffset) / 12;
-      const clampedStart = Math.max(0, startFrac);
-      const clampedEnd = Math.min(1, endFrac);
-      if (clampedStart >= clampedEnd) return null;
-      const startDeg = clampedStart * 360;
-      const endDeg = clampedEnd * 360;
+      const startFrac = Math.max(0, ((rangeStart / 60) - ringOffset) / 12);
+      const endFrac = Math.min(1, ((rangeEnd / 60) - ringOffset) / 12);
+      if (startFrac >= endFrac) return null;
+      const startDeg = startFrac * 360;
+      const endDeg = endFrac * 360;
       if (Math.abs(endDeg - startDeg) < 0.5) return null;
       return (
         <path
           key={`sel-${ring}-${rangeStart}`}
           d={describeArc(cx, cy, radius, startDeg, endDeg)}
           fill="none"
-          stroke={color}
+          stroke={selColor}
           strokeWidth={14}
           strokeLinecap="round"
-          opacity={0.4}
+          opacity={0.45}
         />
       );
     };
 
-    const processSelRange = (s, e) => {
-      const gradient = 'url(#selGrad)';
-      const color = 'rgba(59,130,246,0.6)';
+    const splitAndRender = (s, e) => {
       if (s < 720 && e <= 720) {
-        arcs.push(renderSelArc(s, e, 'inner', color));
+        arcs.push(renderSelArc(s, e, 'inner'));
       } else if (s >= 720 && e > 720) {
-        arcs.push(renderSelArc(s, e, 'outer', color));
+        arcs.push(renderSelArc(s, e, 'outer'));
       } else if (s < 720 && e > 720) {
-        arcs.push(renderSelArc(s, 720, 'inner', color));
-        arcs.push(renderSelArc(720, e, 'outer', color));
+        arcs.push(renderSelArc(s, 720, 'inner'));
+        arcs.push(renderSelArc(720, e, 'outer'));
       }
     };
 
     if (endMin > startMin) {
-      processSelRange(startMin, endMin);
+      splitAndRender(startMin, endMin);
     } else if (endMin < startMin) {
-      processSelRange(startMin, 1440);
-      processSelRange(0, endMin);
+      splitAndRender(startMin, 1440);
+      splitAndRender(0, endMin);
     }
 
     return arcs.filter(Boolean);
   }, [startMin, endMin, size, innerRadius, outerRadius]);
 
   const nowHandDeg = useMemo(() => {
-    const isAM = nowMinutes < 720;
     const hourInRing = (nowMinutes / 60) % 12;
     return (hourInRing / 12) * 360 - 90;
   }, [nowMinutes]);
@@ -320,12 +298,7 @@ function ClockFaceInput({
         <div className={`${styles.clockRing} ${styles.outerRing}`} />
         <div className={`${styles.clockRing} ${styles.innerRing}`} />
 
-        <svg
-          className={styles.arcLayer}
-          width={size}
-          height={size}
-          viewBox={`0 0 ${size} ${size}`}
-        >
+        <svg className={styles.arcLayer} width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           {blockArcs}
           {selectionArcs}
         </svg>
@@ -341,7 +314,7 @@ function ClockFaceInput({
             className={styles.nowHand}
             style={{
               transform: `translateX(-50%) rotate(${nowHandDeg}deg)`,
-              height: nowMinutes < 720 ? '20%' : '38%',
+              height: nowMinutes < 720 ? '22%' : '40%',
             }}
           />
         )}
@@ -349,11 +322,13 @@ function ClockFaceInput({
         {minutePickHour !== null && (
           <div className={styles.minuteOverlay} onClick={(e) => e.stopPropagation()}>
             <div className={styles.minuteRing}>
+              <div className={styles.minuteHeader}>
+                {minutePickHour % 12 || 12}:{' '}
+                <span>{minutePickFor === 'start' ? 'Start' : 'End'}</span>
+              </div>
               {MINUTE_OPTIONS.map((m) => {
                 const total = minutePickHour * 60 + m;
-                const isActive = minutePickFor === 'start'
-                  ? total === startMin
-                  : total === endMin;
+                const isActive = minutePickFor === 'start' ? total === startMin : total === endMin;
                 return (
                   <button
                     key={m}
@@ -371,22 +346,14 @@ function ClockFaceInput({
       </div>
 
       <div className={styles.timeDisplay}>
-        <span className={`${styles.timeChip} ${styles.startChip}`}>
-          {formatDisplay(startMin)}
-        </span>
-        <span style={{ color: 'var(--font-color-secondary)' }}>to</span>
-        <span className={`${styles.timeChip} ${styles.endChip}`}>
-          {formatDisplay(endMin)}
-        </span>
-        <span className={styles.durationChip}>
-          {formatDuration(duration)}
-        </span>
+        <span className={`${styles.timeChip} ${styles.startChip}`}>{formatDisplay(startMin)}</span>
+        <span style={{ color: 'var(--font-color-secondary)', fontSize: 12 }}>to</span>
+        <span className={`${styles.timeChip} ${styles.endChip}`}>{formatDisplay(endMin)}</span>
+        <span className={styles.durationChip}>{formatDuration(duration)}</span>
       </div>
 
       <p className={styles.instructions}>
-        {selectingEnd
-          ? 'Click an hour to set end time'
-          : 'Click an hour to set start time'}
+        {selectingEnd ? 'Now click an hour to set end time' : 'Click an hour to set start time'}
       </p>
     </div>
   );

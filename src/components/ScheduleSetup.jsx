@@ -7,15 +7,13 @@ import {
   setActiveSchedule as setActiveScheduleStorage,
   getActiveSchedule,
   ACTIVITY_TYPES,
-  saveScheduleToLocalStorage,
-  createScheduleTemplate,
 } from '../utils/scheduleTemplates.js';
 import {
   ENHANCED_FAMOUS_SCHEDULES,
   applyTemplateToDateRange,
 } from '../utils/enhancedTemplates.js';
 import { useAppContext } from '../context/AppContext.jsx';
-import { getLikes, toggleLike } from '../utils/community.js';
+import { getLikes } from '../utils/community.js';
 import { buildTemplateApplicationSummary } from '../utils/templateApplicationSummary.js';
 import CircularSchedule from './CircularSchedule.jsx';
 import ClockFaceInput from './ClockFaceInput.jsx';
@@ -241,7 +239,7 @@ function getScheduleSnapshot(schedule) {
 
 function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   const [state, dispatch] = useAppContext();
-  const { taskTypes = [], tags = [], settings = {}, slots = [] } = useAppState();
+  const { taskTypes = [], tags = [], settings = {} } = useAppState();
   const appDispatch = useAppReducer();
 
   // Sub-navigation
@@ -264,15 +262,12 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchedule, setSelectedSchedule] = useState(null);
-  const [showBuilder, setShowBuilder] = useState(false);
-  const [scheduleToCustomize, setScheduleToCustomize] = useState(null);
   const [notification, setNotification] = useState(null);
   const [quickApplyStartDate, setQuickApplyStartDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [quickApplyDays, setQuickApplyDays] = useState(7);
   const [applyDateRange, setApplyDateRange] = useState(null);
 
   const defaultDaySlots = Array.isArray(settings.defaultDaySlots) ? settings.defaultDaySlots : [];
-  const todayString = format(new Date(), 'yyyy-MM-dd');
   const preferredRange = useMemo(() => resolvePreferredRange(settings, taskTypes), [settings, taskTypes]);
   const rangeDuration = preferredRange.end - preferredRange.start;
 
@@ -1014,6 +1009,44 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
               )}
             </div>
           </div>
+
+          <section className={styles.weekOverview}>
+            <h3>Week at a Glance</h3>
+            <div className={styles.weekGrid}>
+              {DAY_NAMES.map((day) => {
+                const daySlots = sortByStart(defaultDaySlots.filter((s) => s.day === day));
+                const isSelected = selectedDay === day;
+                return (
+                  <button
+                    key={`week-${day}`}
+                    type="button"
+                    className={`${styles.weekDay} ${isSelected ? styles.weekDayActive : ''}`}
+                    onClick={() => setSelectedDay(day)}
+                  >
+                    <span className={styles.weekDayName}>{day.slice(0, 3)}</span>
+                    <div className={styles.weekDayBar}>
+                      {daySlots.length === 0 && <div className={styles.weekDayEmpty}>--</div>}
+                      {daySlots.map((slot) => {
+                        const start = parseTimeToMinutes(slot.startTime) || preferredRange.start;
+                        const end = parseTimeToMinutes(slot.endTime) || preferredRange.end;
+                        const top = ((start - preferredRange.start) / rangeDuration) * 100;
+                        const height = Math.max(4, ((end - start) / rangeDuration) * 100);
+                        return (
+                          <div
+                            key={slot.id}
+                            className={styles.weekDaySlot}
+                            style={{ top: `${top}%`, height: `${height}%`, background: slot.color || '#3B82F6' }}
+                            title={`${slot.label || 'Slot'}: ${slot.startTime} - ${slot.endTime}`}
+                          />
+                        );
+                      })}
+                    </div>
+                    <span className={styles.weekDayCount}>{daySlots.length}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
 
           <section className={styles.applySection}>
             <button type="button" className={styles.applyBtn} onClick={() => applyDefaultsToUpcomingDays(21)}>

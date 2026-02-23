@@ -19,7 +19,7 @@ import styles from './Dashboard.module.css';
  * - Memory Palace summary (when available)
  */
 function Dashboard() {
-  const { items = [], taskTypes = [], activeSchedule, palaces = [] } = useAppState();
+  const { items = [], taskTypes = [], activeSchedule } = useAppState();
   const dispatch = useAppReducer();
   const { pending, paused, completed } = useItems();
   const [quickTaskText, setQuickTaskText] = useState('');
@@ -27,7 +27,6 @@ function Dashboard() {
 
   // Get today's tasks
   const todaysTasks = useMemo(() => {
-    const today = new Date();
     return items.filter(item => {
       if (!item.scheduledTime) return false;
       const taskDate = toLocalTime(item.scheduledTime);
@@ -227,7 +226,7 @@ function Dashboard() {
 
         {/* Today's Schedule */}
         <section className={styles.todaySchedule}>
-          <h2>Today's Schedule</h2>
+          <h2>Today&apos;s Schedule</h2>
           <div className={styles.progressWrapper}>
             <div className={styles.progressBar}>
               <div 

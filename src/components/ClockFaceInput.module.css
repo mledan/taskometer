@@ -199,6 +199,25 @@
   animation: minuteFadeIn 0.15s ease-out;
 }
 
+.minuteHeader {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--font-color);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 2px;
+}
+
+.minuteHeader span {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--font-color-secondary);
+  letter-spacing: 0.04em;
+}
+
 @keyframes minuteFadeIn {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
