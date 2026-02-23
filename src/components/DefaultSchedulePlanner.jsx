@@ -9,6 +9,7 @@ const FALLBACK_RANGE = { start: 6 * 60, end: 23 * 60 }; // 06:00 - 23:00
 const MIN_SLOT_MINUTES = 15;
 const SNAP_MINUTES = 15;
 const ONBOARDING_KEY = 'default-day-splitter-hint-v1';
+const SYSTEM_SLEEP_RANGE = { wake: 9 * 60, sleep: 21 * 60 };
 
 function createTemplateId() {
   return `template_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -69,7 +70,10 @@ function resolvePreferredRange(settings = {}, taskTypes = []) {
   const sleepStart = parseTimeToMinutes(sleepType?.constraints?.preferredTimeStart);
   if (wakeFromSleep !== null && sleepStart !== null && wakeFromSleep < sleepStart) {
     const span = sleepStart - wakeFromSleep;
-    if (span >= 8 * 60 && span <= 20 * 60) {
+    const isSystemDefault =
+      wakeFromSleep === SYSTEM_SLEEP_RANGE.wake &&
+      sleepStart === SYSTEM_SLEEP_RANGE.sleep;
+    if (!isSystemDefault && span >= 8 * 60 && span <= 20 * 60) {
       return { start: wakeFromSleep, end: sleepStart };
     }
   }
@@ -78,12 +82,11 @@ function resolvePreferredRange(settings = {}, taskTypes = []) {
 }
 
 function getDefaultMetadata(taskTypes = []) {
-  const firstType = taskTypes[0] || null;
   return {
-    slotType: firstType?.id || null,
-    label: firstType?.name || 'Time slot',
+    slotType: null,
+    label: 'Time slot',
     flexibility: 'fixed',
-    color: firstType?.color || '#3B82F6',
+    color: '#3B82F6',
     allowedTags: []
   };
 }
