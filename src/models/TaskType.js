@@ -47,134 +47,296 @@ export const DEFAULT_CONSTRAINTS = {
 // All days of the week
 export const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-// Default system task types (matching ACTIVITY_TYPES from scheduleTemplates.js)
-export const DEFAULT_TASK_TYPES = [
+// Life Block Catalog - organized life chunks users can pick from.
+// Users start with a fresh slate and add the blocks that matter to them.
+export const LIFE_BLOCK_CATALOG = [
+  // Essentials
   {
     id: 'sleep',
-    name: 'Sleep/Rest',
-    icon: '🛏️',
+    name: 'Sleep',
+    icon: '😴',
     color: '#6B46C1',
-    defaultDuration: 480, // 8 hours
-    description: 'Sleep and rest time',
-    isSystem: true,
-    constraints: {
-      preferredTimeStart: '21:00',
-      preferredTimeEnd: '09:00'
-    }
+    catalogCategory: 'essentials',
+    defaultDuration: 480,
+    description: 'How many hours of sleep do you want?',
+    durationPresets: [360, 420, 480, 540],
+    durationLabels: ['6h', '7h', '8h', '9h'],
+    preferredStart: '22:00',
+    preferredEnd: '06:00',
+    isFixed: true,
+    constraints: { preferredTimeStart: '22:00', preferredTimeEnd: '06:00' }
   },
+
+  // Meals
+  {
+    id: 'breakfast',
+    name: 'Breakfast',
+    icon: '🥣',
+    color: '#F59E0B',
+    catalogCategory: 'meals',
+    defaultDuration: 30,
+    description: 'Morning meal',
+    durationPresets: [15, 20, 30, 45],
+    durationLabels: ['15m', '20m', '30m', '45m'],
+    preferredStart: '07:00',
+    preferredEnd: '08:00',
+    isFixed: false,
+    constraints: { preferredTimeStart: '06:00', preferredTimeEnd: '10:00' }
+  },
+  {
+    id: 'lunch',
+    name: 'Lunch',
+    icon: '🥗',
+    color: '#F97316',
+    catalogCategory: 'meals',
+    defaultDuration: 60,
+    description: 'Midday meal or lunch break',
+    durationPresets: [30, 45, 60, 90],
+    durationLabels: ['30m', '45m', '1h', '1.5h'],
+    preferredStart: '12:00',
+    preferredEnd: '13:00',
+    isFixed: false,
+    constraints: { preferredTimeStart: '11:00', preferredTimeEnd: '14:00' }
+  },
+  {
+    id: 'dinner',
+    name: 'Dinner',
+    icon: '🍽️',
+    color: '#EF4444',
+    catalogCategory: 'meals',
+    defaultDuration: 45,
+    description: 'Evening meal',
+    durationPresets: [30, 45, 60, 90],
+    durationLabels: ['30m', '45m', '1h', '1.5h'],
+    preferredStart: '18:00',
+    preferredEnd: '19:00',
+    isFixed: false,
+    constraints: { preferredTimeStart: '17:00', preferredTimeEnd: '21:00' }
+  },
+  {
+    id: 'meal_prep',
+    name: 'Meal Prep',
+    icon: '🧑‍🍳',
+    color: '#FB923C',
+    catalogCategory: 'meals',
+    defaultDuration: 60,
+    description: 'Cooking and food preparation',
+    durationPresets: [30, 45, 60, 90],
+    durationLabels: ['30m', '45m', '1h', '1.5h'],
+    preferredStart: '17:00',
+    preferredEnd: '18:00',
+    isFixed: false,
+    constraints: { preferredTimeStart: '06:00', preferredTimeEnd: '21:00' }
+  },
+
+  // Productivity
   {
     id: 'work',
-    name: 'Work/Career',
+    name: 'Work',
     icon: '💼',
     color: '#3B82F6',
-    defaultDuration: 60,
-    description: 'Professional work tasks',
-    isSystem: true,
-    constraints: {
-      preferredTimeStart: '09:00',
-      preferredTimeEnd: '18:00'
-    }
-  },
-  {
-    id: 'meals',
-    name: 'Meals/Nutrition',
-    icon: '🍽️',
-    color: '#F59E0B',
-    defaultDuration: 30,
-    description: 'Eating and meal prep',
-    isSystem: true
-  },
-  {
-    id: 'exercise',
-    name: 'Exercise/Health',
-    icon: '🏃',
-    color: '#10B981',
-    defaultDuration: 45,
-    description: 'Physical exercise and fitness',
-    isSystem: true
+    catalogCategory: 'productivity',
+    defaultDuration: 480,
+    description: 'Work, career, job hours',
+    durationPresets: [240, 360, 420, 480],
+    durationLabels: ['4h', '6h', '7h', '8h'],
+    preferredStart: '09:00',
+    preferredEnd: '17:00',
+    isFixed: true,
+    constraints: { preferredTimeStart: '09:00', preferredTimeEnd: '17:00' }
   },
   {
     id: 'learning',
-    name: 'Learning/Reading',
+    name: 'Learning',
     icon: '📚',
     color: '#8B5CF6',
+    catalogCategory: 'productivity',
     defaultDuration: 60,
-    description: 'Education and skill development',
-    isSystem: true
+    description: 'Reading, courses, studying, skill building',
+    durationPresets: [30, 45, 60, 90],
+    durationLabels: ['30m', '45m', '1h', '1.5h'],
+    preferredStart: '20:00',
+    preferredEnd: '21:00',
+    isFixed: false,
+    constraints: { preferredTimeStart: '06:00', preferredTimeEnd: '23:00' }
+  },
+
+  // Health
+  {
+    id: 'exercise',
+    name: 'Exercise',
+    icon: '🏋️',
+    color: '#10B981',
+    catalogCategory: 'health',
+    defaultDuration: 60,
+    description: 'Gym, running, sports, workout',
+    durationPresets: [30, 45, 60, 90],
+    durationLabels: ['30m', '45m', '1h', '1.5h'],
+    preferredStart: '06:00',
+    preferredEnd: '07:00',
+    isFixed: false,
+    constraints: { preferredTimeStart: '05:00', preferredTimeEnd: '22:00' }
   },
   {
-    id: 'creative',
-    name: 'Creative/Hobbies',
+    id: 'selfcare',
+    name: 'Self Care',
+    icon: '🧘',
+    color: '#84CC16',
+    catalogCategory: 'health',
+    defaultDuration: 30,
+    description: 'Meditation, journal, skincare, mental health',
+    durationPresets: [15, 20, 30, 45],
+    durationLabels: ['15m', '20m', '30m', '45m'],
+    preferredStart: '06:30',
+    preferredEnd: '07:00',
+    isFixed: false,
+    constraints: { preferredTimeStart: '05:00', preferredTimeEnd: '23:00' }
+  },
+
+  // Leisure
+  {
+    id: 'hobby',
+    name: 'Hobby Time',
     icon: '🎨',
     color: '#EC4899',
+    catalogCategory: 'leisure',
+    defaultDuration: 120,
+    description: '3D printing, crafts, side projects, creative work',
+    durationPresets: [60, 90, 120, 180],
+    durationLabels: ['1h', '1.5h', '2h', '3h'],
+    preferredStart: '19:00',
+    preferredEnd: '21:00',
+    isFixed: false,
+    constraints: { preferredTimeStart: '06:00', preferredTimeEnd: '23:00' }
+  },
+  {
+    id: 'leisure',
+    name: 'Leisure / Brainrot',
+    icon: '📺',
+    color: '#06B6D4',
+    catalogCategory: 'leisure',
     defaultDuration: 60,
-    description: 'Creative projects and hobbies',
-    isSystem: true
+    description: 'Netflix, scrolling, gaming, just vibing',
+    durationPresets: [30, 60, 90, 120],
+    durationLabels: ['30m', '1h', '1.5h', '2h'],
+    preferredStart: '21:00',
+    preferredEnd: '22:00',
+    isFixed: false,
+    constraints: { preferredTimeStart: '06:00', preferredTimeEnd: '23:00' }
   },
   {
     id: 'social',
-    name: 'Social/Family',
+    name: 'Social',
     icon: '👥',
     color: '#14B8A6',
-    defaultDuration: 60,
-    description: 'Social activities and family time',
-    isSystem: true
+    catalogCategory: 'leisure',
+    defaultDuration: 120,
+    description: 'Friends, family, dates, going out',
+    durationPresets: [60, 90, 120, 180],
+    durationLabels: ['1h', '1.5h', '2h', '3h'],
+    preferredStart: '18:00',
+    preferredEnd: '20:00',
+    isFixed: false,
+    constraints: { preferredTimeStart: '06:00', preferredTimeEnd: '23:00' }
   },
+
+  // Other
   {
-    id: 'mindfulness',
-    name: 'Mindfulness/Meditation',
-    icon: '🧘',
-    color: '#84CC16',
-    defaultDuration: 20,
-    description: 'Meditation and mental wellness',
-    isSystem: true
+    id: 'commute',
+    name: 'Commute',
+    icon: '🚗',
+    color: '#64748B',
+    catalogCategory: 'other',
+    defaultDuration: 30,
+    description: 'Travel to/from work or activities',
+    durationPresets: [15, 30, 45, 60],
+    durationLabels: ['15m', '30m', '45m', '1h'],
+    preferredStart: '08:00',
+    preferredEnd: '08:30',
+    isFixed: false,
+    constraints: { preferredTimeStart: '05:00', preferredTimeEnd: '23:00' }
   },
   {
     id: 'chores',
-    name: 'Chores/Admin',
+    name: 'Chores / Admin',
     icon: '🏠',
-    color: '#F97316',
+    color: '#78716C',
+    catalogCategory: 'other',
     defaultDuration: 30,
-    description: 'Household chores and administration',
-    isSystem: true
-  },
-  {
-    id: 'recreation',
-    name: 'Recreation/Entertainment',
-    icon: '🎮',
-    color: '#06B6D4',
-    defaultDuration: 60,
-    description: 'Entertainment and relaxation',
-    isSystem: true
-  },
-  {
-    id: 'side_project',
-    name: 'Side Projects',
-    icon: '🚀',
-    color: '#A855F7',
-    defaultDuration: 60,
-    description: 'Personal projects and ventures',
-    isSystem: true
-  },
-  {
-    id: 'planning',
-    name: 'Planning/Review',
-    icon: '📝',
-    color: '#64748B',
-    defaultDuration: 30,
-    description: 'Planning and review sessions',
-    isSystem: true
+    description: 'Cleaning, errands, bills, admin tasks',
+    durationPresets: [15, 30, 45, 60],
+    durationLabels: ['15m', '30m', '45m', '1h'],
+    preferredStart: '10:00',
+    preferredEnd: '10:30',
+    isFixed: false,
+    constraints: { preferredTimeStart: '06:00', preferredTimeEnd: '22:00' }
   },
   {
     id: 'buffer',
-    name: 'Buffer/Flex Time',
+    name: 'Buffer / Flex',
     icon: '⏰',
     color: '#94A3B8',
+    catalogCategory: 'other',
     defaultDuration: 30,
-    description: 'Flexible time for overflow or breaks',
-    isSystem: true
-  }
+    description: 'Breathing room between activities',
+    durationPresets: [15, 30, 45, 60],
+    durationLabels: ['15m', '30m', '45m', '1h'],
+    isFixed: false,
+    constraints: {}
+  },
+  {
+    id: 'event',
+    name: 'Event / Exception',
+    icon: '🎉',
+    color: '#F43F5E',
+    catalogCategory: 'other',
+    defaultDuration: 120,
+    description: 'Parties, appointments, one-off events that override the framework',
+    durationPresets: [60, 90, 120, 180],
+    durationLabels: ['1h', '1.5h', '2h', '3h'],
+    isFixed: true,
+    isException: true,
+    constraints: {}
+  },
 ];
+
+export const CATALOG_CATEGORIES = {
+  essentials: { label: 'Essentials', icon: '🌙' },
+  meals: { label: 'Meals & Food', icon: '🍳' },
+  productivity: { label: 'Productivity', icon: '💼' },
+  health: { label: 'Health & Wellness', icon: '💪' },
+  leisure: { label: 'Leisure & Fun', icon: '🎮' },
+  other: { label: 'Other', icon: '📦' },
+};
+
+export function getCatalogBlock(id) {
+  return LIFE_BLOCK_CATALOG.find(b => b.id === id) || null;
+}
+
+export function getCatalogByCategory() {
+  const grouped = {};
+  for (const [catId, catMeta] of Object.entries(CATALOG_CATEGORIES)) {
+    grouped[catId] = {
+      ...catMeta,
+      blocks: LIFE_BLOCK_CATALOG.filter(b => b.catalogCategory === catId),
+    };
+  }
+  return grouped;
+}
+
+// Default task types: empty for fresh-slate experience.
+// Users build their own set by picking from LIFE_BLOCK_CATALOG.
+// Legacy defaults preserved for backward compatibility if needed.
+export const LEGACY_TASK_TYPES = [
+  { id: 'sleep', name: 'Sleep/Rest', icon: '🛏️', color: '#6B46C1', defaultDuration: 480, isSystem: true, constraints: { preferredTimeStart: '21:00', preferredTimeEnd: '09:00' } },
+  { id: 'work', name: 'Work/Career', icon: '💼', color: '#3B82F6', defaultDuration: 60, isSystem: true, constraints: { preferredTimeStart: '09:00', preferredTimeEnd: '18:00' } },
+  { id: 'meals', name: 'Meals/Nutrition', icon: '🍽️', color: '#F59E0B', defaultDuration: 30, isSystem: true },
+  { id: 'exercise', name: 'Exercise/Health', icon: '🏃', color: '#10B981', defaultDuration: 45, isSystem: true },
+  { id: 'creative', name: 'Creative/Hobbies', icon: '🎨', color: '#EC4899', defaultDuration: 60, isSystem: true },
+  { id: 'buffer', name: 'Buffer/Flex Time', icon: '⏰', color: '#94A3B8', defaultDuration: 30, isSystem: true },
+];
+
+export const DEFAULT_TASK_TYPES = [];
 
 /**
  * Generate a unique ID for a task type
@@ -351,6 +513,24 @@ export function getTypesMatchingBlockType(types, blockType) {
   return [];
 }
 
+export function catalogBlockToTaskType(block, overrides = {}) {
+  return createTaskType({
+    id: block.id,
+    name: block.name,
+    icon: block.icon,
+    color: block.color,
+    defaultDuration: overrides.duration || block.defaultDuration,
+    description: block.description,
+    isSystem: false,
+    isActive: true,
+    constraints: {
+      ...DEFAULT_CONSTRAINTS,
+      ...(block.constraints || {}),
+      ...(overrides.constraints || {}),
+    },
+  });
+}
+
 export default {
   createTaskType,
   validateTaskType,
@@ -362,7 +542,13 @@ export default {
   searchTypes,
   getTypesMatchingBlockType,
   generateTaskTypeId,
+  catalogBlockToTaskType,
+  getCatalogBlock,
+  getCatalogByCategory,
   DEFAULT_TASK_TYPES,
+  LEGACY_TASK_TYPES,
+  LIFE_BLOCK_CATALOG,
+  CATALOG_CATEGORIES,
   DEFAULT_CONSTRAINTS,
   ALL_DAYS
 };

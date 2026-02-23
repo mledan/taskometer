@@ -1059,6 +1059,336 @@
   color: var(--font-color-secondary);
 }
 
+/* ============================================ */
+/* FRAMEWORK TAB                                */
+/* ============================================ */
+
+.frameworkContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.frameworkIntro h2 {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+}
+
+.frameworkIntro p {
+  margin: 0;
+  color: var(--font-color-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Time Budget */
+.timeBudget {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--bg-color);
+}
+
+.timeBudgetHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.timeBudgetLabel {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--font-color-secondary);
+}
+
+.timeBudgetNumbers {
+  font-size: 13px;
+  color: var(--font-color);
+}
+
+.timeBudgetRemaining {
+  color: var(--font-color-secondary);
+}
+
+.timeBudgetOver {
+  color: #EF4444;
+  font-weight: 600;
+}
+
+.timeBudgetBar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.timeBudgetFill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.timeBudgetChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.budgetChip {
+  font-size: 11px;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+/* Block Catalog */
+.blockCatalog {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.catalogSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.catalogSectionTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--font-color-secondary);
+}
+
+.catalogGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.catalogCard {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.catalogCardToggle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-color);
+  color: var(--font-color);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.catalogCardToggle:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.catalogCardSelected .catalogCardToggle {
+  border-radius: 12px 12px 0 0;
+}
+
+.catalogIcon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.catalogName {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.catalogDesc {
+  font-size: 12px;
+  color: var(--font-color-secondary);
+  line-height: 1.35;
+}
+
+.catalogCheck {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+/* Catalog Config (expanded under selected card) */
+.catalogConfig {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border: 2px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  background: var(--input-color);
+}
+
+.catalogConfigRow {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.catalogConfigLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--font-color-secondary);
+}
+
+.durationPresets {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.durationBtn {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--font-color);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.durationBtn:hover {
+  border-color: var(--accent-color);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.durationBtnActive {
+  font-weight: 700;
+}
+
+.timeInputRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timeInput {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-color);
+  color: var(--font-color);
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.timeSep {
+  font-size: 12px;
+  color: var(--font-color-secondary);
+}
+
+/* Framework Actions */
+.frameworkActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.generateBtn {
+  background: #10B981;
+}
+
+.generateBtn:hover {
+  filter: brightness(1.12);
+}
+
+/* Events Section */
+.eventsSection {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-color);
+  padding: 16px;
+}
+
+.eventsSection h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.eventsDesc {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--font-color-secondary);
+  line-height: 1.45;
+}
+
+.eventForm {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.eventForm .input {
+  flex: 1;
+  min-width: 180px;
+}
+
+.eventList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.eventItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--input-color);
+}
+
+.eventIcon {
+  font-size: 18px;
+}
+
+.eventInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.eventName {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.eventMeta {
+  font-size: 11px;
+  color: var(--font-color-secondary);
+}
+
 /* Responsive */
 @media (max-width: 1100px) {
   .builderGrid {
@@ -1130,5 +1460,22 @@
 
   .dayPillLabel {
     font-size: 11px;
+  }
+
+  .catalogGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .eventForm {
+    flex-direction: column;
+  }
+
+  .frameworkActions {
+    flex-direction: column;
+  }
+
+  .frameworkActions .applyBtn,
+  .frameworkActions .generateBtn {
+    width: 100%;
   }
 }

@@ -15,6 +15,13 @@ import {
 import { useAppContext } from '../context/AppContext.jsx';
 import { getLikes } from '../utils/community.js';
 import { buildTemplateApplicationSummary } from '../utils/templateApplicationSummary.js';
+import {
+  LIFE_BLOCK_CATALOG,
+  CATALOG_CATEGORIES,
+  getCatalogByCategory,
+  catalogBlockToTaskType,
+  getCatalogBlock,
+} from '../models/TaskType.js';
 import CircularSchedule from './CircularSchedule.jsx';
 import ClockFaceInput from './ClockFaceInput.jsx';
 import styles from './ScheduleSetup.module.css';
@@ -241,8 +248,8 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   const [state, dispatch] = useAppContext();
   const { taskTypes = [], tags = [], settings = {} } = useAppState();
 
-  // Sub-navigation
-  const [activeTab, setActiveTab] = useState('builder');
+  // Sub-navigation: framework first for the fresh-slate experience
+  const [activeTab, setActiveTab] = useState('framework');
 
   // Day Builder state
   const [selectedDay, setSelectedDay] = useState('Monday');
@@ -254,6 +261,58 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
 
   const timelineRef = useRef(null);
   const dragValueRef = useRef(null);
+
+  // Framework tab state
+  const [selectedBlocks, setSelectedBlocks] = useState(() => {
+    const ids = new Set((taskTypes || []).map(t => t.id));
+    return ids;
+  });
+  const [blockConfigs, setBlockConfigs] = useState(() => {
+    const configs = {};
+    (taskTypes || []).forEach(t => {
+      const catalogBlock = getCatalogBlock(t.id);
+      if (catalogBlock) {
+        configs[t.id] = {
+          duration: t.defaultDuration || catalogBlock.defaultDuration,
+          preferredStart: t.constraints?.preferredTimeStart || catalogBlock.preferredStart || null,
+          preferredEnd: t.constraints?.preferredTimeEnd || catalogBlock.preferredEnd || null,
+        };
+      }
+    });
+    return configs;
+  });
+  const [frameworkMessage, setFrameworkMessage] = useState('');
+  const [eventForm, setEventForm] = useState({ name: '', date: format(new Date(), 'yyyy-MM-dd'), start: '19:00', end: '21:00' });
+  const [events, setEvents] = useState(() => {
+    return Array.isArray(settings.scheduledEvents) ? settings.scheduledEvents : [];
+  });
+
+  const catalogByCategory = useMemo(() => getCatalogByCategory(), []);
+
+  const timeBudget = useMemo(() => {
+    let total = 0;
+    selectedBlocks.forEach(id => {
+      const config = blockConfigs[id];
+      const catalog = getCatalogBlock(id);
+      total += config?.duration || catalog?.defaultDuration || 0;
+    });
+    return { allocated: total, remaining: 24 * 60 - total };
+  }, [selectedBlocks, blockConfigs]);
+
+  useEffect(() => {
+    const ids = new Set((taskTypes || []).map(t => t.id));
+    setSelectedBlocks(ids);
+    const configs = {};
+    (taskTypes || []).forEach(t => {
+      const catalogBlock = getCatalogBlock(t.id);
+      configs[t.id] = {
+        duration: t.defaultDuration || catalogBlock?.defaultDuration || 60,
+        preferredStart: t.constraints?.preferredTimeStart || catalogBlock?.preferredStart || null,
+        preferredEnd: t.constraints?.preferredTimeEnd || catalogBlock?.preferredEnd || null,
+      };
+    });
+    setBlockConfigs(configs);
+  }, [taskTypes]);
 
   // Templates state
   const [schedules, setSchedules] = useState([]);
@@ -595,6 +654,190 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     setMessage(`Copied ${selectedDay}'s slots to ${targetDay}.`);
   }
 
+  // ========== FRAMEWORK FUNCTIONS ==========
+
+  function toggleBlock(blockId) {
+    setSelectedBlocks(prev => {
+      const next = new Set(prev);
+      if (next.has(blockId)) {
+        next.delete(blockId);
+      } else {
+        next.add(blockId);
+        if (!blockConfigs[blockId]) {
+          const catalog = getCatalogBlock(blockId);
+          if (catalog) {
+            setBlockConfigs(prevConfigs => ({
+              ...prevConfigs,
+              [blockId]: {
+                duration: catalog.defaultDuration,
+                preferredStart: catalog.preferredStart || null,
+                preferredEnd: catalog.preferredEnd || null,
+              },
+            }));
+          }
+        }
+      }
+      return next;
+    });
+  }
+
+  function updateBlockConfig(blockId, field, value) {
+    setBlockConfigs(prev => ({
+      ...prev,
+      [blockId]: { ...prev[blockId], [field]: value },
+    }));
+  }
+
+  function applyFrameworkToTypes() {
+    const newTypes = [];
+    selectedBlocks.forEach(id => {
+      const catalog = getCatalogBlock(id);
+      if (!catalog) return;
+      const config = blockConfigs[id] || {};
+      newTypes.push(catalogBlockToTaskType(catalog, {
+        duration: config.duration,
+        constraints: {
+          preferredTimeStart: config.preferredStart || catalog.constraints?.preferredTimeStart || null,
+          preferredTimeEnd: config.preferredEnd || catalog.constraints?.preferredTimeEnd || null,
+        },
+      }));
+    });
+
+    // Remove types not in selection, add new ones
+    const selectedIds = new Set(newTypes.map(t => t.id));
+    const existingCustom = (taskTypes || []).filter(t => !getCatalogBlock(t.id) && !selectedIds.has(t.id));
+
+    // Clear and replace task types
+    taskTypes.forEach(t => {
+      if (selectedIds.has(t.id) || getCatalogBlock(t.id)) {
+        dispatch({ type: ACTION_TYPES.DELETE_TASK_TYPE, payload: { typeId: t.id } });
+      }
+    });
+    newTypes.forEach(t => {
+      dispatch({ type: ACTION_TYPES.ADD_TASK_TYPE, payload: t });
+    });
+
+    setFrameworkMessage('Life blocks saved!');
+    setTimeout(() => setFrameworkMessage(''), 2000);
+  }
+
+  function generateFrameworkSlots() {
+    applyFrameworkToTypes();
+
+    const orderedBlocks = [];
+    selectedBlocks.forEach(id => {
+      const catalog = getCatalogBlock(id);
+      if (!catalog || id === 'sleep' || id === 'event') return;
+      const config = blockConfigs[id] || {};
+      orderedBlocks.push({ ...catalog, configDuration: config.duration || catalog.defaultDuration, configStart: config.preferredStart, configEnd: config.preferredEnd });
+    });
+
+    // Sort by preferred start time
+    orderedBlocks.sort((a, b) => {
+      const aStart = a.configStart || a.preferredStart || '12:00';
+      const bStart = b.configStart || b.preferredStart || '12:00';
+      return aStart.localeCompare(bStart);
+    });
+
+    const allDaySlots = [];
+    DAY_NAMES.forEach(day => {
+      let cursor = preferredRange.start;
+      const dayEnd = preferredRange.end;
+
+      orderedBlocks.forEach(block => {
+        if (cursor >= dayEnd) return;
+        const duration = block.configDuration;
+        const startMinute = block.configStart ? parseTimeToMinutes(block.configStart) : null;
+
+        let slotStart;
+        if (startMinute !== null && startMinute >= cursor) {
+          slotStart = startMinute;
+        } else {
+          slotStart = cursor;
+        }
+
+        let slotEnd = slotStart + duration;
+        if (slotEnd > dayEnd) slotEnd = dayEnd;
+        if (slotEnd - slotStart < MIN_SLOT_MINUTES) return;
+
+        allDaySlots.push({
+          id: createTemplateId(),
+          day,
+          startTime: minutesToTime(slotStart),
+          endTime: minutesToTime(slotEnd),
+          slotType: block.id,
+          label: block.name,
+          flexibility: block.isFixed ? 'fixed' : 'preferred',
+          color: block.color,
+          allowedTags: [],
+        });
+
+        cursor = slotEnd;
+      });
+    });
+
+    dispatch({
+      type: ACTION_TYPES.UPDATE_SETTINGS,
+      payload: { defaultDaySlots: allDaySlots },
+    });
+
+    setFrameworkMessage(`Generated ${allDaySlots.length / 7} daily blocks across all 7 days. Switch to Day Builder to fine-tune.`);
+    setTimeout(() => setFrameworkMessage(''), 4000);
+  }
+
+  function addEvent() {
+    if (!eventForm.name.trim()) return;
+    const newEvent = {
+      id: createTemplateId(),
+      name: eventForm.name.trim(),
+      date: eventForm.date,
+      start: eventForm.start,
+      end: eventForm.end,
+      isException: true,
+    };
+    const updatedEvents = [...events, newEvent];
+    setEvents(updatedEvents);
+    dispatch({ type: ACTION_TYPES.UPDATE_SETTINGS, payload: { scheduledEvents: updatedEvents } });
+    setEventForm({ name: '', date: format(new Date(), 'yyyy-MM-dd'), start: '19:00', end: '21:00' });
+    setFrameworkMessage(`Added "${newEvent.name}" on ${newEvent.date}. It will override any framework blocks at that time.`);
+    setTimeout(() => setFrameworkMessage(''), 3000);
+  }
+
+  function removeEvent(eventId) {
+    const updatedEvents = events.filter(e => e.id !== eventId);
+    setEvents(updatedEvents);
+    dispatch({ type: ACTION_TYPES.UPDATE_SETTINGS, payload: { scheduledEvents: updatedEvents } });
+  }
+
+  function applyEventsToCalendar() {
+    if (events.length === 0) {
+      setFrameworkMessage('No events to apply.');
+      setTimeout(() => setFrameworkMessage(''), 2000);
+      return;
+    }
+
+    const blocks = events.map(ev => ({
+      date: ev.date,
+      start: ev.start,
+      end: ev.end,
+      slotType: 'event',
+      label: ev.name,
+      color: '#F43F5E',
+      flexibility: 'fixed',
+      allowedTags: [],
+      sourceScheduleId: 'events',
+      sourceBlockId: ev.id,
+    }));
+
+    dispatch({
+      type: ACTION_TYPES.APPLY_SCHEDULE,
+      payload: { blocks, options: { mergeWithExisting: true } },
+    });
+
+    setFrameworkMessage(`Applied ${events.length} event(s) to calendar. Conflicting framework tasks will be rescheduled.`);
+    setTimeout(() => setFrameworkMessage(''), 3000);
+  }
+
   function updateActiveSlotField(field, value) {
     if (!activeSlotId) return;
     updateSingleSlot(activeSlotId, (slot) => ({ ...slot, [field]: value }));
@@ -718,7 +961,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
       <header className={styles.header}>
         <div>
           <h1>Schedule</h1>
-          <p>Build your ideal day, then apply templates to your calendar.</p>
+          <p>Design your life framework, then let activities fill the slots.</p>
         </div>
         <div className={styles.headerActions}>
           {onNavigateToTasks && (
@@ -737,6 +980,13 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
       <nav className={styles.subNav}>
         <button
           type="button"
+          className={`${styles.subNavBtn} ${activeTab === 'framework' ? styles.subNavActive : ''}`}
+          onClick={() => setActiveTab('framework')}
+        >
+          My Framework
+        </button>
+        <button
+          type="button"
           className={`${styles.subNavBtn} ${activeTab === 'builder' ? styles.subNavActive : ''}`}
           onClick={() => setActiveTab('builder')}
         >
@@ -750,6 +1000,189 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
           Templates
         </button>
       </nav>
+
+      {/* =============== FRAMEWORK TAB =============== */}
+      {activeTab === 'framework' && (
+        <div className={styles.frameworkContent}>
+          <section className={styles.frameworkIntro}>
+            <h2>What makes up your day?</h2>
+            <p>Pick the life blocks that matter to you. Configure how much time you want for each, then generate your weekly framework.</p>
+          </section>
+
+          {/* Time Budget Bar */}
+          <section className={styles.timeBudget}>
+            <div className={styles.timeBudgetHeader}>
+              <span className={styles.timeBudgetLabel}>Daily Time Budget</span>
+              <span className={styles.timeBudgetNumbers}>
+                {formatDuration(timeBudget.allocated)} allocated
+                {timeBudget.remaining > 0 && <span className={styles.timeBudgetRemaining}> &middot; {formatDuration(timeBudget.remaining)} unallocated</span>}
+                {timeBudget.remaining < 0 && <span className={styles.timeBudgetOver}> &middot; {formatDuration(Math.abs(timeBudget.remaining))} over 24h</span>}
+              </span>
+            </div>
+            <div className={styles.timeBudgetBar}>
+              <div
+                className={styles.timeBudgetFill}
+                style={{
+                  width: `${Math.min(100, (timeBudget.allocated / (24 * 60)) * 100)}%`,
+                  background: timeBudget.remaining < 0 ? '#EF4444' : 'var(--accent-color)',
+                }}
+              />
+            </div>
+            <div className={styles.timeBudgetChips}>
+              {Array.from(selectedBlocks).map(id => {
+                const catalog = getCatalogBlock(id);
+                if (!catalog) return null;
+                const dur = blockConfigs[id]?.duration || catalog.defaultDuration;
+                return (
+                  <span key={id} className={styles.budgetChip} style={{ borderColor: catalog.color, color: catalog.color }}>
+                    {catalog.icon} {catalog.name} {formatDuration(dur)}
+                  </span>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Block Catalog */}
+          <section className={styles.blockCatalog}>
+            {Object.entries(catalogByCategory).map(([catId, catData]) => (
+              <div key={catId} className={styles.catalogSection}>
+                <h3 className={styles.catalogSectionTitle}>{catData.icon} {catData.label}</h3>
+                <div className={styles.catalogGrid}>
+                  {catData.blocks.map(block => {
+                    const isSelected = selectedBlocks.has(block.id);
+                    const config = blockConfigs[block.id];
+                    return (
+                      <div key={block.id} className={`${styles.catalogCard} ${isSelected ? styles.catalogCardSelected : ''}`}>
+                        <button
+                          type="button"
+                          className={styles.catalogCardToggle}
+                          onClick={() => toggleBlock(block.id)}
+                          style={isSelected ? { borderColor: block.color, background: `${block.color}18` } : {}}
+                        >
+                          <span className={styles.catalogIcon}>{block.icon}</span>
+                          <span className={styles.catalogName}>{block.name}</span>
+                          <span className={styles.catalogDesc}>{block.description}</span>
+                          {isSelected && <span className={styles.catalogCheck} style={{ color: block.color }}>&#10003;</span>}
+                        </button>
+
+                        {isSelected && (
+                          <div className={styles.catalogConfig}>
+                            <div className={styles.catalogConfigRow}>
+                              <span className={styles.catalogConfigLabel}>Duration</span>
+                              <div className={styles.durationPresets}>
+                                {block.durationPresets.map((dur, idx) => (
+                                  <button
+                                    key={dur}
+                                    type="button"
+                                    className={`${styles.durationBtn} ${(config?.duration || block.defaultDuration) === dur ? styles.durationBtnActive : ''}`}
+                                    style={(config?.duration || block.defaultDuration) === dur ? { borderColor: block.color, background: `${block.color}25`, color: block.color } : {}}
+                                    onClick={() => updateBlockConfig(block.id, 'duration', dur)}
+                                  >
+                                    {block.durationLabels[idx]}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            {block.preferredStart && (
+                              <div className={styles.catalogConfigRow}>
+                                <span className={styles.catalogConfigLabel}>Preferred time</span>
+                                <div className={styles.timeInputRow}>
+                                  <input
+                                    type="time"
+                                    className={styles.timeInput}
+                                    value={config?.preferredStart || block.preferredStart}
+                                    onChange={e => updateBlockConfig(block.id, 'preferredStart', e.target.value)}
+                                  />
+                                  <span className={styles.timeSep}>to</span>
+                                  <input
+                                    type="time"
+                                    className={styles.timeInput}
+                                    value={config?.preferredEnd || block.preferredEnd || ''}
+                                    onChange={e => updateBlockConfig(block.id, 'preferredEnd', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </section>
+
+          {/* Generate Actions */}
+          <section className={styles.frameworkActions}>
+            <button type="button" className={styles.applyBtn} onClick={applyFrameworkToTypes}>
+              Save Life Blocks
+            </button>
+            <button type="button" className={`${styles.applyBtn} ${styles.generateBtn}`} onClick={generateFrameworkSlots}>
+              Generate Weekly Framework
+            </button>
+            {frameworkMessage && <p className={styles.message}>{frameworkMessage}</p>}
+          </section>
+
+          {/* Events & Exceptions */}
+          <section className={styles.eventsSection}>
+            <h3>Events &amp; Exceptions</h3>
+            <p className={styles.eventsDesc}>Add one-off events like parties, appointments, or meetings. These override your framework at that time and displaced activities reschedule to the next available matching slot.</p>
+
+            <div className={styles.eventForm}>
+              <input
+                type="text"
+                className={styles.input}
+                placeholder="Event name (e.g. Birthday Party)"
+                value={eventForm.name}
+                onChange={e => setEventForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+              <input
+                type="date"
+                className={styles.timeInput}
+                value={eventForm.date}
+                onChange={e => setEventForm(prev => ({ ...prev, date: e.target.value }))}
+              />
+              <div className={styles.timeInputRow}>
+                <input
+                  type="time"
+                  className={styles.timeInput}
+                  value={eventForm.start}
+                  onChange={e => setEventForm(prev => ({ ...prev, start: e.target.value }))}
+                />
+                <span className={styles.timeSep}>to</span>
+                <input
+                  type="time"
+                  className={styles.timeInput}
+                  value={eventForm.end}
+                  onChange={e => setEventForm(prev => ({ ...prev, end: e.target.value }))}
+                />
+              </div>
+              <button type="button" className={styles.cardBtnAccent} onClick={addEvent}>
+                + Add Event
+              </button>
+            </div>
+
+            {events.length > 0 && (
+              <div className={styles.eventList}>
+                {events.map(ev => (
+                  <div key={ev.id} className={styles.eventItem}>
+                    <span className={styles.eventIcon}>🎉</span>
+                    <div className={styles.eventInfo}>
+                      <span className={styles.eventName}>{ev.name}</span>
+                      <span className={styles.eventMeta}>{ev.date} &middot; {minutesToDisplay(parseTimeToMinutes(ev.start))} - {minutesToDisplay(parseTimeToMinutes(ev.end))}</span>
+                    </div>
+                    <button type="button" className={styles.deleteBtn} onClick={() => removeEvent(ev.id)}>Remove</button>
+                  </div>
+                ))}
+                <button type="button" className={styles.applyBtn} onClick={applyEventsToCalendar} style={{ marginTop: 8 }}>
+                  Apply Events to Calendar
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
 
       {/* =============== DAY BUILDER TAB =============== */}
       {activeTab === 'builder' && (
