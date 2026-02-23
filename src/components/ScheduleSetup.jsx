@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format } from 'date-fns';
-import { ACTION_TYPES, useAppReducer, useAppState } from '../AppContext.jsx';
+import { ACTION_TYPES, useAppState } from '../AppContext.jsx';
 import {
   FAMOUS_SCHEDULES,
   getSchedulesFromLocalStorage,
@@ -78,7 +78,7 @@ function getDefaultMetadata() {
   };
 }
 
-function normalizeTemplateSlot(slot, day, taskTypes) {
+function normalizeTemplateSlot(slot, day) {
   const defaultMeta = getDefaultMetadata();
   const startMinutes = parseTimeToMinutes(slot.startTime);
   const endMinutes = parseTimeToMinutes(slot.endTime);
@@ -148,7 +148,7 @@ function buildSlotsFromBoundaries({ boundaries, sourceSlots, day, taskTypes }) {
 function sanitizeSlotsForDay(rawSlots, day, range, taskTypes) {
   const prepared = sortByStart(
     (rawSlots || [])
-      .map((slot) => normalizeTemplateSlot(slot, day, taskTypes))
+      .map((slot) => normalizeTemplateSlot(slot, day))
       .filter((slot) => {
         const start = parseTimeToMinutes(slot.startTime);
         const end = parseTimeToMinutes(slot.endTime);
@@ -240,7 +240,6 @@ function getScheduleSnapshot(schedule) {
 function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   const [state, dispatch] = useAppContext();
   const { taskTypes = [], tags = [], settings = {} } = useAppState();
-  const appDispatch = useAppReducer();
 
   // Sub-navigation
   const [activeTab, setActiveTab] = useState('builder');
@@ -286,6 +285,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   useEffect(() => {
     setEditableSlots(sanitizeSlotsForDay(slotsForSelectedDay, selectedDay, preferredRange, taskTypes));
     setActiveSlotId(null);
+    setMessage('');
   }, [slotsForSelectedDay, selectedDay, preferredRange, taskTypes]);
 
   const sortedEditableSlots = useMemo(() => sortByStart(editableSlots), [editableSlots]);
@@ -354,14 +354,14 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     (nextSlots, nextMessage = '') => {
       const normalized = sanitizeSlotsForDay(nextSlots, selectedDay, preferredRange, taskTypes);
       const otherDays = defaultDaySlots.filter((slot) => slot.day !== selectedDay);
-      appDispatch({
+      dispatch({
         type: ACTION_TYPES.UPDATE_SETTINGS,
         payload: { defaultDaySlots: [...otherDays, ...normalized] },
       });
       setEditableSlots(normalized);
       if (nextMessage) setMessage(nextMessage);
     },
-    [appDispatch, defaultDaySlots, selectedDay, preferredRange, taskTypes]
+    [dispatch, defaultDaySlots, selectedDay, preferredRange, taskTypes]
   );
 
   const applyPresetBoundaries = useCallback(
@@ -563,7 +563,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
       return;
     }
     const blocks = buildUpcomingBlocks(defaultDaySlots, daysAhead);
-    appDispatch({
+    dispatch({
       type: ACTION_TYPES.APPLY_SCHEDULE,
       payload: { blocks, options: { mergeWithExisting: true } },
     });
@@ -588,7 +588,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
       day: targetDay,
     }));
     const otherDays = defaultDaySlots.filter((slot) => slot.day !== targetDay);
-    appDispatch({
+    dispatch({
       type: ACTION_TYPES.UPDATE_SETTINGS,
       payload: { defaultDaySlots: [...otherDays, ...sourceSlots] },
     });
@@ -676,7 +676,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
         allDaySlots.push({ ...slot, id: `${slot.id}_${day}`, day });
       });
     });
-    appDispatch({ type: ACTION_TYPES.UPDATE_SETTINGS, payload: { defaultDaySlots: allDaySlots } });
+    dispatch({ type: ACTION_TYPES.UPDATE_SETTINGS, payload: { defaultDaySlots: allDaySlots } });
     handleActivateSchedule(schedule.id, { silent: true });
     showNotification(`Imported ${blocks.length} blocks from "${schedule.name}" as daily defaults. Switch to Day Builder to customize.`);
     setActiveTab('builder');
@@ -782,6 +782,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                   timeBlocks={clockBlocks}
                   showNow={true}
                   size={280}
+                  disabled={!activeSlot}
                 />
               </div>
 

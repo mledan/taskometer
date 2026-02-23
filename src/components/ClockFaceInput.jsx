@@ -86,6 +86,7 @@ function ClockFaceInput({
   timeBlocks = [],
   showNow = true,
   size = 280,
+  disabled = false,
 }) {
   const [selectingEnd, setSelectingEnd] = useState(false);
   const [minutePickHour, setMinutePickHour] = useState(null);
@@ -107,6 +108,7 @@ function ClockFaceInput({
   const nowHour = Math.floor(nowMinutes / 60);
 
   const handleHourClick = useCallback((h24) => {
+    if (disabled) return;
     if (!selectingEnd) {
       setSelectingEnd(true);
       setMinutePickHour(h24);
@@ -122,7 +124,7 @@ function ClockFaceInput({
         onChange({ start: startTime, end: minutesToTimeStr(h24 * 60) });
       }
     }
-  }, [selectingEnd, startTime, endTime, onChange]);
+  }, [disabled, selectingEnd, startTime, endTime, onChange]);
 
   const handleMinuteSelect = useCallback((minute) => {
     if (minutePickHour === null) return;
@@ -291,7 +293,7 @@ function ClockFaceInput({
   return (
     <div className={styles.wrapper}>
       <div
-        className={styles.clockContainer}
+        className={`${styles.clockContainer} ${disabled ? styles.disabled : ''}`}
         style={{ width: size, height: size }}
         onClick={minutePickHour !== null ? dismissMinutePicker : undefined}
       >
@@ -353,7 +355,11 @@ function ClockFaceInput({
       </div>
 
       <p className={styles.instructions}>
-        {selectingEnd ? 'Now click an hour to set end time' : 'Click an hour to set start time'}
+        {disabled
+          ? 'Select a slot on the timeline to edit its time'
+          : selectingEnd
+            ? 'Now click an hour to set end time'
+            : 'Click an hour to set start time'}
       </p>
     </div>
   );
