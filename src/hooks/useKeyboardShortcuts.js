@@ -10,13 +10,10 @@ import { useEffect, useCallback, useState } from 'react';
 export const DEFAULT_SHORTCUTS = {
   // Navigation
   'g+d': { action: 'goToDashboard', description: 'Go to Dashboard', category: 'Navigation' },
-  'g+t': { action: 'goToTodos', description: 'Go to Todos', category: 'Navigation' },
+  'g+s': { action: 'goToSchedules', description: 'Go to Schedule', category: 'Navigation' },
+  'g+t': { action: 'goToTodos', description: 'Go to Tasks', category: 'Navigation' },
   'g+c': { action: 'goToCalendar', description: 'Go to Calendar', category: 'Navigation' },
-  'g+s': { action: 'goToSchedules', description: 'Go to Schedules', category: 'Navigation' },
-  'g+p': { action: 'goToPalace', description: 'Go to Memory Palace', category: 'Navigation' },
   'g+h': { action: 'goToHistory', description: 'Go to History', category: 'Navigation' },
-  'g+y': { action: 'goToTaskTypes', description: 'Go to Task Types', category: 'Navigation' },
-  'g+m': { action: 'goToCommunity', description: 'Go to Community', category: 'Navigation' },
 
   // Actions
   'n': { action: 'newTask', description: 'New Task', category: 'Actions' },

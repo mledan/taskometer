@@ -12,71 +12,43 @@ const TOUR_STEPS = [
   {
     id: 'welcome',
     title: 'Welcome to LifeOS!',
-    description: 'Start with a schedule template, then add tasks and let AI map your day. Let\'s take a quick tour.',
-    target: null, // No target - centered modal
+    description: 'Build your ideal day with templates, then add tasks and let the scheduler map them. Let\'s take a quick tour.',
+    target: null,
     position: 'center'
   },
   {
     id: 'schedules',
-    title: 'Step 1: Pick a Schedule Template',
-    description: 'Choose your base day first: sleep, meals, and work structure. Then browse famous and community routines.',
+    title: 'Step 1: Build Your Schedule',
+    description: 'Use the Day Builder to split your day into time slots, or pick a famous template. The clock face shows all 24 hours at a glance.',
     target: '[data-tour="schedules"]',
     position: 'bottom'
   },
   {
-    id: 'defaults',
-    title: 'Step 2: Build Your Default Day',
-    description: 'Split your day into time slots visually. Set types, tags, and flexibility per slot. These defaults auto-generate your upcoming calendar.',
-    target: '[data-tour="defaults"]',
-    position: 'bottom'
-  },
-  {
     id: 'add-task',
-    title: 'Step 3: Add Your Tasks',
-    description: 'Capture tasks with duration and priority. The scheduler can place them into your active template.',
+    title: 'Step 2: Add Your Tasks',
+    description: 'Capture tasks with duration and priority. The scheduler places them into your schedule template.',
     target: '[data-tour="add-task"]',
     position: 'bottom'
   },
   {
     id: 'calendar',
-    title: 'Step 4: Review Your Planned Day',
-    description: 'See how your template and tasks combine on the calendar, then adjust details as needed.',
+    title: 'Step 3: Review Your Week',
+    description: 'See how your schedule and tasks combine on the calendar. Adjust details as needed.',
     target: '[data-tour="calendar"]',
     position: 'bottom'
   },
   {
     id: 'dashboard',
     title: 'Your Dashboard',
-    description: 'Get a quick summary of focus, progress, and upcoming work at any time.',
+    description: 'Get a quick summary of today\'s focus, progress, and upcoming work.',
     target: '[data-tour="dashboard"]',
     position: 'bottom'
   },
   {
-    id: 'palace',
-    title: 'Memory Palace',
-    description: 'Create visual memory palaces to link tasks with locations. A powerful technique for remembering and organizing.',
-    target: '[data-tour="palace"]',
-    position: 'bottom'
-  },
-  {
-    id: 'task-types',
-    title: 'Task Types',
-    description: 'Customize task categories (Work, Personal, Health, etc.). Each type has its own color and default settings.',
-    target: '[data-tour="task-types"]',
-    position: 'bottom'
-  },
-  {
     id: 'history',
-    title: 'Analytics & History',
-    description: 'Track your productivity, view completed tasks, and analyze your patterns over time.',
+    title: 'History & Analytics',
+    description: 'Track your productivity and analyze patterns over time.',
     target: '[data-tour="history"]',
-    position: 'bottom'
-  },
-  {
-    id: 'community',
-    title: 'Community Schedules',
-    description: 'Discover and share schedules with the community. Like schedules that inspire you.',
-    target: '[data-tour="community"]',
     position: 'bottom'
   },
   {
@@ -87,16 +59,9 @@ const TOUR_STEPS = [
     position: 'left'
   },
   {
-    id: 'shortcuts',
-    title: 'Keyboard Shortcuts',
-    description: 'Press "?" anytime to see all keyboard shortcuts. Use "G+D" for Dashboard, "G+T" for Tasks, "G+P" for Palace, etc.',
-    target: null,
-    position: 'center'
-  },
-  {
     id: 'complete',
     title: 'You\'re All Set!',
-    description: 'Pick a schedule, add tasks, and let AI structure your day. You can always replay this tour from Settings.',
+    description: 'Build a schedule, add tasks, and structure your day. You can always replay this tour from Settings.',
     target: null,
     position: 'center'
   }

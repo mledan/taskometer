@@ -19,7 +19,7 @@ import styles from './Dashboard.module.css';
  * - Memory Palace summary (when available)
  */
 function Dashboard() {
-  const { items = [], taskTypes = [], activeSchedule, palaces = [] } = useAppState();
+  const { items = [], taskTypes = [], activeSchedule } = useAppState();
   const dispatch = useAppReducer();
   const { pending, paused, completed } = useItems();
   const [quickTaskText, setQuickTaskText] = useState('');
@@ -27,7 +27,6 @@ function Dashboard() {
 
   // Get today's tasks
   const todaysTasks = useMemo(() => {
-    const today = new Date();
     return items.filter(item => {
       if (!item.scheduledTime) return false;
       const taskDate = toLocalTime(item.scheduledTime);
@@ -227,7 +226,7 @@ function Dashboard() {
 
         {/* Today's Schedule */}
         <section className={styles.todaySchedule}>
-          <h2>Today's Schedule</h2>
+          <h2>Today&apos;s Schedule</h2>
           <div className={styles.progressWrapper}>
             <div className={styles.progressBar}>
               <div 
@@ -339,20 +338,10 @@ function Dashboard() {
           </div>
         </section>
 
-        {/* Memory Palace Preview */}
+        {/* Overall Progress */}
         <section className={styles.palacePreview}>
-          <h2>Memory Palace</h2>
-          {palaces && palaces.length > 0 ? (
-            <div className={styles.palaceCard}>
-              <h3>{palaces[0].name}</h3>
-              <p>{palaces[0].locations?.length || 0} locations</p>
-            </div>
-          ) : (
-            <div className={styles.emptyState}>
-              <p>Create a Memory Palace to link tasks with locations</p>
-              <p className={styles.hint}>Navigate to the Palace tab to get started</p>
-            </div>
-          )}
+          <h2>Overall Progress</h2>
+          <Progress />
         </section>
       </div>
     </div>

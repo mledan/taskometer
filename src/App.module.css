@@ -41,15 +41,11 @@
   }
 }
 
-.defaultsView,
 .todosView,
 .calendarView,
-.palaceView,
 .dashboardView,
 .schedulesView,
-.taskTypesView,
-.historyView,
-.communityView {
+.historyView {
   width: 100%;
   margin: 0;
   height: 100%;
@@ -70,13 +66,9 @@
   width: 100%;
 }
 
-.defaultsView,
-.palaceView,
 .dashboardView,
 .schedulesView,
-.taskTypesView,
-.historyView,
-.communityView {
+.historyView {
   flex: 1;
   display: flex;
   background: var(--bg-color);
