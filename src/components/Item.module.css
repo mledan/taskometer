@@ -190,4 +190,27 @@
 		font-size: 11px;
 		color: var(--font-color);
 	}
+
+	.slotLabel {
+		padding: 2px 8px;
+		background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(16, 185, 129, 0.1));
+		border-radius: 100px;
+		font-size: 11px;
+		font-weight: 500;
+		color: var(--font-color);
+		border: 1px solid rgba(59, 130, 246, 0.2);
+	}
+
+	.unscheduledBadge {
+		display: inline-flex;
+		align-items: center;
+		padding: 2px 8px;
+		background: rgba(245, 158, 11, 0.1);
+		border: 1px solid rgba(245, 158, 11, 0.25);
+		border-radius: 100px;
+		font-size: 11px;
+		font-weight: 500;
+		color: #D97706;
+		margin-top: 4px;
+	}
 }

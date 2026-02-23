@@ -106,6 +106,11 @@ function Item({ item }) {
                 {taskTypes.find(t => t.id === item.taskType)?.name || 'Default'}
               </span>
             )}
+            {item.metadata?.scheduledLabel && (
+              <span className={styles.slotLabel}>
+                {item.metadata.scheduledLabel}
+              </span>
+            )}
             {linkedLocation && (
               <span className={styles.locationTag}>
                 @{linkedLocation}
@@ -117,6 +122,11 @@ function Item({ item }) {
             >
               Reschedule
             </button>
+          </div>
+        )}
+        {!item.scheduledTime && item.status === 'pending' && (
+          <div className={styles.unscheduledBadge}>
+            Unscheduled
           </div>
         )}
         {isRescheduling && (
