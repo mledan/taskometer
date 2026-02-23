@@ -694,7 +694,9 @@ export class LocalStorageAdapter extends DatabaseAdapter {
    */
   async getTaskTypes() {
     const types = this._get(STORAGE_KEYS.TYPES) || [];
-    return mergeWithDefaultTypes(types.filter(t => !t.isSystem));
+    // Return all types as-is. The fresh-slate approach means new users start
+    // empty and pick their own blocks. Existing users keep whatever they had.
+    return types;
   }
 
   /**

@@ -369,8 +369,99 @@ function formatHHMM(date) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
+/**
+ * Apply a one-off event to the calendar, overriding any framework slots that
+ * overlap. Returns information about which slots were displaced so their
+ * assigned tasks can be rescheduled.
+ *
+ * @param {Object} event - { date, start, end, name, id }
+ * @param {Object} state - { slots, tasks, settings, taskTypes }
+ * @returns {{ eventSlot: Object, displacedTasks: Object[], rescheduled: Object[] }}
+ */
+export function applyEventOverride(event, state) {
+  const { slots = [], tasks = [], settings = {}, taskTypes = [] } = state;
+  const eventStartMin = toMinutes(event.start);
+  const eventEndMin = toMinutes(event.end);
+
+  const displacedTasks = [];
+  const affectedSlotIds = new Set();
+
+  // Find slots on the event date that overlap with the event time
+  slots.forEach(slot => {
+    if (slot.date !== event.date) return;
+    const slotStart = toMinutes(slot.startTime);
+    const slotEnd = toMinutes(slot.endTime);
+    if (slotStart < eventEndMin && slotEnd > eventStartMin) {
+      affectedSlotIds.add(slot.id);
+      if (slot.assignedTaskId) {
+        const task = tasks.find(t =>
+          (t.id || t.key)?.toString() === slot.assignedTaskId?.toString()
+        );
+        if (task) {
+          displacedTasks.push({
+            ...task,
+            displacedFromSlotId: slot.id,
+            displacedFromSlotType: slot.slotType,
+            scheduledTime: null,
+            scheduledFor: null,
+            specificTime: null,
+            scheduledSlotId: null,
+          });
+        }
+      }
+    }
+  });
+
+  // Reschedule displaced tasks to next available matching slot
+  const rescheduled = [];
+  const remainingState = {
+    ...state,
+    slots: slots.filter(s => !affectedSlotIds.has(s.id)),
+    tasks: tasks.filter(t =>
+      !displacedTasks.some(d => (d.id || d.key)?.toString() === (t.id || t.key)?.toString())
+    ),
+  };
+
+  displacedTasks.forEach(task => {
+    const result = scheduleTask(task, remainingState);
+    if (result) {
+      rescheduled.push({
+        task,
+        newTime: result.scheduledTime,
+        newSlotId: result.slotId,
+        reason: `Rescheduled from ${event.date} due to "${event.name}"`,
+      });
+      remainingState.tasks.push({
+        ...task,
+        scheduledTime: result.scheduledTime,
+        scheduledSlotId: result.slotId,
+      });
+    } else {
+      rescheduled.push({
+        task,
+        newTime: null,
+        newSlotId: null,
+        reason: `Could not find alternative slot after displacement by "${event.name}"`,
+      });
+    }
+  });
+
+  return {
+    affectedSlotIds: Array.from(affectedSlotIds),
+    displacedTasks,
+    rescheduled,
+  };
+}
+
+function toMinutes(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
 export default {
   scheduleTask,
   scheduleMultipleTasks,
   previewTaskSchedule,
+  applyEventOverride,
 };

@@ -17,13 +17,13 @@ import { getAdapter } from '../services/database';
 import { createTask, migrateLegacyTask, TASK_STATUSES } from '../models/Task';
 import { createCalendarSlot, getSlotStartDateTime } from '../models/CalendarSlot';
 import { createTag, DEFAULT_TAGS } from '../models/Tag';
-import { createTaskType, DEFAULT_TASK_TYPES } from '../models/TaskType';
+import { createTaskType, DEFAULT_TASK_TYPES, LEGACY_TASK_TYPES } from '../models/TaskType';
 import { createSchedule, createScheduleBlock, BLOCK_CATEGORIES } from '../models/Schedule';
 import { createAuditEntry, AUDIT_ACTIONS, ENTITY_TYPES, CHANGE_SOURCES } from '../models/AuditEntry';
 import { findOptimalTimeSlot, batchScheduleTasks } from '../utils/intelligentScheduler';
 import { batchMatchTasksToSlots } from '../utils/slotMatcher';
 import { getActiveSchedule as getLegacyActiveSchedule } from '../utils/scheduleTemplates';
-import { scheduleTask as engineScheduleTask, scheduleMultipleTasks as engineScheduleMultiple } from '../utils/schedulingEngine';
+import { scheduleTask as engineScheduleTask, scheduleMultipleTasks as engineScheduleMultiple, applyEventOverride } from '../utils/schedulingEngine';
 
 // ============================================
 // CONTEXT CREATION
@@ -1346,9 +1346,10 @@ export function AppStateProvider({ children }) {
 
         const savedState = await db.getState();
 
-        // Merge with defaults
         const tasks = savedState.tasks || savedState.items || [];
-        const taskTypes = savedState.taskTypes?.length > 0
+        // Fresh slate: new users get no default types.
+        // Existing users keep whatever they already saved.
+        const taskTypes = Array.isArray(savedState.taskTypes)
           ? savedState.taskTypes
           : DEFAULT_TASK_TYPES;
 
