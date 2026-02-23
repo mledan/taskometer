@@ -68,7 +68,7 @@ function getScheduleSnapshot(schedule) {
   };
 }
 
-function ScheduleLibrary({ onNavigateToTasks }) {
+function ScheduleLibrary({ onNavigateToTasks, onNavigateToDefaults }) {
   const [state, dispatch] = useAppContext();
   const [schedules, setSchedules] = useState([]);
   const [activeScheduleId, setActiveScheduleId] = useState(null);
@@ -238,6 +238,46 @@ function ScheduleLibrary({ onNavigateToTasks }) {
     }
   }
 
+  function handleApplyAsDefaults(schedule) {
+    const blocks = schedule.timeBlocks || [];
+    if (blocks.length === 0) {
+      showNotification('This schedule has no time blocks to import.', 'warning');
+      return;
+    }
+
+    const defaultDaySlots = blocks.map((block, index) => ({
+      id: `imported_${schedule.id}_${index}_${Date.now()}`,
+      day: 'Monday',
+      startTime: block.start || '09:00',
+      endTime: block.end || '10:00',
+      slotType: block.type || block.category || null,
+      label: block.label || block.name || `${block.type || 'Block'} slot`,
+      flexibility: 'preferred',
+      color: block.color || '#3B82F6',
+      allowedTags: []
+    }));
+
+    const allDaySlots = [];
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    dayNames.forEach((day) => {
+      defaultDaySlots.forEach((slot) => {
+        allDaySlots.push({ ...slot, id: `${slot.id}_${day}`, day });
+      });
+    });
+
+    dispatch({
+      type: ACTION_TYPES.UPDATE_SETTINGS,
+      payload: { defaultDaySlots: allDaySlots }
+    });
+
+    handleActivateSchedule(schedule.id, { silent: true });
+    showNotification(`Imported ${blocks.length} blocks from "${schedule.name}" as default day slots for all 7 days. Go to Defaults to customize.`);
+
+    if (onNavigateToDefaults) {
+      onNavigateToDefaults();
+    }
+  }
+
   function renderTimeBlock(block) {
     const activityType = ACTIVITY_TYPES[block.type.toUpperCase()] || ACTIVITY_TYPES.BUFFER;
     return (
@@ -339,6 +379,16 @@ function ScheduleLibrary({ onNavigateToTasks }) {
             className={styles.quickApplyButton}
           >
             Quick Apply
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleApplyAsDefaults(schedule);
+            }}
+            className={styles.previewButton}
+            title="Import time blocks as default day slot templates"
+          >
+            As Defaults
           </button>
         </div>
       </div>
@@ -540,6 +590,13 @@ function ScheduleLibrary({ onNavigateToTasks }) {
                   )}
                 >
                   Apply to Calendar
+                </button>
+                <button
+                  className={styles.previewButton}
+                  onClick={() => handleApplyAsDefaults(selectedSchedule)}
+                  title="Import as default day slot templates (editable in Defaults tab)"
+                >
+                  Apply as Defaults
                 </button>
               </div>
             </div>

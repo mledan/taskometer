@@ -82,7 +82,10 @@ function AppContent() {
 
             {activeView === VIEWS.SCHEDULES && (
               <div className={styles.schedulesView}>
-                <ScheduleLibrary onNavigateToTasks={() => setActiveView(VIEWS.TASKS)} />
+                <ScheduleLibrary
+                  onNavigateToTasks={() => setActiveView(VIEWS.TASKS)}
+                  onNavigateToDefaults={() => setActiveView(VIEWS.DEFAULTS)}
+                />
               </div>
             )}
 
