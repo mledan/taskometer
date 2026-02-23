@@ -1303,6 +1303,62 @@
   color: var(--font-color-secondary);
 }
 
+/* Custom Block */
+.customBlockSection {
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.addCustomBtn {
+  border: none;
+  background: transparent;
+  color: var(--accent-color);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: opacity 0.15s ease;
+}
+
+.addCustomBtn:hover {
+  opacity: 0.8;
+}
+
+.customBlockForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.customBlockForm h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.customBlockRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.customBlockRow .input {
+  flex: 1;
+  min-width: 160px;
+}
+
+.emojiInput {
+  width: 44px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--font-color);
+  padding: 7px 4px;
+  font-size: 16px;
+}
+
 /* Framework Actions */
 .frameworkActions {
   display: flex;

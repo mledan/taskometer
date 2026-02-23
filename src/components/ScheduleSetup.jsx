@@ -22,6 +22,7 @@ import {
   catalogBlockToTaskType,
   getCatalogBlock,
 } from '../models/TaskType.js';
+import { applyEventOverride } from '../utils/schedulingEngine.js';
 import CircularSchedule from './CircularSchedule.jsx';
 import ClockFaceInput from './ClockFaceInput.jsx';
 import styles from './ScheduleSetup.module.css';
@@ -282,6 +283,8 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     return configs;
   });
   const [frameworkMessage, setFrameworkMessage] = useState('');
+  const [showCustomBlock, setShowCustomBlock] = useState(false);
+  const [customBlockForm, setCustomBlockForm] = useState({ name: '', icon: '📌', color: '#94A3B8', duration: 60, start: '', end: '' });
   const [eventForm, setEventForm] = useState({ name: '', date: format(new Date(), 'yyyy-MM-dd'), start: '19:00', end: '21:00' });
   const [events, setEvents] = useState(() => {
     return Array.isArray(settings.scheduledEvents) ? settings.scheduledEvents : [];
@@ -724,56 +727,104 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   function generateFrameworkSlots() {
     applyFrameworkToTypes();
 
-    const orderedBlocks = [];
+    // Collect configured blocks (skip sleep and event)
+    const blocks = [];
     selectedBlocks.forEach(id => {
       const catalog = getCatalogBlock(id);
       if (!catalog || id === 'sleep' || id === 'event') return;
       const config = blockConfigs[id] || {};
-      orderedBlocks.push({ ...catalog, configDuration: config.duration || catalog.defaultDuration, configStart: config.preferredStart, configEnd: config.preferredEnd });
+      blocks.push({
+        ...catalog,
+        configDuration: config.duration || catalog.defaultDuration,
+        configStart: config.preferredStart || catalog.preferredStart,
+        configEnd: config.preferredEnd || catalog.preferredEnd,
+      });
     });
 
-    // Sort by preferred start time
-    orderedBlocks.sort((a, b) => {
-      const aStart = a.configStart || a.preferredStart || '12:00';
-      const bStart = b.configStart || b.preferredStart || '12:00';
-      return aStart.localeCompare(bStart);
-    });
+    // Separate fixed-time blocks (those with explicit preferred start) from flexible
+    const fixedBlocks = blocks.filter(b => b.configStart).sort((a, b) => a.configStart.localeCompare(b.configStart));
+    const flexBlocks = blocks.filter(b => !b.configStart);
 
     const allDaySlots = [];
+
     DAY_NAMES.forEach(day => {
-      let cursor = preferredRange.start;
-      const dayEnd = preferredRange.end;
+      const daySlots = [];
+      const occupied = []; // [{start, end}] tracking placed slots
 
-      orderedBlocks.forEach(block => {
-        if (cursor >= dayEnd) return;
-        const duration = block.configDuration;
-        const startMinute = block.configStart ? parseTimeToMinutes(block.configStart) : null;
+      // Phase 1: Place fixed-time blocks at their preferred times
+      fixedBlocks.forEach(block => {
+        const start = parseTimeToMinutes(block.configStart);
+        if (start === null) return;
+        let end = start + block.configDuration;
+        const rangeEnd = preferredRange.end;
+        if (end > rangeEnd) end = rangeEnd;
+        if (end - start < MIN_SLOT_MINUTES) return;
 
-        let slotStart;
-        if (startMinute !== null && startMinute >= cursor) {
-          slotStart = startMinute;
-        } else {
-          slotStart = cursor;
-        }
+        // Check for overlaps with already-placed fixed blocks
+        const overlaps = occupied.some(o => start < o.end && end > o.start);
+        if (overlaps) return;
 
-        let slotEnd = slotStart + duration;
-        if (slotEnd > dayEnd) slotEnd = dayEnd;
-        if (slotEnd - slotStart < MIN_SLOT_MINUTES) return;
-
-        allDaySlots.push({
+        daySlots.push({
           id: createTemplateId(),
           day,
-          startTime: minutesToTime(slotStart),
-          endTime: minutesToTime(slotEnd),
+          startTime: minutesToTime(start),
+          endTime: minutesToTime(end),
           slotType: block.id,
           label: block.name,
           flexibility: block.isFixed ? 'fixed' : 'preferred',
           color: block.color,
           allowedTags: [],
         });
-
-        cursor = slotEnd;
+        occupied.push({ start, end });
       });
+
+      // Sort occupied spans for gap-finding
+      occupied.sort((a, b) => a.start - b.start);
+
+      // Phase 2: Find gaps and fill with flexible blocks
+      const gaps = [];
+      let cursor = preferredRange.start;
+      occupied.forEach(span => {
+        if (span.start > cursor + MIN_SLOT_MINUTES) {
+          gaps.push({ start: cursor, end: span.start });
+        }
+        cursor = Math.max(cursor, span.end);
+      });
+      if (cursor < preferredRange.end - MIN_SLOT_MINUTES) {
+        gaps.push({ start: cursor, end: preferredRange.end });
+      }
+
+      let flexIndex = 0;
+      gaps.forEach(gap => {
+        let gapCursor = gap.start;
+        while (flexIndex < flexBlocks.length && gapCursor < gap.end - MIN_SLOT_MINUTES) {
+          const block = flexBlocks[flexIndex];
+          let duration = block.configDuration;
+          if (gapCursor + duration > gap.end) {
+            duration = gap.end - gapCursor;
+          }
+          if (duration < MIN_SLOT_MINUTES) break;
+
+          daySlots.push({
+            id: createTemplateId(),
+            day,
+            startTime: minutesToTime(gapCursor),
+            endTime: minutesToTime(gapCursor + duration),
+            slotType: block.id,
+            label: block.name,
+            flexibility: 'flexible',
+            color: block.color,
+            allowedTags: [],
+          });
+
+          gapCursor += duration;
+          flexIndex++;
+        }
+      });
+
+      // Sort by start time
+      daySlots.sort((a, b) => a.startTime.localeCompare(b.startTime));
+      allDaySlots.push(...daySlots);
     });
 
     dispatch({
@@ -781,8 +832,41 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
       payload: { defaultDaySlots: allDaySlots },
     });
 
-    setFrameworkMessage(`Generated ${allDaySlots.length / 7} daily blocks across all 7 days. Switch to Day Builder to fine-tune.`);
+    const perDay = Math.round(allDaySlots.length / 7);
+    setFrameworkMessage(`Generated ~${perDay} blocks per day across all 7 days. Switch to Day Builder to fine-tune.`);
     setTimeout(() => setFrameworkMessage(''), 4000);
+  }
+
+  function addCustomBlock() {
+    if (!customBlockForm.name.trim()) return;
+    const id = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newType = {
+      id,
+      name: customBlockForm.name.trim(),
+      icon: customBlockForm.icon || '📌',
+      color: customBlockForm.color,
+      defaultDuration: customBlockForm.duration,
+      isSystem: false,
+      isActive: true,
+      constraints: {
+        preferredTimeStart: customBlockForm.start || null,
+        preferredTimeEnd: customBlockForm.end || null,
+      },
+    };
+    dispatch({ type: ACTION_TYPES.ADD_TASK_TYPE, payload: newType });
+    setSelectedBlocks(prev => new Set([...prev, id]));
+    setBlockConfigs(prev => ({
+      ...prev,
+      [id]: {
+        duration: customBlockForm.duration,
+        preferredStart: customBlockForm.start || null,
+        preferredEnd: customBlockForm.end || null,
+      },
+    }));
+    setCustomBlockForm({ name: '', icon: '📌', color: '#94A3B8', duration: 60, start: '', end: '' });
+    setShowCustomBlock(false);
+    setFrameworkMessage(`Added custom block "${newType.name}".`);
+    setTimeout(() => setFrameworkMessage(''), 2000);
   }
 
   function addEvent() {
@@ -816,6 +900,36 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
       return;
     }
 
+    let totalDisplaced = 0;
+    let totalRescheduled = 0;
+
+    events.forEach(ev => {
+      const result = applyEventOverride(ev, {
+        slots: state.slots || [],
+        tasks: state.tasks || [],
+        settings,
+        taskTypes,
+      });
+
+      totalDisplaced += result.displacedTasks.length;
+      totalRescheduled += result.rescheduled.filter(r => r.newTime).length;
+
+      // Reschedule displaced tasks
+      result.rescheduled.forEach(r => {
+        if (r.newTime && r.task) {
+          dispatch({
+            type: ACTION_TYPES.RESCHEDULE_TASK,
+            payload: {
+              taskId: r.task.id || r.task.key,
+              scheduledTime: r.newTime,
+              specificTime: r.newTime ? new Date(r.newTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : null,
+            },
+          });
+        }
+      });
+    });
+
+    // Apply event blocks to calendar
     const blocks = events.map(ev => ({
       date: ev.date,
       start: ev.start,
@@ -834,8 +948,12 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
       payload: { blocks, options: { mergeWithExisting: true } },
     });
 
-    setFrameworkMessage(`Applied ${events.length} event(s) to calendar. Conflicting framework tasks will be rescheduled.`);
-    setTimeout(() => setFrameworkMessage(''), 3000);
+    let msg = `Applied ${events.length} event(s) to calendar.`;
+    if (totalDisplaced > 0) {
+      msg += ` ${totalDisplaced} task(s) displaced, ${totalRescheduled} rescheduled to next available slots.`;
+    }
+    setFrameworkMessage(msg);
+    setTimeout(() => setFrameworkMessage(''), 4000);
   }
 
   function updateActiveSlotField(field, value) {
@@ -1111,6 +1229,83 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                 </div>
               </div>
             ))}
+          </section>
+
+          {/* Add Custom Block */}
+          <section className={styles.customBlockSection}>
+            {!showCustomBlock ? (
+              <button type="button" className={styles.addCustomBtn} onClick={() => setShowCustomBlock(true)}>
+                + Add a custom block
+              </button>
+            ) : (
+              <div className={styles.customBlockForm}>
+                <h4>Create Custom Block</h4>
+                <div className={styles.customBlockRow}>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    placeholder="Block name (e.g. Side Project)"
+                    value={customBlockForm.name}
+                    onChange={e => setCustomBlockForm(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                  <input
+                    type="text"
+                    className={styles.emojiInput}
+                    placeholder="📌"
+                    value={customBlockForm.icon}
+                    maxLength={4}
+                    onChange={e => setCustomBlockForm(prev => ({ ...prev, icon: e.target.value }))}
+                  />
+                  <input
+                    type="color"
+                    className={styles.colorPicker}
+                    value={customBlockForm.color}
+                    onChange={e => setCustomBlockForm(prev => ({ ...prev, color: e.target.value }))}
+                  />
+                </div>
+                <div className={styles.customBlockRow}>
+                  <label className={styles.catalogConfigLabel}>Duration</label>
+                  <div className={styles.durationPresets}>
+                    {[30, 60, 90, 120].map(d => (
+                      <button
+                        key={d}
+                        type="button"
+                        className={`${styles.durationBtn} ${customBlockForm.duration === d ? styles.durationBtnActive : ''}`}
+                        onClick={() => setCustomBlockForm(prev => ({ ...prev, duration: d }))}
+                      >
+                        {formatDuration(d)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.customBlockRow}>
+                  <label className={styles.catalogConfigLabel}>Preferred time (optional)</label>
+                  <div className={styles.timeInputRow}>
+                    <input
+                      type="time"
+                      className={styles.timeInput}
+                      value={customBlockForm.start}
+                      onChange={e => setCustomBlockForm(prev => ({ ...prev, start: e.target.value }))}
+                    />
+                    <span className={styles.timeSep}>to</span>
+                    <input
+                      type="time"
+                      className={styles.timeInput}
+                      value={customBlockForm.end}
+                      onChange={e => setCustomBlockForm(prev => ({ ...prev, end: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className={styles.customBlockRow}>
+                  <button type="button" className={styles.cardBtnAccent} onClick={addCustomBlock}>
+                    Add Block
+                  </button>
+                  <button type="button" className={styles.cardBtn} onClick={() => setShowCustomBlock(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Generate Actions */}

@@ -23,7 +23,7 @@ import { createAuditEntry, AUDIT_ACTIONS, ENTITY_TYPES, CHANGE_SOURCES } from '.
 import { findOptimalTimeSlot, batchScheduleTasks } from '../utils/intelligentScheduler';
 import { batchMatchTasksToSlots } from '../utils/slotMatcher';
 import { getActiveSchedule as getLegacyActiveSchedule } from '../utils/scheduleTemplates';
-import { scheduleTask as engineScheduleTask, scheduleMultipleTasks as engineScheduleMultiple } from '../utils/schedulingEngine';
+import { scheduleTask as engineScheduleTask, scheduleMultipleTasks as engineScheduleMultiple, applyEventOverride } from '../utils/schedulingEngine';
 
 // ============================================
 // CONTEXT CREATION
