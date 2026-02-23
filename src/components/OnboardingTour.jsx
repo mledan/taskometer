@@ -24,15 +24,22 @@ const TOUR_STEPS = [
     position: 'bottom'
   },
   {
+    id: 'defaults',
+    title: 'Step 2: Build Your Default Day',
+    description: 'Split your day into time slots visually. Set types, tags, and flexibility per slot. These defaults auto-generate your upcoming calendar.',
+    target: '[data-tour="defaults"]',
+    position: 'bottom'
+  },
+  {
     id: 'add-task',
-    title: 'Step 2: Add Your Tasks',
+    title: 'Step 3: Add Your Tasks',
     description: 'Capture tasks with duration and priority. The scheduler can place them into your active template.',
     target: '[data-tour="add-task"]',
     position: 'bottom'
   },
   {
     id: 'calendar',
-    title: 'Step 3: Review Your Planned Day',
+    title: 'Step 4: Review Your Planned Day',
     description: 'See how your template and tasks combine on the calendar, then adjust details as needed.',
     target: '[data-tour="calendar"]',
     position: 'bottom'

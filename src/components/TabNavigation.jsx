@@ -17,7 +17,7 @@ function TabNavigation({ activeView, onViewChange }) {
   const tabs = [
     { view: VIEWS.DASHBOARD, label: 'Dashboard', tour: 'dashboard' },
     { view: VIEWS.SCHEDULES, label: 'Schedules', tour: 'schedules' },
-    { view: VIEWS.DEFAULTS, label: 'Defaults' },
+    { view: VIEWS.DEFAULTS, label: 'Defaults', tour: 'defaults' },
     { view: VIEWS.TASKS, label: 'Tasks', tour: 'add-task' },
     { view: VIEWS.CALENDAR, label: 'Calendar', tour: 'calendar' },
     { view: VIEWS.PALACE, label: 'Palace', tour: 'palace' },
