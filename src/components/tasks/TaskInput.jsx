@@ -1,143 +1,130 @@
-/**
- * TaskInput Component (Enhanced AddItemForm)
- *
- * Task creation form with multi-tag support and improved UX.
- * Replaces AddItemForm while maintaining backwards compatibility.
- *
- * Features:
- * - Task text input with auto-scheduling toggle
- * - Type selector with color preview
- * - Multi-tag selector
- * - Scheduling options (immediate, delay, specific)
- * - Duration and priority
- * - Preview of next available slot
- */
-
-import { useRef, useState, useMemo, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppReducer, useAppState } from '../../AppContext';
 import { ACTION_TYPES } from '../../context/AppContext';
-import { TagSelector } from '../tags';
 import { createTask } from '../../models/Task';
-import { findOptimalTimeSlot } from '../../utils/intelligentScheduler';
-import { getActiveSchedule } from '../../utils/scheduleTemplates';
+import { getSlotStartDateTime } from '../../models/CalendarSlot';
+import { findOptimalSlot } from '../../utils/slotMatcher';
 import styles from './TaskInput.module.css';
 
 function TaskInput({ onTaskAdded }) {
   const dispatch = useAppReducer();
-  const { taskTypes = [], tasks = [], activeSchedule, settings = {} } = useAppState();
+  const { taskTypes = [], tasks = [], slots = [], palaces = [] } = useAppState();
 
   const inputRef = useRef();
 
-  // Form state
   const [taskText, setTaskText] = useState('');
-  const [taskType, setTaskType] = useState('work');
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [schedulingPreference, setSchedulingPreference] = useState('immediate');
+  const [taskType, setTaskType] = useState(taskTypes[0]?.id || 'work');
   const [duration, setDuration] = useState(30);
-  const [priority, setPriority] = useState('medium');
-  const [delayMinutes, setDelayMinutes] = useState(15);
-  const [specificDay, setSpecificDay] = useState('');
-  const [specificTime, setSpecificTime] = useState('09:00');
-  const [autoSchedule, setAutoSchedule] = useState(true);
-
-  // UI state
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [locationKey, setLocationKey] = useState('');
   const [previewSlot, setPreviewSlot] = useState(null);
 
-  // Get the current task type config
   const currentTypeConfig = useMemo(() => {
     return taskTypes.find(t => t.id === taskType) || { color: '#3B82F6', defaultDuration: 30 };
   }, [taskTypes, taskType]);
 
-  // Update duration when task type changes
+  useEffect(() => {
+    if (taskTypes.length === 0) return;
+    if (!taskTypes.some((type) => type.id === taskType)) {
+      setTaskType(taskTypes[0].id);
+    }
+  }, [taskTypes, taskType]);
+
+  const allLocations = useMemo(() => {
+    return palaces.flatMap((palace) => {
+      return (palace.locations || []).map((location) => ({
+        key: `${palace.id}::${location.id}`,
+        palaceId: palace.id,
+        locationId: location.id,
+        label: `${palace.name} / ${location.name}`
+      }));
+    });
+  }, [palaces]);
+
   useEffect(() => {
     if (currentTypeConfig.defaultDuration) {
       setDuration(currentTypeConfig.defaultDuration);
     }
   }, [taskType, currentTypeConfig.defaultDuration]);
 
-  // Preview next available slot
   useEffect(() => {
-    if (!autoSchedule || !taskText || schedulingPreference !== 'immediate') {
+    if (!taskText.trim()) {
       setPreviewSlot(null);
       return;
     }
 
-    const schedule = activeSchedule || getActiveSchedule();
-    if (!schedule) {
+    if (slots.length === 0) {
       setPreviewSlot(null);
       return;
     }
 
     const previewTask = {
+      id: 'preview',
       taskType,
       primaryType: taskType,
-      duration,
-      tags: selectedTags
+      duration
     };
-
-    const slot = findOptimalTimeSlot(previewTask, schedule, tasks, taskTypes);
-    setPreviewSlot(slot);
-  }, [taskText, taskType, duration, selectedTags, autoSchedule, schedulingPreference, activeSchedule, tasks, taskTypes]);
+    const match = findOptimalSlot(previewTask, slots, tasks);
+    setPreviewSlot(match?.slot || null);
+  }, [taskText, taskType, duration, slots, tasks]);
 
   function handleSubmit(e) {
     e.preventDefault();
 
     if (!taskText.trim()) return;
 
-    const newTask = {
-      ...createTask({
+    const task = createTask({
       text: taskText.trim(),
       status: 'pending',
       primaryType: taskType,
-      taskType: taskType, // Legacy compatibility
-      tags: selectedTags,
+      taskType,
       duration,
-      priority,
-      schedulingPreference,
-      delayMinutes: schedulingPreference === 'delay' ? delayMinutes : 0,
-      specificDay: schedulingPreference === 'specific' ? specificDay : null,
-      specificTime: schedulingPreference === 'specific' ? specificTime : null,
+      priority: 'medium',
       scheduledTime: null
-      }),
-      autoSchedule
-    };
+    });
 
-    // Dispatch the add action (will auto-schedule based on context settings)
-    dispatch({ type: ACTION_TYPES.ADD_TASK, payload: newTask });
+    dispatch({
+      type: ACTION_TYPES.ADD_TASK,
+      payload: {
+        ...task,
+        autoSchedule: true
+      }
+    });
 
-    // ADD_TASK already auto-schedules immediate tasks in the reducer.
-    // Only run explicit scheduling for preferences that require extra intent.
-    if (autoSchedule && (schedulingPreference === 'specific' || schedulingPreference === 'delay')) {
-      dispatch({ type: ACTION_TYPES.SCHEDULE_TASKS, payload: { tasks: [newTask] } });
+    if (locationKey) {
+      const [palaceId, locationId] = locationKey.split('::');
+      const palace = palaces.find((entry) => entry.id === palaceId);
+      const location = palace?.locations?.find((entry) => entry.id === locationId);
+      if (palace && location) {
+        const existingLinks = Array.isArray(location.linkedTaskIds) ? location.linkedTaskIds : [];
+        const nextLinks = existingLinks.includes(task.id)
+          ? existingLinks
+          : [...existingLinks, task.id];
+
+        dispatch({
+          type: ACTION_TYPES.UPDATE_PALACE_LOCATION,
+          payload: {
+            palaceId,
+            locationId,
+            updates: {
+              linkedTaskIds: nextLinks
+            }
+          }
+        });
+      }
     }
 
-    // Callback for parent
     if (onTaskAdded) {
-      onTaskAdded(newTask);
+      onTaskAdded(task);
     }
 
-    // Reset form
     setTaskText('');
-    setSelectedTags([]);
+    setLocationKey('');
     inputRef.current?.focus();
   }
 
-  function handleKeyDown(e) {
-    // Expand on first keystroke
-    if (!isExpanded && e.key !== 'Escape') {
-      setIsExpanded(true);
-    }
-
-    // Submit on Ctrl/Cmd + Enter
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      handleSubmit(e);
-    }
-  }
-
-  function formatPreviewTime(isoString) {
-    if (!isoString) return '';
-    const date = new Date(isoString);
+  function formatPreviewTime(slot) {
+    if (!slot) return '';
+    const date = getSlotStartDateTime(slot);
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -163,7 +150,6 @@ function TaskInput({ onTaskAdded }) {
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
-      {/* Main input */}
       <div className={styles.mainInput}>
         <div
           className={styles.typeIndicator}
@@ -175,159 +161,56 @@ function TaskInput({ onTaskAdded }) {
           type="text"
           value={taskText}
           onChange={(e) => setTaskText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setIsExpanded(true)}
           placeholder="What needs to be done?"
           autoFocus
         />
         <button type="submit" className={styles.submitButton} aria-label="Add task" />
-
-        {/* Preview slot indicator */}
-        {previewSlot && taskText && (
-          <div className={styles.slotPreview}>
-            → {formatPreviewTime(previewSlot.scheduledFor)}
-          </div>
-        )}
       </div>
 
-      {/* Expanded options */}
-      {isExpanded && (
-        <div className={styles.options}>
-          {/* Row 1: Type and Tags */}
-          <div className={styles.optionsRow}>
-            <label className={styles.typeLabel}>
-              <span className={styles.labelText}>Type</span>
-              <div className={styles.typeSelectWrapper}>
-                <div
-                  className={styles.typeColorDot}
-                  style={{ backgroundColor: currentTypeConfig.color }}
-                />
-                <select
-                  value={taskType}
-                  onChange={(e) => setTaskType(e.target.value)}
-                  className={styles.typeSelect}
-                >
-                  {taskTypes.map(type => (
-                    <option key={type.id} value={type.id}>
-                      {type.icon} {type.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </label>
+      <div className={styles.options}>
+        <label>
+          <span className={styles.labelText}>Type</span>
+          <select
+            value={taskType}
+            onChange={(event) => setTaskType(event.target.value)}
+          >
+            {taskTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.icon} {type.name}
+              </option>
+            ))}
+          </select>
+        </label>
 
-            <div className={styles.tagsWrapper}>
-              <span className={styles.labelText}>Tags</span>
-              <TagSelector
-                selectedTags={selectedTags}
-                onChange={setSelectedTags}
-                placeholder="Add tags..."
-                maxTags={5}
-                compact
-              />
-            </div>
-          </div>
+        <label>
+          <span className={styles.labelText}>Duration (minutes)</span>
+          <input
+            type="number"
+            value={duration}
+            min="5"
+            max="480"
+            onChange={(event) => setDuration(parseInt(event.target.value, 10) || 30)}
+          />
+        </label>
 
-          {/* Row 2: Scheduling options */}
-          <div className={styles.optionsRow}>
-            <label className={styles.scheduleLabel}>
-              <span className={styles.labelText}>Schedule</span>
-              <select
-                value={schedulingPreference}
-                onChange={(e) => setSchedulingPreference(e.target.value)}
-              >
-                <option value="immediate">Auto-schedule now</option>
-                <option value="delay">Delay start</option>
-                <option value="specific">Specific time</option>
-              </select>
-            </label>
+        <label>
+          <span className={styles.labelText}>Memory Palace location (optional)</span>
+          <select value={locationKey} onChange={(event) => setLocationKey(event.target.value)}>
+            <option value="">No linked location</option>
+            {allLocations.map((location) => (
+              <option key={location.key} value={location.key}>
+                {location.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
-            <label className={styles.durationLabel}>
-              <span className={styles.labelText}>Duration</span>
-              <div className={styles.durationInput}>
-                <input
-                  type="number"
-                  value={duration}
-                  onChange={(e) => setDuration(parseInt(e.target.value) || 30)}
-                  min="5"
-                  max="480"
-                />
-                <span className={styles.durationUnit}>min</span>
-              </div>
-            </label>
-
-            <label className={styles.priorityLabel}>
-              <span className={styles.labelText}>Priority</span>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-                <option value="low">🟢 Low</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="high">🟠 High</option>
-                <option value="urgent">🔴 Urgent</option>
-              </select>
-            </label>
-          </div>
-
-          {/* Conditional scheduling inputs */}
-          {schedulingPreference === 'delay' && (
-            <div className={styles.optionsRow}>
-              <label className={styles.delayLabel}>
-                <span className={styles.labelText}>Delay by</span>
-                <div className={styles.delayInput}>
-                  <input
-                    type="number"
-                    value={delayMinutes}
-                    onChange={(e) => setDelayMinutes(parseInt(e.target.value) || 0)}
-                    min="0"
-                  />
-                  <span className={styles.delayUnit}>minutes</span>
-                </div>
-              </label>
-            </div>
-          )}
-
-          {schedulingPreference === 'specific' && (
-            <div className={styles.optionsRow}>
-              <label className={styles.dateLabel}>
-                <span className={styles.labelText}>Date</span>
-                <input
-                  type="date"
-                  value={specificDay}
-                  onChange={(e) => setSpecificDay(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                />
-              </label>
-              <label className={styles.timeLabel}>
-                <span className={styles.labelText}>Time</span>
-                <input
-                  type="time"
-                  value={specificTime}
-                  onChange={(e) => setSpecificTime(e.target.value)}
-                />
-              </label>
-            </div>
-          )}
-
-          {/* Auto-schedule toggle */}
-          <div className={styles.optionsFooter}>
-            <label className={styles.autoScheduleToggle}>
-              <input
-                type="checkbox"
-                checked={autoSchedule}
-                onChange={(e) => setAutoSchedule(e.target.checked)}
-              />
-              <span>Auto-schedule to next available slot</span>
-            </label>
-
-            <button
-              type="button"
-              className={styles.collapseButton}
-              onClick={() => setIsExpanded(false)}
-            >
-              Collapse options
-            </button>
-          </div>
-        </div>
-      )}
+      <div className={styles.slotPreview}>
+        {previewSlot
+          ? `Next slot: ${formatPreviewTime(previewSlot)}`
+          : 'No future matching slot found. Add slots in Defaults or Calendar.'}
+      </div>
     </form>
   );
 }

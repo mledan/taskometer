@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { useAppState } from '../AppContext.jsx';
 import { startOfWeek } from 'date-fns';
 import { WeekView } from './calendar';
-import CalendarSync from './CalendarSync.jsx';
-import CalendarTemplateOverlay from './CalendarTemplateOverlay.jsx';
 import styles from './CalendarView.module.css';
 
 /**
@@ -46,8 +44,6 @@ function CalendarView() {
         selectedWeek={selectedWeek}
         onWeekChange={setSelectedWeek}
       />
-      <CalendarSync />
-      <CalendarTemplateOverlay currentWeekStart={selectedWeek} />
     </div>
   );
 }

@@ -14,7 +14,7 @@
 .content {
   flex: 1;
   overflow: auto;
-  padding: 0;
+  padding: 10px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -26,41 +26,13 @@
   }
 }
 
-@media (min-width: 1440px) {
-  .content {
-    padding: 30px;
-  }
-}
-
-@media (min-width: 2560px) {
-  .content {
-    padding: 40px;
-  }
-}
-
-/* Remove padding for views that manage their own padding */
-.content:has(.calendarView),
-.content:has(.historyView) {
-  padding: 0;
-}
-
-/* All views should take full width */
+.defaultsView,
 .todosView,
-.taskTypesView,
 .calendarView,
-.historyView,
-.schedulesView,
-.dashboardView,
 .palaceView {
   width: 100%;
   margin: 0;
-}
-
-/* Mobile responsive padding */
-@media (max-width: 768px) {
-  .content {
-    padding: 10px;
-  }
+  height: 100%;
 }
 
 .todosView {
@@ -71,59 +43,18 @@
   width: 100%;
 }
 
-.taskTypesView {
-  flex: 1;
-  background: var(--input-color);
-  border-radius: 3px;
-  padding: 20px;
-  width: 100%;
-}
-
-@media (max-width: 768px) {
-  .taskTypesView {
-    padding: 15px;
-    border-radius: 0;
-  }
-}
-
 .calendarView {
   flex: 1;
   display: flex;
-  background: var(--input-color);
-  padding: 0;
+  background: transparent;
   width: 100%;
 }
 
-.historyView {
-  flex: 1;
-  display: flex;
-  background: var(--input-color);
-  padding: 0;
-  width: 100%;
-}
-
-.schedulesView {
-  flex: 1;
-  display: flex;
-  background: var(--input-color);
-  padding: 0;
-  width: 100%;
-}
-
-.dashboardView {
-  flex: 1;
-  display: flex;
-  background: var(--bg-color);
-  padding: 0;
-  width: 100%;
-  overflow: auto;
-}
-
+.defaultsView,
 .palaceView {
   flex: 1;
   display: flex;
   background: var(--bg-color);
-  padding: 0;
   width: 100%;
   overflow: auto;
 }

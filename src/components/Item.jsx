@@ -1,13 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppReducer, useAppState } from "../AppContext.jsx";
-import { format, addMinutes } from 'date-fns';
-import { toLocalTime, formatLocalTime, getLocalDateString, getLocalTimeString, toUTCFromLocal } from '../utils/timeDisplay.js';
+import { formatLocalTime, getLocalDateString, getLocalTimeString } from '../utils/timeDisplay.js';
 import styles from "./Item.module.css";
 
 // Individual todo item
 function Item({ item }) {
   const dispatch = useAppReducer();
-  const { taskTypes } = useAppState();
+  const { taskTypes, palaces = [] } = useAppState();
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState(
     item.scheduledTime ? 
@@ -22,6 +21,22 @@ function Item({ item }) {
   let text = item.text;
   let paused = item.status === "paused";
   let completed = item.status === "completed";
+
+  const linkedLocation = useMemo(() => {
+    const taskId = item.id || item.key?.toString();
+    if (!taskId) return null;
+
+    for (const palace of palaces) {
+      const location = palace.locations?.find((entry) =>
+        (entry.linkedTaskIds || []).includes(taskId)
+      );
+      if (location) {
+        return `${palace.name} / ${location.name}`;
+      }
+    }
+
+    return null;
+  }, [item.id, item.key, palaces]);
 
   function deleteItem() {
     dispatch({ type: "DELETE_ITEM", item });
@@ -51,17 +66,19 @@ function Item({ item }) {
   }
 
   function submitReschedule() {
-    const updatedItem = {
-      ...item,
-      schedulingPreference: 'specific',
-      scheduledTime: null, // Clear existing time to force reschedule
-      specificDay: rescheduleDate,
-      specificTime: rescheduleTime,
-    };
+    const nextStart = new Date(`${rescheduleDate}T${rescheduleTime}:00`);
+    if (Number.isNaN(nextStart.getTime())) {
+      return;
+    }
 
-    dispatch({ 
-      type: 'SCHEDULE_TASKS',
-      payload: { tasks: [updatedItem] }
+    dispatch({
+      type: 'RESCHEDULE_TASK',
+      payload: {
+        taskId: item.id || item.key?.toString(),
+        scheduledTime: nextStart.toISOString(),
+        specificTime: rescheduleTime,
+        specificDay: nextStart.toLocaleDateString('en-US', { weekday: 'long' })
+      }
     });
 
     setIsRescheduling(false);
@@ -87,6 +104,11 @@ function Item({ item }) {
             {item.taskType && (
               <span className={styles.taskType}>
                 {taskTypes.find(t => t.id === item.taskType)?.name || 'Default'}
+              </span>
+            )}
+            {linkedLocation && (
+              <span className={styles.locationTag}>
+                @{linkedLocation}
               </span>
             )}
             <button
