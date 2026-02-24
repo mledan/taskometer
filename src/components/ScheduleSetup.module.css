@@ -131,11 +131,11 @@
 
 .dayPillBadge {
   font-size: 10px;
-  background: rgba(59, 130, 246, 0.25);
+  background: rgba(59, 130, 246, 0.2);
   color: var(--accent-color);
-  border-radius: 999px;
-  padding: 1px 6px;
-  min-width: 16px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  min-width: 14px;
   text-align: center;
 }
 
@@ -297,13 +297,12 @@
   text-align: left;
   cursor: pointer;
   box-sizing: border-box;
-  transition: transform 0.12s ease, box-shadow 0.15s ease;
+  transition: box-shadow 0.12s ease;
   z-index: 2;
 }
 
 .slotBlock:hover {
-  transform: scale(1.005);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .slotActive {
@@ -537,17 +536,17 @@
 
 .tagChip {
   border: 1px solid var(--border-color);
-  border-radius: 999px;
+  border-radius: 6px;
   background: transparent;
   color: var(--font-color);
   font-size: 11px;
   padding: 4px 8px;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
 
 .tagChip:hover {
-  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .tagChipActive {
@@ -742,9 +741,10 @@
   background: var(--accent-color);
   color: #fff;
   padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .cardPreview {
@@ -770,7 +770,7 @@
   font-size: 11px;
   color: var(--font-color-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 999px;
+  border-radius: 4px;
   padding: 2px 6px;
 }
 
@@ -1229,8 +1229,8 @@
 .budgetChip {
   font-size: 11px;
   border: 1px solid;
-  border-radius: 999px;
-  padding: 3px 8px;
+  border-radius: 4px;
+  padding: 2px 7px;
   white-space: nowrap;
 }
 
