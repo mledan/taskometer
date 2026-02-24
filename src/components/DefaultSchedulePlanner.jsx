@@ -1080,35 +1080,6 @@ function DefaultSchedulePlanner({ onNavigateToTasks, onNavigateToCalendar }) {
               </div>
 
               <div className={styles.pickerSection}>
-                <label>Flexibility</label>
-                <div className={styles.flexibilityToggle}>
-                  {['fixed', 'preferred', 'flexible'].map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      className={activeSlot.flexibility === level ? styles.flexActive : ''}
-                      onClick={() => updateActiveSlotField('flexibility', level)}
-                    >
-                      {level.charAt(0).toUpperCase() + level.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.pickerSection}>
-                <label>Color</label>
-                <div className={styles.colorRow}>
-                  <input
-                    type="color"
-                    className={styles.colorInput}
-                    value={activeSlot.color || '#3B82F6'}
-                    onChange={(e) => updateActiveSlotField('color', e.target.value)}
-                  />
-                  <span className={styles.colorLabel}>{activeSlot.color || '#3B82F6'}</span>
-                </div>
-              </div>
-
-              <div className={styles.pickerSection}>
                 <label>Project / Topic</label>
                 <div className={styles.choiceGrid}>
                   <button

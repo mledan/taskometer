@@ -31,7 +31,6 @@ function SlotConfigPanel({
   const [slotType, setSlotType] = useState(slot?.slotType || '');
   const [allowedTags, setAllowedTags] = useState(slot?.allowedTags || []);
   const [flexibility, setFlexibility] = useState(slot?.flexibility || 'preferred');
-  const [description, setDescription] = useState(slot?.description || '');
   const [color, setColor] = useState(slot?.color || '#3B82F6');
 
   // Get color from selected type
@@ -73,7 +72,6 @@ function SlotConfigPanel({
       slotType: slotType || null,
       allowedTags,
       flexibility,
-      description,
       color: displayColor
     });
   }
@@ -140,75 +138,45 @@ function SlotConfigPanel({
         {/* Flexibility level */}
         <div className={styles.field}>
           <label>Flexibility</label>
-          <div className={styles.flexibilityOptions}>
+          <div className={styles.flexibilityToggle}>
             {Object.values(SLOT_FLEXIBILITY).map(level => (
               <button
                 key={level.id}
                 type="button"
-                className={`${styles.flexOption} ${flexibility === level.id ? styles.active : ''}`}
+                className={`${styles.flexToggleBtn} ${flexibility === level.id ? styles.active : ''}`}
                 onClick={() => setFlexibility(level.id)}
+                title={level.description}
               >
-                <span className={styles.flexIcon}>{level.icon}</span>
-                <span className={styles.flexLabel}>{level.name}</span>
-                <span className={styles.flexDescription}>{level.description}</span>
+                {level.icon} {level.name}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Tag restrictions */}
-        <div className={styles.field}>
-          <label>Allowed Tags</label>
-          <div className={styles.tagsList}>
-            {tags.map(tag => (
-              <button
-                key={tag.id}
-                type="button"
-                className={`${styles.tagButton} ${allowedTags.includes(tag.id) ? styles.tagSelected : ''}`}
-                style={{
-                  '--tag-color': tag.color,
-                  backgroundColor: allowedTags.includes(tag.id) ? `${tag.color}30` : 'transparent',
-                  borderColor: allowedTags.includes(tag.id) ? tag.color : 'rgba(255,255,255,0.1)'
-                }}
-                onClick={() => toggleTag(tag.id)}
-              >
-                <span>{tag.icon}</span>
-                <span>{tag.name}</span>
-              </button>
-            ))}
+        {/* Tag restrictions (only when tags exist) */}
+        {tags.length > 0 && (
+          <div className={styles.field}>
+            <label>Allowed Tags</label>
+            <div className={styles.tagsList}>
+              {tags.map(tag => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  className={`${styles.tagButton} ${allowedTags.includes(tag.id) ? styles.tagSelected : ''}`}
+                  style={{
+                    '--tag-color': tag.color,
+                    backgroundColor: allowedTags.includes(tag.id) ? `${tag.color}30` : 'transparent',
+                    borderColor: allowedTags.includes(tag.id) ? tag.color : 'rgba(255,255,255,0.1)'
+                  }}
+                  onClick={() => toggleTag(tag.id)}
+                >
+                  <span>{tag.icon}</span>
+                  <span>{tag.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
-          <span className={styles.hint}>
-            {allowedTags.length === 0
-              ? 'No tag restriction (all tags allowed)'
-              : `Only tasks with selected tags (${allowedTags.length}) will match`}
-          </span>
-        </div>
-
-        {/* Color */}
-        <div className={styles.field}>
-          <label htmlFor="slotColor">Color</label>
-          <div className={styles.colorInput}>
-            <input
-              id="slotColor"
-              type="color"
-              value={displayColor}
-              onChange={(e) => setColor(e.target.value)}
-            />
-            <span>{displayColor}</span>
-          </div>
-        </div>
-
-        {/* Description */}
-        <div className={styles.field}>
-          <label htmlFor="slotDescription">Description (optional)</label>
-          <textarea
-            id="slotDescription"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Add notes about this slot..."
-            rows={2}
-          />
-        </div>
+        )}
       </div>
 
       {/* Actions */}

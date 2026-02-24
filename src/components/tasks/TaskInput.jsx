@@ -276,24 +276,21 @@ function TaskInput({ onTaskAdded }) {
             <label>
               <span className={styles.labelText}>Duration</span>
               <div className={styles.durationRow}>
-                {[15, 30, 45, 60, 90].map(d => (
-                  <button
-                    key={d}
-                    type="button"
-                    className={`${styles.durationChip} ${duration === d ? styles.durationChipActive : ''}`}
-                    onClick={() => setDuration(d)}
-                  >
-                    {d}m
-                  </button>
-                ))}
-                <input
-                  type="number"
-                  value={duration}
-                  min="5"
-                  max="480"
-                  className={styles.durationCustom}
-                  onChange={(event) => setDuration(parseInt(event.target.value, 10) || 30)}
-                />
+                {(() => {
+                  const base = [15, 30, 60];
+                  const typeDur = currentTypeConfig.defaultDuration;
+                  const chips = typeDur && !base.includes(typeDur) ? [...base, typeDur].sort((a, b) => a - b) : base;
+                  return chips.map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`${styles.durationChip} ${duration === d ? styles.durationChipActive : ''}`}
+                      onClick={() => setDuration(d)}
+                    >
+                      {d >= 60 ? `${d / 60}h` : `${d}m`}
+                    </button>
+                  ));
+                })()}
               </div>
             </label>
 
