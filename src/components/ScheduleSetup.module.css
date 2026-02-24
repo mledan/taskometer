@@ -1,5 +1,5 @@
 .container {
-  padding: 20px;
+  padding: 20px 24px;
   width: 100%;
   box-sizing: border-box;
   max-width: 1400px;
@@ -7,6 +7,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Header */
@@ -20,13 +21,15 @@
 
 .header h1 {
   margin: 0 0 4px;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .header p {
   margin: 0;
   color: var(--font-color-secondary);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .headerActions {
@@ -53,10 +56,10 @@
 /* Sub navigation */
 .subNav {
   display: flex;
-  gap: 0;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  overflow: hidden;
+  gap: 2px;
+  background: var(--input-color);
+  border-radius: 8px;
+  padding: 3px;
   width: fit-content;
 }
 
@@ -64,26 +67,23 @@
   border: none;
   background: transparent;
   color: var(--font-color-secondary);
-  padding: 10px 20px;
-  font-size: 14px;
+  padding: 8px 18px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.18s ease;
-  border-right: 1px solid var(--border-color);
-}
-
-.subNavBtn:last-child {
-  border-right: none;
+  transition: all 0.15s ease;
+  border-radius: 6px;
 }
 
 .subNavBtn:hover {
   color: var(--font-color);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .subNavActive {
   background: var(--accent-color);
   color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
 .subNavActive:hover {
@@ -710,17 +710,16 @@
 
 .templateCard {
   background: var(--input-color);
-  border: 2px solid transparent;
-  border-radius: 12px;
-  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 14px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
 .templateCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-  border-color: var(--border-color);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .templateCardActive {
@@ -841,7 +840,8 @@
 
 .modalContent {
   background: var(--bg-color);
-  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
   padding: 24px;
   max-width: 780px;
   width: 100%;
@@ -958,25 +958,25 @@
 /* Notification */
 .notification {
   position: fixed;
-  top: 16px;
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 10px 20px;
-  border-radius: 8px;
-  background: var(--accent-color);
-  color: #fff;
+  padding: 8px 18px;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #f1f5f9;
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13px;
   z-index: 1001;
-  animation: slideIn 0.2s ease-out;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.15s ease-out;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
-.success { background: #10B981; }
-.warning { background: #F59E0B; }
+.success { background: #065f46; color: #d1fae5; }
+.warning { background: #78350f; color: #fef3c7; }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
@@ -1071,13 +1071,15 @@
 
 .frameworkIntro h2 {
   margin: 0 0 4px;
-  font-size: 1.3rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .frameworkIntro p {
   margin: 0;
   color: var(--font-color-secondary);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -1089,22 +1091,22 @@
 }
 
 .clearAllBtn {
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
   background: transparent;
-  color: #ef4444;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--font-color-secondary);
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .clearAllBtn:hover {
-  background: rgba(239, 68, 68, 0.1);
   border-color: #ef4444;
+  color: #ef4444;
 }
 
 /* Tasks callout */
@@ -1112,10 +1114,10 @@
   display: flex;
   gap: 14px;
   align-items: flex-start;
-  padding: 14px 18px;
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  border-radius: 12px;
-  background: rgba(59, 130, 246, 0.06);
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--input-color);
 }
 
 .tasksCalloutIcon {
@@ -1168,8 +1170,8 @@
 /* Time Budget */
 .timeBudget {
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: 10px;
+  padding: 12px 14px;
   background: var(--bg-color);
 }
 
@@ -1261,7 +1263,7 @@
 .catalogCard {
   display: flex;
   flex-direction: column;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
 }
 
@@ -1269,49 +1271,47 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
-  border: 2px solid var(--border-color);
-  border-radius: 12px;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
   background: var(--bg-color);
   color: var(--font-color);
   text-align: left;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .catalogCardToggle:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .catalogCardSelected .catalogCardToggle {
-  border-radius: 12px 12px 0 0;
+  border-radius: 10px 10px 0 0;
 }
 
 .catalogIcon {
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
 }
 
 .catalogName {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .catalogDesc {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--font-color-secondary);
   line-height: 1.35;
 }
 
 .catalogCheck {
   position: absolute;
-  top: 10px;
-  right: 12px;
-  font-size: 18px;
-  font-weight: 800;
+  top: 8px;
+  right: 10px;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 /* Catalog Config (expanded under selected card) */
@@ -1319,10 +1319,10 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 14px 12px;
-  border: 2px solid var(--border-color);
+  padding: 8px 12px 10px;
+  border: 1px solid var(--border-color);
   border-top: none;
-  border-radius: 0 0 12px 12px;
+  border-radius: 0 0 10px 10px;
   background: var(--input-color);
 }
 
@@ -1348,23 +1348,23 @@
 
 .durationBtn {
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--font-color);
-  padding: 5px 10px;
+  padding: 4px 10px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
 
 .durationBtn:hover {
   border-color: var(--accent-color);
-  background: rgba(59, 130, 246, 0.08);
+  background: rgba(59, 130, 246, 0.06);
 }
 
 .durationBtnActive {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .timeInputRow {
@@ -1390,15 +1390,15 @@
 /* Custom Block */
 .customBlockSection {
   border: 1px dashed var(--border-color);
-  border-radius: 12px;
-  padding: 12px 16px;
+  border-radius: 10px;
+  padding: 12px 14px;
 }
 
 .addCustomBtn {
   border: none;
   background: transparent;
   color: var(--accent-color);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   padding: 4px 0;
@@ -1433,13 +1433,13 @@
 }
 
 .emojiInput {
-  width: 44px;
+  width: 42px;
   text-align: center;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--font-color);
-  padding: 7px 4px;
+  padding: 6px 4px;
   font-size: 16px;
 }
 
@@ -1452,11 +1452,11 @@
 }
 
 .generateBtn {
-  background: #10B981;
+  background: #3B82F6;
 }
 
 .generateBtn:hover {
-  filter: brightness(1.12);
+  background: #2563EB;
 }
 
 /* Sleep recommendation note */
@@ -1465,9 +1465,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(107, 70, 193, 0.08);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--input-color);
   font-size: 11px;
   line-height: 1.4;
 }
@@ -1487,21 +1487,21 @@
   opacity: 0.5;
 }
 
-/* Custom duration input */
+/* Custom duration input - hours + minutes */
 .customDurationRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-top: 4px;
 }
 
 .customDurationInput {
-  width: 80px;
+  width: 56px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--bg-color);
   color: var(--font-color);
-  padding: 5px 8px;
+  padding: 5px 6px;
   font-size: 13px;
   text-align: center;
 }
@@ -1509,7 +1509,23 @@
 .customDurationInput:focus {
   outline: none;
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.customDurationUnit {
+  font-size: 11px;
+  color: var(--font-color-secondary);
+  font-weight: 600;
+  min-width: 20px;
+}
+
+.customDurationTotal {
+  font-size: 11px;
+  color: var(--font-color-secondary);
+  margin-left: 4px;
+  padding: 2px 6px;
+  background: var(--input-color);
+  border-radius: 4px;
 }
 
 .customDurationLabel {
@@ -1550,9 +1566,9 @@
 /* Events Section */
 .eventsSection {
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--bg-color);
-  padding: 16px;
+  padding: 14px;
 }
 
 .eventsSectionToggle {
@@ -1662,6 +1678,137 @@
   color: var(--font-color-secondary);
 }
 
+/* ============================================ */
+/* STICKY TOOLBAR                              */
+/* ============================================ */
+
+.stickyToolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.applyBtnPrimary {
+  border: none;
+  border-radius: 8px;
+  background: #3B82F6;
+  color: #fff;
+  padding: 9px 20px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.applyBtnPrimary:hover {
+  background: #2563EB;
+}
+
+.applyBtnPrimary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.applyBtnDone {
+  background: #059669;
+}
+
+.applyBtnDone:hover {
+  background: #047857;
+}
+
+.checkIcon {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.toolbarMsg {
+  font-size: 12px;
+  color: var(--accent-color);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================ */
+/* EMOJI PICKER                                */
+/* ============================================ */
+
+.emojiPickerWrap {
+  position: relative;
+}
+
+.emojiToggle {
+  width: 42px;
+  height: 38px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-color);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease;
+}
+
+.emojiToggle:hover {
+  border-color: var(--accent-color);
+}
+
+.emojiDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  padding: 8px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 30;
+  width: 220px;
+}
+
+.emojiOption {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  padding: 5px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emojiOption:hover {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.emojiOptionActive {
+  background: rgba(59, 130, 246, 0.2);
+  outline: 2px solid var(--accent-color);
+}
+
 /* Responsive */
 @media (max-width: 1100px) {
   .builderGrid {
@@ -1759,6 +1906,16 @@
 
   .clearAllBtn {
     align-self: flex-start;
+  }
+
+  .stickyToolbar {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+
+  .emojiDropdown {
+    left: 0;
+    transform: none;
   }
 
   .tasksCallout {
