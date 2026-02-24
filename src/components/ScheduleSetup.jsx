@@ -286,6 +286,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   const [showCustomBlock, setShowCustomBlock] = useState(false);
   const [customBlockForm, setCustomBlockForm] = useState({ name: '', icon: '📌', color: '#94A3B8', duration: 60, start: '', end: '' });
   const [expandedTimeConfig, setExpandedTimeConfig] = useState(new Set());
+  const [customDurationOpen, setCustomDurationOpen] = useState(new Set());
   const [showEvents, setShowEvents] = useState(false);
   const [eventForm, setEventForm] = useState({ name: '', date: format(new Date(), 'yyyy-MM-dd'), start: '19:00', end: '21:00' });
   const [editingEventId, setEditingEventId] = useState(null);
@@ -684,6 +685,15 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     });
   }
 
+  function clearAllSelections() {
+    setSelectedBlocks(new Set());
+    setBlockConfigs({});
+    setCustomDurationOpen(new Set());
+    setExpandedTimeConfig(new Set());
+    setFrameworkMessage('All selections cleared.');
+    setTimeout(() => setFrameworkMessage(''), 2000);
+  }
+
   function updateBlockConfig(blockId, field, value) {
     setBlockConfigs(prev => ({
       ...prev,
@@ -720,7 +730,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
       dispatch({ type: ACTION_TYPES.ADD_TASK_TYPE, payload: t });
     });
 
-    setFrameworkMessage('Life blocks saved!');
+    setFrameworkMessage('Selections saved!');
     setTimeout(() => setFrameworkMessage(''), 2000);
   }
 
@@ -902,7 +912,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     });
 
     const perDay = Math.round(allDaySlots.length / 7);
-    setFrameworkMessage(`Generated ~${perDay} blocks per day across all 7 days. Switch to Day Builder to fine-tune.`);
+    setFrameworkMessage(`Schedule applied! ~${perDay} blocks per day across all 7 days. Switch to Day Builder to fine-tune.`);
     setTimeout(() => setFrameworkMessage(''), 4000);
   }
 
@@ -1175,8 +1185,8 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
         </div>
         <div className={styles.headerActions}>
           {onNavigateToTasks && (
-            <button type="button" className={styles.navBtn} onClick={onNavigateToTasks}>
-              Tasks
+            <button type="button" className={`${styles.navBtn} ${styles.navBtnTasks}`} onClick={onNavigateToTasks}>
+              &#x2611;&#xFE0F; My Tasks
             </button>
           )}
           {onNavigateToCalendar && (
@@ -1215,8 +1225,35 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
       {activeTab === 'framework' && (
         <div className={styles.frameworkContent}>
           <section className={styles.frameworkIntro}>
-            <h2>What makes up your day?</h2>
-            <p>Pick the life blocks that matter to you. Configure how much time you want for each, then generate your weekly framework.</p>
+            <div className={styles.frameworkIntroHeader}>
+              <div>
+                <h2>What makes up your day?</h2>
+                <p>Pick the life blocks that matter to you, set how long each should last, then hit <strong>Apply to Schedule</strong> to build your weekly framework.</p>
+              </div>
+              {selectedBlocks.size > 0 && (
+                <button type="button" className={styles.clearAllBtn} onClick={clearAllSelections}>
+                  Reset All
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* How it works callout */}
+          <section className={styles.tasksCallout}>
+            <div className={styles.tasksCalloutIcon}>&#x1f4cb;</div>
+            <div className={styles.tasksCalloutBody}>
+              <strong>How does this connect to Tasks?</strong>
+              <p>
+                Your schedule creates <em>time slots</em> (e.g., &ldquo;Work 9&ndash;5&rdquo;, &ldquo;Exercise 6&ndash;7 AM&rdquo;). 
+                In the <strong>Tasks</strong> tab you add specific to-dos like &ldquo;Finish report&rdquo; or &ldquo;Grocery run&rdquo; &mdash; the app 
+                automatically drops each task into the matching slot.
+              </p>
+              {onNavigateToTasks && (
+                <button type="button" className={styles.tasksCalloutBtn} onClick={onNavigateToTasks}>
+                  Go to Tasks &rarr;
+                </button>
+              )}
+            </div>
           </section>
 
           {/* Time Budget Bar */}
@@ -1277,7 +1314,10 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                           {isSelected && <span className={styles.catalogCheck} style={{ color: block.color }}>&#10003;</span>}
                         </button>
 
-                        {isSelected && (
+                        {isSelected && (() => {
+                          const currentDur = config?.duration ?? block.defaultDuration;
+                          const isCustom = customDurationOpen.has(block.id) || !block.durationPresets.includes(currentDur);
+                          return (
                           <div className={styles.catalogConfig}>
                             <div className={styles.catalogConfigRow}>
                               <span className={styles.catalogConfigLabel}>Duration</span>
@@ -1286,19 +1326,63 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                                   <button
                                     key={dur}
                                     type="button"
-                                    className={`${styles.durationBtn} ${(config?.duration || block.defaultDuration) === dur ? styles.durationBtnActive : ''}`}
-                                    style={(config?.duration || block.defaultDuration) === dur ? { borderColor: block.color, background: `${block.color}25`, color: block.color } : {}}
-                                    onClick={() => updateBlockConfig(block.id, 'duration', dur)}
+                                    className={`${styles.durationBtn} ${(!isCustom && currentDur === dur) ? styles.durationBtnActive : ''}`}
+                                    style={(!isCustom && currentDur === dur) ? { borderColor: block.color, background: `${block.color}25`, color: block.color } : {}}
+                                    onClick={() => {
+                                      updateBlockConfig(block.id, 'duration', dur);
+                                      setCustomDurationOpen(prev => { const n = new Set(prev); n.delete(block.id); return n; });
+                                    }}
                                   >
                                     {block.durationLabels[idx]}
                                   </button>
                                 ))}
+                                <button
+                                  type="button"
+                                  className={`${styles.durationBtn} ${isCustom ? styles.durationBtnActive : ''}`}
+                                  style={isCustom ? { borderColor: block.color, background: `${block.color}25`, color: block.color } : {}}
+                                  onClick={() => {
+                                    setCustomDurationOpen(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(block.id)) next.delete(block.id);
+                                      else next.add(block.id);
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  Custom
+                                </button>
                               </div>
+                              {isCustom && (
+                                <div className={styles.customDurationRow}>
+                                  <input
+                                    type="number"
+                                    className={styles.customDurationInput}
+                                    min="5"
+                                    max="1440"
+                                    step="5"
+                                    value={currentDur}
+                                    onChange={e => {
+                                      const val = parseInt(e.target.value, 10);
+                                      if (!isNaN(val) && val >= 5 && val <= 1440) updateBlockConfig(block.id, 'duration', val);
+                                    }}
+                                  />
+                                  <span className={styles.customDurationLabel}>minutes ({formatDuration(currentDur)})</span>
+                                </div>
+                              )}
                             </div>
+
+                            {block.id === 'sleep' && (
+                              <div className={styles.sleepNote}>
+                                <span className={styles.sleepNoteMale}>&#x1f499; 7 hrs recommended for men</span>
+                                <span className={styles.sleepNoteDivider}>&middot;</span>
+                                <span className={styles.sleepNoteFemale}>&#x1f497; 9 hrs recommended for women</span>
+                              </div>
+                            )}
+
                             {block.preferredStart && (
                               expandedTimeConfig.has(block.id) ? (
                                 <div className={styles.catalogConfigRow}>
-                                  <span className={styles.catalogConfigLabel}>Preferred time</span>
+                                  <span className={styles.catalogConfigLabel}>Preferred Time Window</span>
                                   <div className={styles.timeInputRow}>
                                     <input
                                       type="time"
@@ -1321,12 +1405,13 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                                   className={styles.timeToggleBtn}
                                   onClick={() => setExpandedTimeConfig(prev => new Set([...prev, block.id]))}
                                 >
-                                  Customize time &rarr;
+                                  Set time window &rarr;
                                 </button>
                               )
                             )}
                           </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -1335,14 +1420,20 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
             ))}
           </section>
 
-          {/* Custom Types (user-created, not in catalog) */}
+          {/* User-created activities */}
           {(taskTypes || []).filter(t => !getCatalogBlock(t.id)).length > 0 && (
             <section className={styles.catalogSection}>
-              <h3 className={styles.catalogSectionTitle}>📌 My Custom Blocks</h3>
+              <h3 className={styles.catalogSectionTitle}>&#x1f3af; Your Personal Activities</h3>
+              <p className={styles.customBlocksDesc}>
+                Activities you&rsquo;ve created to match your unique routine. They work just like the blocks above.
+              </p>
               <div className={styles.catalogGrid}>
                 {(taskTypes || []).filter(t => !getCatalogBlock(t.id)).map(type => {
                   const isSelected = selectedBlocks.has(type.id);
                   const config = blockConfigs[type.id];
+                  const customPresets = [30, 60, 90];
+                  const currentDur = config?.duration ?? type.defaultDuration ?? 60;
+                  const isCustom = customDurationOpen.has(type.id) || !customPresets.includes(currentDur);
                   return (
                     <div key={type.id} className={`${styles.catalogCard} ${isSelected ? styles.catalogCardSelected : ''}`}>
                       <button
@@ -1361,18 +1452,53 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                           <div className={styles.catalogConfigRow}>
                             <span className={styles.catalogConfigLabel}>Duration</span>
                             <div className={styles.durationPresets}>
-                              {[30, 60, 90, 120].map(d => (
+                              {customPresets.map(d => (
                                 <button
                                   key={d}
                                   type="button"
-                                  className={`${styles.durationBtn} ${(config?.duration || type.defaultDuration) === d ? styles.durationBtnActive : ''}`}
-                                  style={(config?.duration || type.defaultDuration) === d ? { borderColor: type.color, background: `${type.color}25`, color: type.color } : {}}
-                                  onClick={() => updateBlockConfig(type.id, 'duration', d)}
+                                  className={`${styles.durationBtn} ${(!isCustom && currentDur === d) ? styles.durationBtnActive : ''}`}
+                                  style={(!isCustom && currentDur === d) ? { borderColor: type.color, background: `${type.color}25`, color: type.color } : {}}
+                                  onClick={() => {
+                                    updateBlockConfig(type.id, 'duration', d);
+                                    setCustomDurationOpen(prev => { const n = new Set(prev); n.delete(type.id); return n; });
+                                  }}
                                 >
                                   {formatDuration(d)}
                                 </button>
                               ))}
+                              <button
+                                type="button"
+                                className={`${styles.durationBtn} ${isCustom ? styles.durationBtnActive : ''}`}
+                                style={isCustom ? { borderColor: type.color, background: `${type.color}25`, color: type.color } : {}}
+                                onClick={() => {
+                                  setCustomDurationOpen(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(type.id)) next.delete(type.id);
+                                    else next.add(type.id);
+                                    return next;
+                                  });
+                                }}
+                              >
+                                Custom
+                              </button>
                             </div>
+                            {isCustom && (
+                              <div className={styles.customDurationRow}>
+                                <input
+                                  type="number"
+                                  className={styles.customDurationInput}
+                                  min="5"
+                                  max="1440"
+                                  step="5"
+                                  value={currentDur}
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value, 10);
+                                    if (!isNaN(val) && val >= 5 && val <= 1440) updateBlockConfig(type.id, 'duration', val);
+                                  }}
+                                />
+                                <span className={styles.customDurationLabel}>minutes ({formatDuration(currentDur)})</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1387,11 +1513,11 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
           <section className={styles.customBlockSection}>
             {!showCustomBlock ? (
               <button type="button" className={styles.addCustomBtn} onClick={() => setShowCustomBlock(true)}>
-                + Add a custom block
+                + Create a New Activity
               </button>
             ) : (
               <div className={styles.customBlockForm}>
-                <h4>Create Custom Block</h4>
+                <h4>Create Your Activity</h4>
                 <div className={styles.customBlockRow}>
                   <input
                     type="text"
@@ -1418,7 +1544,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                 <div className={styles.customBlockRow}>
                   <label className={styles.catalogConfigLabel}>Duration</label>
                   <div className={styles.durationPresets}>
-                    {[30, 60, 90, 120].map(d => (
+                    {[30, 60, 90].map(d => (
                       <button
                         key={d}
                         type="button"
@@ -1428,7 +1554,31 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                         {formatDuration(d)}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      className={`${styles.durationBtn} ${![30, 60, 90].includes(customBlockForm.duration) ? styles.durationBtnActive : ''}`}
+                      onClick={() => setCustomBlockForm(prev => ({ ...prev, duration: prev.duration === 90 ? 120 : prev.duration }))}
+                    >
+                      Custom
+                    </button>
                   </div>
+                  {![30, 60, 90].includes(customBlockForm.duration) && (
+                    <div className={styles.customDurationRow}>
+                      <input
+                        type="number"
+                        className={styles.customDurationInput}
+                        min="5"
+                        max="1440"
+                        step="5"
+                        value={customBlockForm.duration}
+                        onChange={e => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val) && val >= 5) setCustomBlockForm(prev => ({ ...prev, duration: val }));
+                        }}
+                      />
+                      <span className={styles.customDurationLabel}>minutes ({formatDuration(customBlockForm.duration)})</span>
+                    </div>
+                  )}
                 </div>
                 <div className={styles.customBlockRow}>
                   <button type="button" className={styles.cardBtnAccent} onClick={addCustomBlock}>
@@ -1442,11 +1592,19 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
             )}
           </section>
 
-          {/* Generate Action */}
+          {/* Apply Action */}
           <section className={styles.frameworkActions}>
-            <button type="button" className={`${styles.applyBtn} ${styles.generateBtn}`} onClick={generateFrameworkSlots}>
-              Generate My Schedule
+            <button
+              type="button"
+              className={`${styles.applyBtn} ${styles.generateBtn}`}
+              onClick={generateFrameworkSlots}
+              disabled={selectedBlocks.size === 0}
+            >
+              Apply to Schedule
             </button>
+            {selectedBlocks.size === 0 && (
+              <span className={styles.frameworkHint}>Select at least one block above to get started</span>
+            )}
             {frameworkMessage && <p className={styles.message}>{frameworkMessage}</p>}
           </section>
 
