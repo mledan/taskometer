@@ -969,6 +969,8 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     }));
     setCustomBlockForm({ name: '', icon: '📌', color: '#94A3B8', duration: 60, start: '', end: '' });
     setShowCustomBlock(false);
+    setShowEmojiPicker(false);
+    setHasApplied(false);
     setFrameworkMessage(`Added custom block "${newType.name}".`);
     setTimeout(() => setFrameworkMessage(''), 2000);
   }
@@ -1691,7 +1693,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                   <button type="button" className={styles.cardBtnAccent} onClick={addCustomBlock}>
                     Add Block
                   </button>
-                  <button type="button" className={styles.cardBtn} onClick={() => setShowCustomBlock(false)}>
+                  <button type="button" className={styles.cardBtn} onClick={() => { setShowCustomBlock(false); setShowEmojiPicker(false); }}>
                     Cancel
                   </button>
                 </div>
