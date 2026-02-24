@@ -241,6 +241,12 @@ function getScheduleSnapshot(schedule) {
   return { blockCount: blocks.length, firstStart: sortedByStart[0]?.start || '--:--', categoryCount: categories.size };
 }
 
+const EMOJI_OPTIONS = [
+  '📌', '🎯', '💼', '📖', '🎨', '🏃', '🧘', '🎵', '🎮', '✍️',
+  '🧹', '🛒', '📞', '🍳', '🐕', '🌱', '🧠', '💡', '📸', '🔧',
+  '🚗', '☕', '🎬', '📝', '🏋️', '🎸', '🧑‍💻', '📚', '🎧', '⭐',
+];
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -265,7 +271,10 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
 
   // Framework tab state
   const [selectedBlocks, setSelectedBlocks] = useState(() => {
-    const ids = new Set((taskTypes || []).map(t => t.id));
+    const ids = new Set();
+    (taskTypes || []).forEach(t => {
+      if (getCatalogBlock(t.id)) ids.add(t.id);
+    });
     return ids;
   });
   const [blockConfigs, setBlockConfigs] = useState(() => {
@@ -285,6 +294,8 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   const [frameworkMessage, setFrameworkMessage] = useState('');
   const [showCustomBlock, setShowCustomBlock] = useState(false);
   const [customBlockForm, setCustomBlockForm] = useState({ name: '', icon: '📌', color: '#94A3B8', duration: 60, start: '', end: '' });
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
   const [expandedTimeConfig, setExpandedTimeConfig] = useState(new Set());
   const [customDurationOpen, setCustomDurationOpen] = useState(new Set());
   const [showEvents, setShowEvents] = useState(false);
@@ -313,18 +324,29 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   }, [selectedBlocks, blockConfigs, taskTypes]);
 
   useEffect(() => {
-    const ids = new Set((taskTypes || []).map(t => t.id));
-    setSelectedBlocks(ids);
-    const configs = {};
-    (taskTypes || []).forEach(t => {
-      const catalogBlock = getCatalogBlock(t.id);
-      configs[t.id] = {
-        duration: t.defaultDuration || catalogBlock?.defaultDuration || 60,
-        preferredStart: t.constraints?.preferredTimeStart || catalogBlock?.preferredStart || null,
-        preferredEnd: t.constraints?.preferredTimeEnd || catalogBlock?.preferredEnd || null,
-      };
+    setSelectedBlocks(prev => {
+      const next = new Set(prev);
+      (taskTypes || []).forEach(t => {
+        if (getCatalogBlock(t.id) && !next.has(t.id)) {
+          next.add(t.id);
+        }
+      });
+      return next;
     });
-    setBlockConfigs(configs);
+    setBlockConfigs(prev => {
+      const configs = { ...prev };
+      (taskTypes || []).forEach(t => {
+        const catalogBlock = getCatalogBlock(t.id);
+        if (!configs[t.id]) {
+          configs[t.id] = {
+            duration: t.defaultDuration || catalogBlock?.defaultDuration || 60,
+            preferredStart: t.constraints?.preferredTimeStart || catalogBlock?.preferredStart || null,
+            preferredEnd: t.constraints?.preferredTimeEnd || catalogBlock?.preferredEnd || null,
+          };
+        }
+      });
+      return configs;
+    });
   }, [taskTypes]);
 
   // Templates state
@@ -661,6 +683,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   // ========== FRAMEWORK FUNCTIONS ==========
 
   function toggleBlock(blockId) {
+    setHasApplied(false);
     setSelectedBlocks(prev => {
       const next = new Set(prev);
       if (next.has(blockId)) {
@@ -695,6 +718,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
   }
 
   function updateBlockConfig(blockId, field, value) {
+    setHasApplied(false);
     setBlockConfigs(prev => ({
       ...prev,
       [blockId]: { ...prev[blockId], [field]: value },
@@ -912,6 +936,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     });
 
     const perDay = Math.round(allDaySlots.length / 7);
+    setHasApplied(true);
     setFrameworkMessage(`Schedule applied! ~${perDay} blocks per day across all 7 days. Switch to Day Builder to fine-tune.`);
     setTimeout(() => setFrameworkMessage(''), 4000);
   }
@@ -944,6 +969,8 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
     }));
     setCustomBlockForm({ name: '', icon: '📌', color: '#94A3B8', duration: 60, start: '', end: '' });
     setShowCustomBlock(false);
+    setShowEmojiPicker(false);
+    setHasApplied(false);
     setFrameworkMessage(`Added custom block "${newType.name}".`);
     setTimeout(() => setFrameworkMessage(''), 2000);
   }
@@ -1228,15 +1255,27 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
             <div className={styles.frameworkIntroHeader}>
               <div>
                 <h2>What makes up your day?</h2>
-                <p>Pick the life blocks that matter to you, set how long each should last, then hit <strong>Apply to Schedule</strong> to build your weekly framework.</p>
+                <p>Pick the life blocks that matter to you, set how long each should last, then apply to build your weekly framework.</p>
               </div>
-              {selectedBlocks.size > 0 && (
-                <button type="button" className={styles.clearAllBtn} onClick={clearAllSelections}>
-                  Reset All
-                </button>
-              )}
             </div>
           </section>
+
+          <div className={styles.stickyToolbar}>
+            <button
+              type="button"
+              className={`${styles.applyBtnPrimary} ${hasApplied ? styles.applyBtnDone : ''}`}
+              onClick={generateFrameworkSlots}
+              disabled={selectedBlocks.size === 0}
+            >
+              {hasApplied ? <><span className={styles.checkIcon}>&#10003;</span> Applied</> : 'Apply to Schedule'}
+            </button>
+            {selectedBlocks.size > 0 && (
+              <button type="button" className={styles.clearAllBtn} onClick={() => { clearAllSelections(); setHasApplied(false); }}>
+                Reset All
+              </button>
+            )}
+            {frameworkMessage && <span className={styles.toolbarMsg}>{frameworkMessage}</span>}
+          </div>
 
           {/* How it works callout */}
           <section className={styles.tasksCallout}>
@@ -1357,16 +1396,33 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                                   <input
                                     type="number"
                                     className={styles.customDurationInput}
-                                    min="5"
-                                    max="1440"
-                                    step="5"
-                                    value={currentDur}
+                                    min="0"
+                                    max="23"
+                                    value={Math.floor(currentDur / 60)}
                                     onChange={e => {
-                                      const val = parseInt(e.target.value, 10);
-                                      if (!isNaN(val) && val >= 5 && val <= 1440) updateBlockConfig(block.id, 'duration', val);
+                                      const h = parseInt(e.target.value, 10) || 0;
+                                      const m = currentDur % 60;
+                                      const total = Math.max(5, Math.min(1440, h * 60 + m));
+                                      updateBlockConfig(block.id, 'duration', total);
                                     }}
                                   />
-                                  <span className={styles.customDurationLabel}>minutes ({formatDuration(currentDur)})</span>
+                                  <span className={styles.customDurationUnit}>hr</span>
+                                  <input
+                                    type="number"
+                                    className={styles.customDurationInput}
+                                    min="0"
+                                    max="59"
+                                    step="5"
+                                    value={currentDur % 60}
+                                    onChange={e => {
+                                      const m = parseInt(e.target.value, 10) || 0;
+                                      const h = Math.floor(currentDur / 60);
+                                      const total = Math.max(5, Math.min(1440, h * 60 + m));
+                                      updateBlockConfig(block.id, 'duration', total);
+                                    }}
+                                  />
+                                  <span className={styles.customDurationUnit}>min</span>
+                                  <span className={styles.customDurationTotal}>{formatDuration(currentDur)}</span>
                                 </div>
                               )}
                             </div>
@@ -1423,9 +1479,9 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
           {/* User-created activities */}
           {(taskTypes || []).filter(t => !getCatalogBlock(t.id)).length > 0 && (
             <section className={styles.catalogSection}>
-              <h3 className={styles.catalogSectionTitle}>&#x1f3af; Your Personal Activities</h3>
+              <h3 className={styles.catalogSectionTitle}>&#x2728; Your Customizations</h3>
               <p className={styles.customBlocksDesc}>
-                Activities you&rsquo;ve created to match your unique routine. They work just like the blocks above.
+                Custom blocks you&rsquo;ve added to fit your routine. They work exactly like the built-in ones above.
               </p>
               <div className={styles.catalogGrid}>
                 {(taskTypes || []).filter(t => !getCatalogBlock(t.id)).map(type => {
@@ -1487,16 +1543,33 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                                 <input
                                   type="number"
                                   className={styles.customDurationInput}
-                                  min="5"
-                                  max="1440"
-                                  step="5"
-                                  value={currentDur}
+                                  min="0"
+                                  max="23"
+                                  value={Math.floor(currentDur / 60)}
                                   onChange={e => {
-                                    const val = parseInt(e.target.value, 10);
-                                    if (!isNaN(val) && val >= 5 && val <= 1440) updateBlockConfig(type.id, 'duration', val);
+                                    const h = parseInt(e.target.value, 10) || 0;
+                                    const m = currentDur % 60;
+                                    const total = Math.max(5, Math.min(1440, h * 60 + m));
+                                    updateBlockConfig(type.id, 'duration', total);
                                   }}
                                 />
-                                <span className={styles.customDurationLabel}>minutes ({formatDuration(currentDur)})</span>
+                                <span className={styles.customDurationUnit}>hr</span>
+                                <input
+                                  type="number"
+                                  className={styles.customDurationInput}
+                                  min="0"
+                                  max="59"
+                                  step="5"
+                                  value={currentDur % 60}
+                                  onChange={e => {
+                                    const m = parseInt(e.target.value, 10) || 0;
+                                    const h = Math.floor(currentDur / 60);
+                                    const total = Math.max(5, Math.min(1440, h * 60 + m));
+                                    updateBlockConfig(type.id, 'duration', total);
+                                  }}
+                                />
+                                <span className={styles.customDurationUnit}>min</span>
+                                <span className={styles.customDurationTotal}>{formatDuration(currentDur)}</span>
                               </div>
                             )}
                           </div>
@@ -1526,14 +1599,33 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                     value={customBlockForm.name}
                     onChange={e => setCustomBlockForm(prev => ({ ...prev, name: e.target.value }))}
                   />
-                  <input
-                    type="text"
-                    className={styles.emojiInput}
-                    placeholder="📌"
-                    value={customBlockForm.icon}
-                    maxLength={4}
-                    onChange={e => setCustomBlockForm(prev => ({ ...prev, icon: e.target.value }))}
-                  />
+                  <div className={styles.emojiPickerWrap}>
+                    <button
+                      type="button"
+                      className={styles.emojiToggle}
+                      onClick={() => setShowEmojiPicker(prev => !prev)}
+                      title="Pick an icon"
+                    >
+                      {customBlockForm.icon}
+                    </button>
+                    {showEmojiPicker && (
+                      <div className={styles.emojiDropdown}>
+                        {EMOJI_OPTIONS.map(em => (
+                          <button
+                            key={em}
+                            type="button"
+                            className={`${styles.emojiOption} ${customBlockForm.icon === em ? styles.emojiOptionActive : ''}`}
+                            onClick={() => {
+                              setCustomBlockForm(prev => ({ ...prev, icon: em }));
+                              setShowEmojiPicker(false);
+                            }}
+                          >
+                            {em}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <input
                     type="color"
                     className={styles.colorPicker}
@@ -1567,16 +1659,33 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                       <input
                         type="number"
                         className={styles.customDurationInput}
-                        min="5"
-                        max="1440"
-                        step="5"
-                        value={customBlockForm.duration}
+                        min="0"
+                        max="23"
+                        value={Math.floor(customBlockForm.duration / 60)}
                         onChange={e => {
-                          const val = parseInt(e.target.value, 10);
-                          if (!isNaN(val) && val >= 5) setCustomBlockForm(prev => ({ ...prev, duration: val }));
+                          const h = parseInt(e.target.value, 10) || 0;
+                          const m = customBlockForm.duration % 60;
+                          const total = Math.max(5, Math.min(1440, h * 60 + m));
+                          setCustomBlockForm(prev => ({ ...prev, duration: total }));
                         }}
                       />
-                      <span className={styles.customDurationLabel}>minutes ({formatDuration(customBlockForm.duration)})</span>
+                      <span className={styles.customDurationUnit}>hr</span>
+                      <input
+                        type="number"
+                        className={styles.customDurationInput}
+                        min="0"
+                        max="59"
+                        step="5"
+                        value={customBlockForm.duration % 60}
+                        onChange={e => {
+                          const m = parseInt(e.target.value, 10) || 0;
+                          const h = Math.floor(customBlockForm.duration / 60);
+                          const total = Math.max(5, Math.min(1440, h * 60 + m));
+                          setCustomBlockForm(prev => ({ ...prev, duration: total }));
+                        }}
+                      />
+                      <span className={styles.customDurationUnit}>min</span>
+                      <span className={styles.customDurationTotal}>{formatDuration(customBlockForm.duration)}</span>
                     </div>
                   )}
                 </div>
@@ -1584,7 +1693,7 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
                   <button type="button" className={styles.cardBtnAccent} onClick={addCustomBlock}>
                     Add Block
                   </button>
-                  <button type="button" className={styles.cardBtn} onClick={() => setShowCustomBlock(false)}>
+                  <button type="button" className={styles.cardBtn} onClick={() => { setShowCustomBlock(false); setShowEmojiPicker(false); }}>
                     Cancel
                   </button>
                 </div>
@@ -1592,21 +1701,11 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
             )}
           </section>
 
-          {/* Apply Action */}
-          <section className={styles.frameworkActions}>
-            <button
-              type="button"
-              className={`${styles.applyBtn} ${styles.generateBtn}`}
-              onClick={generateFrameworkSlots}
-              disabled={selectedBlocks.size === 0}
-            >
-              Apply to Schedule
-            </button>
-            {selectedBlocks.size === 0 && (
+          {selectedBlocks.size === 0 && (
+            <section className={styles.frameworkActions}>
               <span className={styles.frameworkHint}>Select at least one block above to get started</span>
-            )}
-            {frameworkMessage && <p className={styles.message}>{frameworkMessage}</p>}
-          </section>
+            </section>
+          )}
 
           {/* Events & Exceptions (collapsible) */}
           <section className={styles.eventsSection}>
