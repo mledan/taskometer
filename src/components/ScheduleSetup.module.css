@@ -1751,4 +1751,27 @@
   .frameworkActions .generateBtn {
     width: 100%;
   }
+
+  .frameworkIntroHeader {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .clearAllBtn {
+    align-self: flex-start;
+  }
+
+  .tasksCallout {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sleepNote {
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .sleepNoteDivider {
+    display: none;
+  }
 }
