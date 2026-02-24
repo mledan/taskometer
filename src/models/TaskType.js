@@ -104,7 +104,7 @@ export const LIFE_BLOCK_CATALOG = [
     icon: '🍽️',
     color: '#EF4444',
     catalogCategory: 'meals',
-    defaultDuration: 45,
+    defaultDuration: 60,
     description: 'Evening meal',
     durationPresets: [30, 60, 90],
     durationLabels: ['30m', '1h', '1.5h'],
