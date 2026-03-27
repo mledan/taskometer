@@ -13,7 +13,7 @@
  * - Integration with SlotEditor for creating slots
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { useAppState, useAppReducer, useSlots, useTaskTypes } from '../../context/AppContext';
 import { ACTION_TYPES } from '../../context/AppContext';
@@ -23,6 +23,8 @@ import styles from './WeekView.module.css';
 
 const TIME_SLOT_HEIGHT = 30; // pixels per 30-minute slot
 const HOURS_IN_DAY = 24;
+const SNAP_MINUTES = 15;
+const PIXELS_PER_MINUTE = TIME_SLOT_HEIGHT / 30;
 
 function WeekView({
   tasks = [],
@@ -52,6 +54,11 @@ function WeekView({
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [editingTask, setEditingTask] = useState(null);
   const [editForm, setEditForm] = useState({ text: '', taskType: '', duration: 30, priority: 'medium' });
+
+  // Drag-and-drop state
+  const dragRef = useRef(null);
+  const daysContainerRef = useRef(null);
+  const [dragGhost, setDragGhost] = useState(null); // { task, top, dayIndex, minutes, displayTime }
 
   // Update current time every minute
   useEffect(() => {
@@ -270,6 +277,166 @@ function WeekView({
   }
 
   /**
+   * Drag-and-drop handlers
+   */
+  function getMinutesFromY(y, containerRect) {
+    const relativeY = y - containerRect.top;
+    const totalMinutes = relativeY / PIXELS_PER_MINUTE;
+    return Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+  }
+
+  function getDayIndexFromX(x, containerRect) {
+    const relativeX = x - containerRect.left;
+    const columnWidth = containerRect.width / 7;
+    return Math.max(0, Math.min(6, Math.floor(relativeX / columnWidth)));
+  }
+
+  function formatMinutesToTime(totalMinutes) {
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    const ampm = h < 12 ? 'AM' : 'PM';
+    return `${displayH}:${m.toString().padStart(2, '0')} ${ampm}`;
+  }
+
+  function handleDragStart(e, task) {
+    if (e.button !== 0) return; // left-click only
+    e.preventDefault();
+    e.stopPropagation();
+
+    const container = daysContainerRef.current;
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+    const minutes = getMinutesFromY(e.clientY, containerRect);
+    const dayIndex = getDayIndexFromX(e.clientX, containerRect);
+
+    const startTime = new Date(task.scheduledTime);
+    const taskStartMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+    const offsetMinutes = minutes - taskStartMinutes;
+
+    dragRef.current = {
+      task,
+      offsetMinutes,
+      containerRect,
+      startedDrag: false,
+      startX: e.clientX,
+      startY: e.clientY
+    };
+
+    function onMouseMove(ev) {
+      const dr = dragRef.current;
+      if (!dr) return;
+
+      // Require 5px movement before starting drag (to allow clicks)
+      if (!dr.startedDrag) {
+        const dx = ev.clientX - dr.startX;
+        const dy = ev.clientY - dr.startY;
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+        dr.startedDrag = true;
+      }
+
+      const rect = dr.containerRect;
+      const rawMinutes = getMinutesFromY(ev.clientY, rect) - dr.offsetMinutes;
+      const snappedMinutes = Math.max(0, Math.min(24 * 60 - dr.task.duration, rawMinutes));
+      const newDayIndex = getDayIndexFromX(ev.clientX, rect);
+      const topPx = snappedMinutes * PIXELS_PER_MINUTE;
+
+      setDragGhost({
+        task: dr.task,
+        top: topPx,
+        dayIndex: newDayIndex,
+        minutes: snappedMinutes,
+        displayTime: formatMinutesToTime(snappedMinutes)
+      });
+    }
+
+    function onMouseUp(ev) {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+
+      const dr = dragRef.current;
+      dragRef.current = null;
+
+      if (!dr || !dr.startedDrag) {
+        setDragGhost(null);
+        return;
+      }
+
+      const rect = dr.containerRect;
+      const rawMinutes = getMinutesFromY(ev.clientY, rect) - dr.offsetMinutes;
+      const snappedMinutes = Math.max(0, Math.min(24 * 60 - dr.task.duration, rawMinutes));
+      const newDayIndex = getDayIndexFromX(ev.clientX, rect);
+      const targetDate = weekDays[newDayIndex].date;
+
+      const newScheduledTime = new Date(targetDate);
+      newScheduledTime.setHours(Math.floor(snappedMinutes / 60), snappedMinutes % 60, 0, 0);
+
+      dispatch({
+        type: ACTION_TYPES.RESCHEDULE_TASK,
+        payload: {
+          taskId: dr.task.id || dr.task.key,
+          scheduledTime: newScheduledTime.toISOString()
+        }
+      });
+
+      setDragGhost(null);
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+
+  // Resize handle drag
+  function handleResizeStart(e, task) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const container = daysContainerRef.current;
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+    const startTime = new Date(task.scheduledTime);
+    const taskStartMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+
+    function onMouseMove(ev) {
+      const endMinutes = getMinutesFromY(ev.clientY, containerRect);
+      const newDuration = Math.max(SNAP_MINUTES, endMinutes - taskStartMinutes);
+      const snappedDuration = Math.round(newDuration / SNAP_MINUTES) * SNAP_MINUTES;
+      const props = getTaskDisplayProps({ ...task, duration: snappedDuration });
+
+      setDragGhost({
+        task: { ...task, duration: snappedDuration },
+        top: props.top,
+        dayIndex: weekDays.findIndex(d => isSameDay(d.date, startTime)),
+        minutes: taskStartMinutes,
+        displayTime: `${snappedDuration}m`,
+        isResize: true
+      });
+    }
+
+    function onMouseUp(ev) {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+
+      const endMinutes = getMinutesFromY(ev.clientY, containerRect);
+      const newDuration = Math.max(SNAP_MINUTES, endMinutes - taskStartMinutes);
+      const snappedDuration = Math.round(newDuration / SNAP_MINUTES) * SNAP_MINUTES;
+
+      dispatch({
+        type: ACTION_TYPES.UPDATE_TASK,
+        payload: {
+          id: task.id || task.key,
+          duration: snappedDuration
+        }
+      });
+
+      setDragGhost(null);
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+
+  /**
    * Week navigation
    */
   function updateSelectedWeek(nextWeek) {
@@ -347,7 +514,7 @@ function WeekView({
         </div>
 
         {/* Days container */}
-        <div className={styles.daysContainer}>
+        <div className={styles.daysContainer} ref={daysContainerRef}>
           {weekDays.map(day => {
             const dayTasks = getTasksForDay(day.date);
             const daySlots = getSlotsForDay(day.date);
@@ -402,6 +569,7 @@ function WeekView({
                   {/* Tasks */}
                   {dayTasks.map(task => {
                     const props = getTaskDisplayProps(task);
+                    const isDragging = dragGhost && (dragGhost.task.id === task.id || dragGhost.task.key === task.key);
                     return (
                       <div
                         key={task.id || task.key}
@@ -409,20 +577,44 @@ function WeekView({
                           ${props.status === 'completed' ? styles.taskCompleted : ''}
                           ${props.status === 'paused' ? styles.taskPaused : ''}
                           ${props.isCurrent ? styles.taskCurrent : ''}
-                          ${props.isPast && props.status !== 'completed' ? styles.taskPast : ''}`
+                          ${props.isPast && props.status !== 'completed' ? styles.taskPast : ''}
+                          ${isDragging ? styles.taskDragging : ''}`
                         }
                         style={{
                           backgroundColor: props.color,
                           height: `${props.height}px`,
                           top: `${props.top}px`
                         }}
-                        onClick={(e) => handleTaskClick(e, task)}
+                        onMouseDown={(e) => handleDragStart(e, task)}
+                        onClick={(e) => {
+                          if (!dragRef.current?.startedDrag) handleTaskClick(e, task);
+                        }}
                         title={`${props.title} (${props.type})`}
                       >
                         <span className={styles.taskTitle}>{props.title}</span>
+                        {/* Resize handle */}
+                        <div
+                          className={styles.resizeHandle}
+                          onMouseDown={(e) => handleResizeStart(e, task)}
+                        />
                       </div>
                     );
                   })}
+
+                  {/* Drag ghost */}
+                  {dragGhost && dragGhost.dayIndex === weekDays.indexOf(day) && (
+                    <div
+                      className={styles.dragGhost}
+                      style={{
+                        top: `${dragGhost.top}px`,
+                        height: `${(dragGhost.task.duration / 30) * TIME_SLOT_HEIGHT}px`,
+                        backgroundColor: (taskTypes.find(t => t.id === dragGhost.task.taskType) || {}).color || 'var(--accent-color)'
+                      }}
+                    >
+                      <span className={styles.dragGhostTime}>{dragGhost.displayTime}</span>
+                      <span className={styles.taskTitle}>{dragGhost.task.text}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );

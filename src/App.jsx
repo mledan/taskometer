@@ -4,6 +4,7 @@ import CalendarView from './components/CalendarView.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import History from './components/History.jsx';
 import ScheduleSetup from './components/ScheduleSetup.jsx';
+import Community from './components/Community.jsx';
 import CalendarSync from './components/CalendarSync.jsx';
 import OnboardingTour from './components/OnboardingTour.jsx';
 import TabNavigation, { VIEWS } from './components/TabNavigation.jsx';
@@ -14,7 +15,7 @@ import { AppStateProvider, useAppState } from './AppContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import styles from './App.module.css';
 
-const CANONICAL_VIEWS = new Set(['dashboard', 'schedule', 'tasks', 'calendar', 'history']);
+const CANONICAL_VIEWS = new Set(['dashboard', 'schedule', 'tasks', 'calendar', 'community', 'history']);
 
 function resolveView(raw) {
   if (!raw) return null;
@@ -104,6 +105,12 @@ function AppContent() {
           {activeView === VIEWS.CALENDAR && (
             <div className={styles.calendarView}>
               <CalendarView />
+            </div>
+          )}
+
+          {activeView === VIEWS.COMMUNITY && (
+            <div className={styles.schedulesView}>
+              <Community />
             </div>
           )}
 

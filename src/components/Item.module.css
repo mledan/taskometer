@@ -183,6 +183,17 @@
 		font-size: 11px;
 	}
 
+	.recurrenceBadge {
+		padding: 2px 8px;
+		background: rgba(139, 92, 246, 0.12);
+		border: 1px solid rgba(139, 92, 246, 0.25);
+		border-radius: 100px;
+		font-size: 11px;
+		color: #a78bfa;
+		text-transform: capitalize;
+		white-space: nowrap;
+	}
+
 	.locationTag {
 		padding: 2px 6px;
 		background: rgba(59, 130, 246, 0.15);
@@ -331,5 +342,35 @@
 		color: var(--font-color);
 		cursor: pointer;
 		font-size: 12px;
+	}
+
+	.detailIndicator {
+		font-size: 11px;
+		color: var(--accent-color);
+		margin-left: 6px;
+		opacity: 0.8;
+	}
+
+	.expandBtn {
+		background: none;
+		border: none;
+		color: var(--font-color-secondary);
+		cursor: pointer;
+		font-size: 14px;
+		padding: 2px 6px;
+		margin-left: 4px;
+		border-radius: 4px;
+		opacity: 0;
+		transition: opacity 0.15s ease;
+		letter-spacing: 1px;
+	}
+
+	&:hover .expandBtn {
+		opacity: 1;
+	}
+
+	.expandBtn:hover {
+		background: rgba(255, 255, 255, 0.1);
+		color: var(--font-color);
 	}
 }

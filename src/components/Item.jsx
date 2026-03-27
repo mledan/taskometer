@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAppReducer, useAppState } from "../AppContext.jsx";
 import { formatLocalTime, getLocalDateString, getLocalTimeString } from '../utils/timeDisplay.js';
+import TaskDetail from './tasks/TaskDetail.jsx';
 import styles from "./Item.module.css";
 
 function Item({ item }) {
@@ -8,6 +9,7 @@ function Item({ item }) {
   const { taskTypes, palaces = [] } = useAppState();
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
   const [editText, setEditText] = useState(item.text);
   const [editType, setEditType] = useState(item.taskType || item.primaryType || '');
   const [editDuration, setEditDuration] = useState(item.duration || 30);
@@ -131,7 +133,19 @@ function Item({ item }) {
     >
       <div className={styles.itemContent}>
         {!isEditing ? (
-          <div className={styles.itemname} onDoubleClick={startEdit}>{text}</div>
+          <div className={styles.itemname} onDoubleClick={startEdit}>
+            {text}
+            {(item.subtasks?.length > 0 || item.description) && (
+              <span className={styles.detailIndicator}>
+                {item.subtasks?.length > 0 && `${item.subtasks.filter(s => s.completed).length}/${item.subtasks.length}`}
+              </span>
+            )}
+            <button
+              className={styles.expandBtn}
+              onClick={(e) => { e.stopPropagation(); setShowDetail(true); }}
+              title="Open details"
+            >...</button>
+          </div>
         ) : (
           <div className={styles.editForm}>
             <input
@@ -192,6 +206,11 @@ function Item({ item }) {
             {item.taskType && (
               <span className={styles.taskType}>
                 {taskTypes.find(t => t.id === item.taskType)?.name || 'Default'}
+              </span>
+            )}
+            {item.recurrence && item.recurrence.frequency !== 'none' && (
+              <span className={styles.recurrenceBadge} title={`Repeats ${item.recurrence.frequency}`}>
+                🔄 {item.recurrence.frequency}
               </span>
             )}
             {item.metadata?.scheduledLabel && (
@@ -263,6 +282,9 @@ function Item({ item }) {
           ></button>
         )}
       </div>
+      {showDetail && (
+        <TaskDetail task={item} onClose={() => setShowDetail(false)} />
+      )}
     </div>
   );
 }

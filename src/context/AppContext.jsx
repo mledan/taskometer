@@ -14,7 +14,7 @@
 import { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import { addDays, format } from 'date-fns';
 import { getAdapter } from '../services/database';
-import { createTask, migrateLegacyTask, TASK_STATUSES } from '../models/Task';
+import { createTask, migrateLegacyTask, generateNextRecurrence, TASK_STATUSES } from '../models/Task';
 import { createCalendarSlot, getSlotStartDateTime } from '../models/CalendarSlot';
 import { createTag, DEFAULT_TAGS } from '../models/Tag';
 import { createTaskType, DEFAULT_TASK_TYPES, LEGACY_TASK_TYPES } from '../models/TaskType';
@@ -102,6 +102,11 @@ export const ACTION_TYPES = {
   PAUSE_TASK: 'PAUSE_TASK',
   RESUME_TASK: 'RESUME_TASK',
   RESCHEDULE_TASK: 'RESCHEDULE_TASK',
+  ADD_SUBTASK: 'ADD_SUBTASK',
+  TOGGLE_SUBTASK: 'TOGGLE_SUBTASK',
+  DELETE_SUBTASK: 'DELETE_SUBTASK',
+  START_TIMER: 'START_TIMER',
+  STOP_TIMER: 'STOP_TIMER',
   BATCH_UPDATE_TASKS: 'BATCH_UPDATE_TASKS',
   SCHEDULE_TASKS: 'SCHEDULE_TASKS',
   RESCHEDULE_ALL_TASKS: 'RESCHEDULE_ALL_TASKS',
@@ -677,15 +682,25 @@ function appReducer(state, action) {
 
     case ACTION_TYPES.COMPLETE_TASK: {
       const { taskId } = action.payload;
+      let nextRecurrence = null;
       const newTasks = state.tasks.map(task => {
         if (task.id !== taskId && task.key?.toString() !== taskId) return task;
+        // Generate next recurrence if applicable
+        if (task.recurrence && task.recurrence.frequency !== 'none') {
+          nextRecurrence = generateNextRecurrence(task);
+        }
         return {
           ...task,
           status: 'completed',
           completedAt: timestamp,
+          startedAt: null, // stop any running timer
           updatedAt: timestamp
         };
       });
+
+      if (nextRecurrence) {
+        newTasks.push(nextRecurrence);
+      }
 
       return { ...state, tasks: newTasks, items: newTasks };
     }
@@ -735,6 +750,63 @@ function appReducer(state, action) {
       });
 
       return { ...state, tasks: newTasks, slots: updatedSlots, items: newTasks };
+    }
+
+    case ACTION_TYPES.ADD_SUBTASK: {
+      const { taskId, text } = action.payload;
+      const newTasks = state.tasks.map(task => {
+        if (task.id !== taskId && task.key?.toString() !== taskId) return task;
+        const subtasks = [...(task.subtasks || []), {
+          id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          text,
+          completed: false
+        }];
+        return { ...task, subtasks, updatedAt: timestamp };
+      });
+      return { ...state, tasks: newTasks, items: newTasks };
+    }
+
+    case ACTION_TYPES.TOGGLE_SUBTASK: {
+      const { taskId, subtaskId } = action.payload;
+      const newTasks = state.tasks.map(task => {
+        if (task.id !== taskId && task.key?.toString() !== taskId) return task;
+        const subtasks = (task.subtasks || []).map(s =>
+          s.id === subtaskId ? { ...s, completed: !s.completed } : s
+        );
+        return { ...task, subtasks, updatedAt: timestamp };
+      });
+      return { ...state, tasks: newTasks, items: newTasks };
+    }
+
+    case ACTION_TYPES.DELETE_SUBTASK: {
+      const { taskId, subtaskId } = action.payload;
+      const newTasks = state.tasks.map(task => {
+        if (task.id !== taskId && task.key?.toString() !== taskId) return task;
+        const subtasks = (task.subtasks || []).filter(s => s.id !== subtaskId);
+        return { ...task, subtasks, updatedAt: timestamp };
+      });
+      return { ...state, tasks: newTasks, items: newTasks };
+    }
+
+    case ACTION_TYPES.START_TIMER: {
+      const { taskId } = action.payload;
+      const newTasks = state.tasks.map(task => {
+        if (task.id !== taskId && task.key?.toString() !== taskId) return task;
+        return { ...task, startedAt: timestamp, updatedAt: timestamp };
+      });
+      return { ...state, tasks: newTasks, items: newTasks };
+    }
+
+    case ACTION_TYPES.STOP_TIMER: {
+      const { taskId } = action.payload;
+      const newTasks = state.tasks.map(task => {
+        if (task.id !== taskId && task.key?.toString() !== taskId) return task;
+        if (!task.startedAt) return task;
+        const elapsed = Math.round((new Date(timestamp) - new Date(task.startedAt)) / 60000);
+        const actualDuration = (task.actualDuration || 0) + elapsed;
+        return { ...task, startedAt: null, actualDuration, updatedAt: timestamp };
+      });
+      return { ...state, tasks: newTasks, items: newTasks };
     }
 
     case ACTION_TYPES.BATCH_UPDATE_TASKS: {

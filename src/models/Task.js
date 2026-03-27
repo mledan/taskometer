@@ -101,6 +101,9 @@ export function createTask(taskData) {
     userId: taskData.userId || null,
     isTemplateBlock: taskData.isTemplateBlock || false,
     sourceTemplateId: taskData.sourceTemplateId || null,
+    subtasks: taskData.subtasks || [],
+    actualDuration: taskData.actualDuration || null,
+    startedAt: taskData.startedAt || null,
     metadata: taskData.metadata || {},
     // Legacy field mapping for backwards compatibility
     key: taskData.key || taskData.id || generateTaskId(),
@@ -205,11 +208,93 @@ export function taskMatchesFilters(task, filters = {}) {
   return true;
 }
 
+/**
+ * Generate the next occurrence of a recurring task
+ * @param {Task} task - The completed task with recurrence rules
+ * @returns {Task|null} - New task instance for the next occurrence, or null if done
+ */
+export function generateNextRecurrence(task) {
+  const recurrence = task.recurrence;
+  if (!recurrence || recurrence.frequency === 'none') return null;
+
+  // Check if we've exceeded max occurrences
+  if (recurrence.occurrences != null) {
+    const count = (task.metadata?.recurrenceCount || 0) + 1;
+    if (count >= recurrence.occurrences) return null;
+  }
+
+  const baseDate = task.scheduledTime ? new Date(task.scheduledTime) : new Date();
+  let nextDate = new Date(baseDate);
+  const interval = recurrence.interval || 1;
+
+  switch (recurrence.frequency) {
+    case 'daily':
+      nextDate.setDate(nextDate.getDate() + interval);
+      break;
+    case 'weekly': {
+      if (recurrence.daysOfWeek?.length > 0) {
+        const dayMap = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+        const targetDays = recurrence.daysOfWeek.map(d => dayMap[d]).sort((a, b) => a - b);
+        const currentDay = baseDate.getDay();
+        const nextDay = targetDays.find(d => d > currentDay);
+        if (nextDay != null) {
+          nextDate.setDate(nextDate.getDate() + (nextDay - currentDay));
+        } else {
+          // Wrap to next week
+          nextDate.setDate(nextDate.getDate() + (7 - currentDay + targetDays[0]) + (interval - 1) * 7);
+        }
+      } else {
+        nextDate.setDate(nextDate.getDate() + 7 * interval);
+      }
+      break;
+    }
+    case 'monthly':
+      nextDate.setMonth(nextDate.getMonth() + interval);
+      if (recurrence.dayOfMonth) {
+        nextDate.setDate(Math.min(recurrence.dayOfMonth, new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate()));
+      }
+      break;
+    case 'custom':
+      nextDate.setDate(nextDate.getDate() + interval);
+      break;
+    default:
+      return null;
+  }
+
+  // Check end date
+  if (recurrence.endDate && nextDate > new Date(recurrence.endDate)) return null;
+
+  // Ensure next date is in the future
+  const now = new Date();
+  if (nextDate <= now) {
+    nextDate = new Date(now);
+    nextDate.setMinutes(nextDate.getMinutes() + 5);
+  }
+
+  return createTask({
+    text: task.text,
+    primaryType: task.primaryType || task.taskType,
+    tags: task.tags,
+    duration: task.duration,
+    priority: task.priority,
+    recurrence: { ...recurrence },
+    description: task.description,
+    scheduledTime: nextDate.toISOString(),
+    subtasks: [], // Fresh subtasks for new occurrence
+    metadata: {
+      ...task.metadata,
+      recurrenceCount: (task.metadata?.recurrenceCount || 0) + 1,
+      recurrenceParentId: task.metadata?.recurrenceParentId || task.id
+    }
+  });
+}
+
 export default {
   createTask,
   validateTask,
   migrateLegacyTask,
   taskMatchesFilters,
+  generateNextRecurrence,
   generateTaskId,
   TASK_PRIORITIES,
   TASK_STATUSES,

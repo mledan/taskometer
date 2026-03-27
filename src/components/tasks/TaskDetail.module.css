@@ -1,0 +1,310 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 1500;
+  animation: fadeIn 0.15s ease;
+}
+
+.panel {
+  width: 420px;
+  max-width: 100vw;
+  height: 100%;
+  background: var(--bg-color);
+  border-left: 1px solid var(--border-color);
+  overflow-y: auto;
+  padding: 20px;
+  box-sizing: border-box;
+  animation: slideIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.typeIcon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--font-color);
+  margin: 0;
+  word-break: break-word;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--font-color-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--font-color);
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.metaPill {
+  padding: 3px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 100px;
+  font-size: 12px;
+  color: var(--font-color);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.priority_urgent { border-color: #DC2626; color: #DC2626; }
+.priority_high { border-color: #EF4444; color: #EF4444; }
+.priority_medium { border-color: #F59E0B; color: #F59E0B; }
+.priority_low { border-color: #94A3B8; color: #94A3B8; }
+
+.status_pending { border-color: #3B82F6; color: #3B82F6; }
+.status_paused { border-color: #F59E0B; color: #F59E0B; }
+.status_completed { border-color: #10B981; color: #10B981; }
+
+.section {
+  margin-bottom: 20px;
+}
+
+.sectionHeader {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--font-color-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subtaskCount {
+  font-weight: 500;
+  color: var(--accent-color);
+  font-size: 12px;
+}
+
+/* Timer */
+.timerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timerDisplay {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.timerStartBtn,
+.timerStopBtn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.timerStartBtn {
+  background: var(--accent-color);
+  color: white;
+}
+
+.timerStopBtn {
+  background: #EF4444;
+  color: white;
+}
+
+.timerActual {
+  font-size: 13px;
+  color: var(--font-color-secondary);
+}
+
+/* Subtasks */
+.subtaskProgress {
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.subtaskProgressFill {
+  height: 100%;
+  background: var(--accent-color);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.subtaskList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.subtaskItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.subtaskItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.subtaskCheck {
+  accent-color: var(--accent-color);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.subtaskText {
+  flex: 1;
+  font-size: 14px;
+  color: var(--font-color);
+}
+
+.subtaskDone .subtaskText {
+  text-decoration: line-through;
+  color: var(--font-color-secondary);
+}
+
+.subtaskDelete {
+  background: none;
+  border: none;
+  color: var(--font-color-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.subtaskItem:hover .subtaskDelete {
+  opacity: 1;
+}
+
+.subtaskDelete:hover {
+  color: #EF4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.subtaskAdd {
+  display: flex;
+  gap: 6px;
+}
+
+.subtaskInput {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 13px;
+  outline: none;
+}
+
+.subtaskInput:focus {
+  border-color: var(--accent-color);
+}
+
+.subtaskAddBtn {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.subtaskAddBtn:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.subtaskAddBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Notes */
+.notesArea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  min-height: 80px;
+  box-sizing: border-box;
+}
+
+.notesArea:focus {
+  border-color: var(--accent-color);
+}
+
+.notesArea::placeholder {
+  color: var(--font-color-secondary);
+  opacity: 0.6;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .panel {
+    width: 100vw;
+  }
+}

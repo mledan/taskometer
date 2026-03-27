@@ -261,9 +261,10 @@
   font-size: 11px;
   color: white;
   overflow: hidden;
-  cursor: pointer;
+  cursor: grab;
   transition: all 0.2s ease;
   z-index: 5;
+  user-select: none;
 }
 
 .task:hover {
@@ -278,6 +279,51 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 500;
+}
+
+/* Drag-and-drop */
+.taskDragging {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.resizeHandle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+  border-radius: 0 0 4px 4px;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.resizeHandle:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.dragGhost {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: white;
+  opacity: 0.7;
+  border: 2px dashed rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  z-index: 20;
+  overflow: hidden;
+}
+
+.dragGhostTime {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.9;
+  margin-bottom: 1px;
 }
 
 /* Task states */

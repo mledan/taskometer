@@ -259,6 +259,72 @@
   border-color: var(--accent-color, #3B82F6);
 }
 
+/* ---- Recurrence picker ---- */
+
+.recurrenceRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recurrenceSelect {
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 13px;
+}
+
+.recurrenceInterval {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--font-color-secondary);
+}
+
+.intervalInput {
+  width: 48px;
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--input-color);
+  color: var(--font-color);
+  font-size: 13px;
+  text-align: center;
+}
+
+.dayToggles {
+  display: flex;
+  gap: 4px;
+}
+
+.dayToggle {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dayToggle:hover {
+  border-color: var(--accent-color);
+}
+
+.dayToggleActive {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: white;
+}
 
 /* ---- Post-schedule toast ---- */
 

@@ -87,6 +87,13 @@ function Dashboard() {
     const pausedCount = paused.length;
     const todayTotal = todaysTasks.length;
     const todayCompleted = todaysTasks.filter(t => t.status === 'completed').length;
+    const todayPending = todaysTasks.filter(t => t.status === 'pending');
+    const remainingMinutes = todayPending.reduce((sum, t) => sum + (t.duration || 30), 0);
+    const remainingHours = Math.floor(remainingMinutes / 60);
+    const remainingMins = remainingMinutes % 60;
+    const remainingLabel = remainingHours > 0
+      ? `${remainingHours}h ${remainingMins}m`
+      : `${remainingMins}m`;
 
     return {
       total,
@@ -95,7 +102,8 @@ function Dashboard() {
       paused: pausedCount,
       todayTotal,
       todayCompleted,
-      todayProgress: todayTotal > 0 ? Math.round((todayCompleted / todayTotal) * 100) : 0
+      todayProgress: todayTotal > 0 ? Math.round((todayCompleted / todayTotal) * 100) : 0,
+      remainingLabel
     };
   }, [items, pending, paused, completed, todaysTasks]);
 
@@ -144,12 +152,12 @@ function Dashboard() {
             <span className={styles.statLabel}>Today</span>
           </div>
           <div className={styles.stat}>
-            <span className={styles.statValue}>{stats.pending}</span>
-            <span className={styles.statLabel}>Pending</span>
+            <span className={styles.statValue}>{stats.remainingLabel}</span>
+            <span className={styles.statLabel}>Remaining</span>
           </div>
           <div className={styles.stat}>
-            <span className={styles.statValue}>{stats.completed}</span>
-            <span className={styles.statLabel}>Done</span>
+            <span className={styles.statValue}>{stats.pending}</span>
+            <span className={styles.statLabel}>Pending</span>
           </div>
         </div>
       </header>
@@ -237,25 +245,41 @@ function Dashboard() {
           </div>
           <div className={styles.taskList}>
             {todaysTasks.length > 0 ? (
-              todaysTasks.slice(0, 6).map(task => (
-                <div 
-                  key={task.key} 
-                  className={`${styles.taskItem} ${task.status === 'completed' ? styles.completed : ''} ${task === currentTask ? styles.current : ''}`}
-                >
-                  <span 
-                    className={styles.taskDot} 
-                    style={{ backgroundColor: getTypeInfo(task.taskType).color }}
-                  />
-                  <span className={styles.taskTime}>{formatTaskTime(task)}</span>
-                  <span className={styles.taskText}>{task.text}</span>
-                  {task.status === 'completed' && <span className={styles.checkmark}>✓</span>}
-                </div>
-              ))
+              todaysTasks.map(task => {
+                const taskId = task.id || task.key?.toString();
+                return (
+                  <div
+                    key={task.key}
+                    className={`${styles.taskItem} ${task.status === 'completed' ? styles.completed : ''} ${task === currentTask ? styles.current : ''}`}
+                  >
+                    <span
+                      className={styles.taskDot}
+                      style={{ backgroundColor: getTypeInfo(task.taskType).color }}
+                    />
+                    <span className={styles.taskTime}>{formatTaskTime(task)}</span>
+                    <span className={styles.taskText}>{task.text}</span>
+                    <span className={styles.taskDuration}>{task.duration}m</span>
+                    {task.status === 'completed' ? (
+                      <span className={styles.checkmark}>✓</span>
+                    ) : task.status === 'pending' && (
+                      <div className={styles.taskActions}>
+                        <button
+                          className={styles.taskCompleteBtn}
+                          onClick={() => dispatch({ type: 'COMPLETE_TASK', payload: { taskId } })}
+                          title="Complete"
+                        >✓</button>
+                        <button
+                          className={styles.taskPauseBtn}
+                          onClick={() => dispatch({ type: 'PAUSE_TASK', payload: { taskId } })}
+                          title="Pause"
+                        >⏸</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             ) : (
               <p className={styles.emptyList}>No tasks scheduled for today</p>
-            )}
-            {todaysTasks.length > 6 && (
-              <p className={styles.moreCount}>+{todaysTasks.length - 6} more tasks</p>
             )}
           </div>
         </section>

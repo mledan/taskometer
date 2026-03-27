@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppReducer, useAppState } from '../../AppContext';
 import { ACTION_TYPES } from '../../context/AppContext';
-import { createTask } from '../../models/Task';
+import { createTask, DEFAULT_RECURRENCE } from '../../models/Task';
 import { previewTaskSchedule } from '../../utils/schedulingEngine';
 import { TagSelector } from '../tags';
 import styles from './TaskInput.module.css';
@@ -25,6 +25,7 @@ function TaskInput({ onTaskAdded }) {
   const [preview, setPreview] = useState(null);
   const [justScheduled, setJustScheduled] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [recurrence, setRecurrence] = useState({ ...DEFAULT_RECURRENCE });
 
   const currentTypeConfig = useMemo(() => {
     return taskTypes.find(t => t.id === taskType) || { color: '#3B82F6', defaultDuration: 30 };
@@ -97,6 +98,7 @@ function TaskInput({ onTaskAdded }) {
       duration,
       priority: 'medium',
       scheduledTime: null,
+      recurrence: recurrence.frequency !== 'none' ? { ...recurrence } : { ...DEFAULT_RECURRENCE },
     });
 
     dispatch({
@@ -136,6 +138,7 @@ function TaskInput({ onTaskAdded }) {
     setTaskText('');
     setLocationKey('');
     setSelectedTags([]);
+    setRecurrence({ ...DEFAULT_RECURRENCE });
     inputRef.current?.focus();
   }
 
@@ -317,6 +320,60 @@ function TaskInput({ onTaskAdded }) {
                 compact={true}
               />
             </label>
+
+            <label>
+              <span className={styles.labelText}>Repeat</span>
+              <div className={styles.recurrenceRow}>
+                <select
+                  value={recurrence.frequency}
+                  onChange={(e) => setRecurrence(prev => ({ ...prev, frequency: e.target.value }))}
+                  className={styles.recurrenceSelect}
+                >
+                  <option value="none">Never</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="custom">Custom</option>
+                </select>
+
+                {recurrence.frequency !== 'none' && recurrence.frequency !== 'weekly' && (
+                  <div className={styles.recurrenceInterval}>
+                    <span>Every</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={recurrence.interval}
+                      onChange={(e) => setRecurrence(prev => ({ ...prev, interval: parseInt(e.target.value) || 1 }))}
+                      className={styles.intervalInput}
+                    />
+                    <span>{recurrence.frequency === 'daily' || recurrence.frequency === 'custom' ? 'days' : 'months'}</span>
+                  </div>
+                )}
+              </div>
+            </label>
+
+            {recurrence.frequency === 'weekly' && (
+              <label>
+                <span className={styles.labelText}>Days</span>
+                <div className={styles.dayToggles}>
+                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                    <button
+                      key={day}
+                      type="button"
+                      className={`${styles.dayToggle} ${(recurrence.daysOfWeek || []).includes(day) ? styles.dayToggleActive : ''}`}
+                      onClick={() => {
+                        const days = recurrence.daysOfWeek || [];
+                        const next = days.includes(day) ? days.filter(d => d !== day) : [...days, day];
+                        setRecurrence(prev => ({ ...prev, daysOfWeek: next }));
+                      }}
+                    >
+                      {day.charAt(0).toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </label>
+            )}
           </div>
         )}
       </form>

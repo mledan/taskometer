@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAppState, useAppReducer, ACTION_TYPES } from '../AppContext.jsx';
 import { formatLocalTime } from '../utils/timeDisplay.js';
-import { AuditLogViewer, ProductivityDashboard } from './history';
+import { AuditLogViewer, ProductivityDashboard } from './history/index';
 import styles from './History.module.css';
 
 function History() {

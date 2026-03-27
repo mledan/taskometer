@@ -296,6 +296,50 @@
   font-weight: 600;
 }
 
+.taskDuration {
+  font-size: 0.7rem;
+  color: var(--text-secondary, #9ca3af);
+  white-space: nowrap;
+}
+
+.taskActions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.taskItem:hover .taskActions {
+  opacity: 1;
+}
+
+.taskCompleteBtn,
+.taskPauseBtn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  transition: background 0.15s ease;
+}
+
+.taskCompleteBtn {
+  color: var(--success-color, #10b981);
+}
+
+.taskCompleteBtn:hover {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.taskPauseBtn {
+  color: var(--warning-color, #f59e0b);
+}
+
+.taskPauseBtn:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
 .moreCount {
   text-align: center;
   font-size: 0.75rem;
