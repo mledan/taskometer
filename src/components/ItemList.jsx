@@ -178,7 +178,7 @@ function ItemList() {
 					<div className={styles.onboardingTitle}>Get Started</div>
 					<div className={styles.onboardingText}>
 						Add a task below and it will be scheduled into the next available time.
-						For structured days, set up a framework in the Schedule tab first.
+						For structured days, set up a framework in the Plan tab first.
 					</div>
 				</div>
 			)}

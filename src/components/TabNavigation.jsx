@@ -5,17 +5,19 @@ import Settings from './Settings';
 import KeyboardShortcuts from './KeyboardShortcuts';
 
 export const VIEWS = {
-  DASHBOARD: 'dashboard',
-  SCHEDULE: 'schedule',
+  TODAY: 'today',
+  PLAN: 'plan',
   TASKS: 'tasks',
-  CALENDAR: 'calendar',
-  COMMUNITY: 'community',
-  HISTORY: 'history',
-  // Legacy aliases kept for URL backwards-compatibility
-  SCHEDULES: 'schedule',
-  DEFAULTS: 'schedule',
-  PALACE: 'dashboard',
-  TASK_TYPES: 'dashboard',
+  // Legacy aliases for URL backwards-compatibility
+  DASHBOARD: 'today',
+  SCHEDULE: 'plan',
+  CALENDAR: 'plan',
+  COMMUNITY: 'plan',
+  HISTORY: 'today',
+  SCHEDULES: 'plan',
+  DEFAULTS: 'plan',
+  PALACE: 'today',
+  TASK_TYPES: 'today',
 };
 
 function TabNavigation({ activeView, onViewChange }) {
@@ -37,12 +39,9 @@ function TabNavigation({ activeView, onViewChange }) {
   }, []);
 
   const tabs = [
-    { view: VIEWS.DASHBOARD, label: 'Today', tour: 'dashboard' },
-    { view: VIEWS.SCHEDULE, label: 'Schedule', tour: 'schedules' },
+    { view: VIEWS.TODAY, label: 'Today', tour: 'dashboard' },
+    { view: VIEWS.PLAN, label: 'Plan', tour: 'schedules' },
     { view: VIEWS.TASKS, label: 'Tasks', tour: 'add-task' },
-    { view: VIEWS.CALENDAR, label: 'Calendar', tour: 'calendar' },
-    { view: VIEWS.COMMUNITY, label: 'Community', tour: 'community' },
-    { view: VIEWS.HISTORY, label: 'History', tour: 'history' },
   ];
 
   return (

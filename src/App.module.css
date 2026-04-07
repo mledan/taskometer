@@ -34,44 +34,69 @@
   color: var(--error-color, #ef4444);
 }
 
-/* Add responsive padding based on screen size */
 @media (min-width: 768px) {
   .content {
     padding: 20px;
   }
 }
 
-.todosView,
-.calendarView,
-.dashboardView,
-.schedulesView,
-.historyView {
+/* Today view - single column, scrollable */
+.todayView {
   width: 100%;
-  margin: 0;
   height: 100%;
+  flex: 1;
+  display: flex;
+  background: var(--bg-color);
+  overflow: auto;
 }
 
-.todosView {
+/* Plan view - calendar + schedule side by side on desktop */
+.planView {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.planCalendar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  overflow: auto;
+}
+
+.planSchedule {
+  width: 380px;
+  flex-shrink: 0;
+  overflow: auto;
+  border-left: 1px solid var(--border-color);
+  padding-left: 16px;
+}
+
+/* Tasks view - centered column */
+.tasksView {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 20px;
   width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
-.calendarView {
-  flex: 1;
-  display: flex;
-  background: transparent;
-  width: 100%;
-}
+@media (max-width: 1024px) {
+  .planView {
+    flex-direction: column;
+    overflow: auto;
+  }
 
-.dashboardView,
-.schedulesView,
-.historyView {
-  flex: 1;
-  display: flex;
-  background: var(--bg-color);
-  width: 100%;
-  overflow: auto;
+  .planSchedule {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+    padding-left: 0;
+    padding-top: 16px;
+  }
 }
