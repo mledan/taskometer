@@ -308,6 +308,78 @@ function generateDefaultSlotsFromSettings(state, daysAhead = 21) {
   return generated;
 }
 
+/**
+ * Backfill: after slots are created or freed, try to place all unscheduled
+ * pending tasks using the unified scheduling engine.  Returns patched
+ * { tasks, slots } or null when nothing changed.
+ */
+function backfillUnscheduledTasks(state, timestamp) {
+  const unscheduled = state.tasks.filter(
+    t => t.status === 'pending' && !t.scheduledTime && !t.specificTime && !t.isTemplateBlock
+  );
+  if (unscheduled.length === 0) return null;
+
+  const unscheduledIds = new Set(
+    unscheduled.map(t => getTaskIdentifier(t)).filter(Boolean)
+  );
+
+  const stateForEngine = {
+    slots: state.slots,
+    tasks: state.tasks.filter(t => {
+      const id = getTaskIdentifier(t);
+      return id ? !unscheduledIds.has(id) : true;
+    }),
+    settings: state.settings,
+    taskTypes: state.taskTypes,
+  };
+
+  const results = engineScheduleMultiple(unscheduled, stateForEngine);
+  const scheduledMap = new Map();
+  const slotUpdates = new Map();
+
+  results.forEach(({ task, result }) => {
+    if (!result) return;
+    const taskId = getTaskIdentifier(task);
+    if (!taskId) return;
+    scheduledMap.set(taskId, {
+      scheduledTime: result.scheduledTime,
+      scheduledFor: result.scheduledTime,
+      specificTime: result.specificTime,
+      specificDay: result.specificDay,
+      scheduledSlotId: result.slotId || null,
+      metadata: {
+        ...(task.metadata || {}),
+        schedulingReason: result.reason,
+        schedulingConfidence: result.confidence,
+        scheduledLabel: result.label,
+        scheduledDate: result.date,
+        overflowed: result.overflowed || false,
+        overflowDaysAhead: result.overflowDaysAhead || 0,
+      },
+    });
+    if (result.slotId) {
+      slotUpdates.set(result.slotId, taskId);
+    }
+  });
+
+  if (scheduledMap.size === 0) return null;
+
+  const newTasks = state.tasks.map(task => {
+    const taskId = getTaskIdentifier(task);
+    const updates = scheduledMap.get(taskId);
+    if (!updates) return task;
+    return { ...task, ...updates, updatedAt: timestamp };
+  });
+
+  const newSlots = state.slots.map(slot => {
+    const assignedTaskId = slotUpdates.get(slot.id);
+    if (!assignedTaskId) return slot;
+    return { ...slot, assignedTaskId, updatedAt: timestamp };
+  });
+
+  return { tasks: newTasks, slots: newSlots };
+}
+
 function clearSlotAssignmentsForTaskIds(slots = [], taskIds = new Set(), timestamp) {
   if (taskIds.size === 0) {
     return slots;
@@ -672,6 +744,13 @@ function appReducer(state, action) {
       );
       const newSlots = clearSlotAssignmentsForTaskIds(state.slots, removedTaskIds, timestamp);
 
+      // Backfill: freed slots can now accept unscheduled tasks
+      const intermediateState = { ...state, tasks: newTasks, slots: newSlots, settings: state.settings, taskTypes: state.taskTypes };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+      }
+
       return {
         ...state,
         tasks: newTasks,
@@ -683,6 +762,9 @@ function appReducer(state, action) {
     case ACTION_TYPES.COMPLETE_TASK: {
       const { taskId } = action.payload;
       let nextRecurrence = null;
+      const completedTask = state.tasks.find(
+        t => t.id === taskId || t.key?.toString() === taskId
+      );
       const newTasks = state.tasks.map(task => {
         if (task.id !== taskId && task.key?.toString() !== taskId) return task;
         // Generate next recurrence if applicable
@@ -702,7 +784,24 @@ function appReducer(state, action) {
         newTasks.push(nextRecurrence);
       }
 
-      return { ...state, tasks: newTasks, items: newTasks };
+      // Free the completed task's slot assignment
+      const freedSlotId = completedTask?.scheduledSlotId;
+      let newSlots = freedSlotId
+        ? state.slots.map(slot =>
+            slot.id === freedSlotId
+              ? { ...slot, assignedTaskId: null, updatedAt: timestamp }
+              : slot
+          )
+        : state.slots;
+
+      // Backfill: try to place unscheduled tasks into available slots
+      const intermediateState = { ...state, tasks: newTasks, slots: newSlots };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+      }
+
+      return { ...state, tasks: newTasks, slots: newSlots, items: newTasks };
     }
 
     case ACTION_TYPES.PAUSE_TASK: {
@@ -1025,7 +1124,16 @@ function appReducer(state, action) {
 
     case ACTION_TYPES.ADD_SLOT: {
       const slot = createCalendarSlot(action.payload);
-      return { ...state, slots: [...state.slots, slot] };
+      const newSlots = [...state.slots, slot];
+
+      // Backfill: new slot may accept an unscheduled task
+      const intermediateState = { ...state, slots: newSlots, settings: state.settings, taskTypes: state.taskTypes };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+      }
+
+      return { ...state, slots: newSlots };
     }
 
     case ACTION_TYPES.UPDATE_SLOT: {
@@ -1060,8 +1168,16 @@ function appReducer(state, action) {
 
     case ACTION_TYPES.BATCH_CREATE_SLOTS: {
       const { slots } = action.payload;
-      const newSlots = slots.map(s => createCalendarSlot(s));
-      return { ...state, slots: [...state.slots, ...newSlots] };
+      const newSlots = [...state.slots, ...slots.map(s => createCalendarSlot(s))];
+
+      // Backfill: new slots may accept unscheduled tasks
+      const intermediateState = { ...state, slots: newSlots, settings: state.settings, taskTypes: state.taskTypes };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+      }
+
+      return { ...state, slots: newSlots };
     }
 
     case ACTION_TYPES.CLEAR_SLOTS_FOR_DATE: {
@@ -1205,10 +1321,23 @@ function appReducer(state, action) {
       // Legacy template-created tasks should be removed: templates now define
       // scheduling windows/slots, while user tasks fill those windows.
       const nonTemplateTasks = state.tasks.filter(task => !task.isTemplateBlock);
+      const newSlots = [...baseSlots, ...uniqueGeneratedSlots];
+
+      // Backfill: auto-place unscheduled tasks into the newly created slots
+      const intermediateState = { ...state, tasks: nonTemplateTasks, slots: newSlots, settings: state.settings, taskTypes: state.taskTypes };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return {
+          ...state,
+          slots: backfilled.slots,
+          tasks: backfilled.tasks,
+          items: backfilled.tasks
+        };
+      }
 
       return {
         ...state,
-        slots: [...baseSlots, ...uniqueGeneratedSlots],
+        slots: newSlots,
         tasks: nonTemplateTasks,
         items: nonTemplateTasks
       };
@@ -1350,9 +1479,26 @@ function appReducer(state, action) {
     // ============================================
 
     case ACTION_TYPES.UPDATE_SETTINGS: {
+      const newSettings = { ...state.settings, ...action.payload };
+      const settingsChanged = { ...state, settings: newSettings };
+
+      // If defaultDaySlots changed, backfill unscheduled tasks into the new framework
+      if (action.payload.defaultDaySlots) {
+        const backfilled = backfillUnscheduledTasks(settingsChanged, timestamp);
+        if (backfilled) {
+          return {
+            ...state,
+            settings: newSettings,
+            tasks: backfilled.tasks,
+            slots: backfilled.slots,
+            items: backfilled.tasks
+          };
+        }
+      }
+
       return {
         ...state,
-        settings: { ...state.settings, ...action.payload }
+        settings: newSettings
       };
     }
 
