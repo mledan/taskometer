@@ -32,24 +32,24 @@
   "prefer_related_applications": false,
   "shortcuts": [
     {
+      "name": "Today",
+      "short_name": "Today",
+      "description": "See your day at a glance",
+      "url": "/?view=today",
+      "icons": [{ "src": "logo128.png", "sizes": "128x128" }]
+    },
+    {
+      "name": "Plan",
+      "short_name": "Plan",
+      "description": "Plan your week",
+      "url": "/?view=plan",
+      "icons": [{ "src": "logo128.png", "sizes": "128x128" }]
+    },
+    {
       "name": "Add Task",
       "short_name": "Add",
-      "description": "Quickly add a new task",
+      "description": "Add a new task",
       "url": "/?action=add",
-      "icons": [{ "src": "logo128.png", "sizes": "128x128" }]
-    },
-    {
-      "name": "Calendar",
-      "short_name": "Calendar",
-      "description": "View your weekly calendar",
-      "url": "/?view=calendar",
-      "icons": [{ "src": "logo128.png", "sizes": "128x128" }]
-    },
-    {
-      "name": "Analytics",
-      "short_name": "Stats",
-      "description": "View productivity analytics",
-      "url": "/?view=history",
       "icons": [{ "src": "logo128.png", "sizes": "128x128" }]
     }
   ],

@@ -2,20 +2,19 @@ import { test, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import App from "./App.jsx";
 
-test("starts on the schedule setup view", () => {
+test("starts on the today view", () => {
   render(<App />);
-  expect(screen.getByRole("heading", { name: /schedule/i })).toBeInTheDocument();
+  // Today view shows the day of the week as a heading
+  expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
 });
 
-test("shows the core workflow tabs in top nav", () => {
+test("shows the three core tabs in top nav", () => {
   render(<App />);
   const navButtons = screen.getAllByRole("button");
   const tabLabels = navButtons.map((b) => b.textContent);
-  expect(tabLabels).toContain("Dashboard");
-  expect(tabLabels).toContain("Schedule");
+  expect(tabLabels).toContain("Today");
+  expect(tabLabels).toContain("Plan");
   expect(tabLabels).toContain("Tasks");
-  expect(tabLabels).toContain("Calendar");
-  expect(tabLabels).toContain("History");
 });
 
 test("navigates to tasks tab", () => {
@@ -25,8 +24,8 @@ test("navigates to tasks tab", () => {
   expect(screen.getByPlaceholderText(/what needs to be done/i)).toBeInTheDocument();
 });
 
-test("navigates to dashboard tab", () => {
+test("navigates to today tab", () => {
   render(<App />);
-  fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
-  expect(screen.getByRole("heading", { name: /current focus/i })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Today" }));
+  expect(screen.getByText(/Quick Add/)).toBeInTheDocument();
 });

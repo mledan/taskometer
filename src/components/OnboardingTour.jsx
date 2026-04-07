@@ -12,70 +12,42 @@ const TOUR_STEPS = [
   {
     id: 'welcome',
     title: 'Welcome to Taskometer!',
-    description: 'Build your ideal day with templates, add tasks, and let the scheduler map them. Let\'s take a quick tour.',
+    description: 'Three views, one workflow: see your day, plan your week, manage your backlog. Let\'s take a quick tour.',
     target: null,
     position: 'center'
   },
   {
+    id: 'dashboard',
+    title: '1. Today',
+    description: 'Your daily command center. See what\'s happening now, complete or pause tasks, and quick-add new ones.',
+    target: '[data-tour="dashboard"]',
+    position: 'bottom'
+  },
+  {
     id: 'schedules',
-    title: '1. Build Your Schedule',
-    description: 'Use the Day Builder to split your day into time slots, or pick a famous template. The clock face shows all 24 hours at a glance.',
+    title: '2. Plan',
+    description: 'See your week at a glance. Drag tasks to reschedule, build time-block templates, and apply famous schedules.',
     target: '[data-tour="schedules"]',
     position: 'bottom'
   },
   {
     id: 'add-task',
-    title: '2. Add Your Tasks',
-    description: 'Capture tasks with duration, priority, and recurrence. Set tasks to repeat daily, weekly, or monthly. The scheduler auto-places them into your slots.',
+    title: '3. Tasks',
+    description: 'Your backlog. Add tasks with duration, priority, and recurrence. Search, filter, and sort. The scheduler auto-places them into your slots.',
     target: '[data-tour="add-task"]',
-    position: 'bottom'
-  },
-  {
-    id: 'search-filter',
-    title: '3. Search & Filter',
-    description: 'Use the search bar to find tasks instantly. Filter by priority, type, or status. Sort by time, priority, or duration. Press / to jump to search.',
-    target: '[data-tour="add-task"]',
-    position: 'bottom'
-  },
-  {
-    id: 'task-details',
-    title: '4. Task Details',
-    description: 'Click the "..." button on any task to open its detail panel. Add subtasks, notes, and track time with start/stop timer.',
-    target: '[data-tour="add-task"]',
-    position: 'bottom'
-  },
-  {
-    id: 'calendar',
-    title: '5. Your Calendar',
-    description: 'See your week at a glance. Drag tasks to reschedule them, or drag the bottom edge to resize duration. Right-click for more options.',
-    target: '[data-tour="calendar"]',
-    position: 'bottom'
-  },
-  {
-    id: 'dashboard',
-    title: '6. Today View',
-    description: 'Your daily command center. See all today\'s tasks, remaining time, and complete or pause tasks inline. No task limit.',
-    target: '[data-tour="dashboard"]',
-    position: 'bottom'
-  },
-  {
-    id: 'community',
-    title: '7. Community Schedules',
-    description: 'Browse schedules shared by others. Like your favorites and apply them to your own framework.',
-    target: '[data-tour="community"]',
     position: 'bottom'
   },
   {
     id: 'settings',
-    title: '8. Settings & Data',
-    description: 'Configure auto-scheduling, notifications, export/import your data, and customize keyboard shortcuts. Press ? anytime to see all shortcuts.',
+    title: '4. Settings & Shortcuts',
+    description: 'Export/import data, configure auto-scheduling, and customize keyboard shortcuts. Press ? anytime to see all shortcuts.',
     target: '[data-tour="settings"]',
     position: 'left'
   },
   {
     id: 'complete',
     title: 'You\'re All Set!',
-    description: 'Build a schedule, add tasks, and structure your day. You can replay this tour anytime from Settings.',
+    description: 'Add tasks, plan your week, and focus on today. You can replay this tour anytime from Settings.',
     target: null,
     position: 'center'
   }

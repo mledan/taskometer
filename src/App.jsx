@@ -2,36 +2,35 @@ import { useEffect, useState } from 'react';
 import ItemList from './components/ItemList.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import Dashboard from './components/Dashboard.jsx';
-import History from './components/History.jsx';
 import ScheduleSetup from './components/ScheduleSetup.jsx';
-import Community from './components/Community.jsx';
-import CalendarSync from './components/CalendarSync.jsx';
-import OnboardingTour from './components/OnboardingTour.jsx';
 import TabNavigation, { VIEWS } from './components/TabNavigation.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Notifications from './components/Notifications.jsx';
-import PWAStatus from './components/PWAStatus.jsx';
 import { AppStateProvider, useAppState } from './AppContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import styles from './App.module.css';
 
-const CANONICAL_VIEWS = new Set(['dashboard', 'schedule', 'tasks', 'calendar', 'community', 'history']);
+const CANONICAL_VIEWS = new Set(['today', 'plan', 'tasks']);
 
 function resolveView(raw) {
   if (!raw) return null;
   const mapped = {
-    defaults: 'schedule',
-    schedules: 'schedule',
-    palace: 'dashboard',
-    'task-types': 'dashboard',
-    community: 'dashboard',
+    dashboard: 'today',
+    schedule: 'plan',
+    schedules: 'plan',
+    calendar: 'plan',
+    community: 'plan',
+    history: 'today',
+    defaults: 'plan',
+    palace: 'today',
+    'task-types': 'today',
   };
   const resolved = mapped[raw] || raw;
   return CANONICAL_VIEWS.has(resolved) ? resolved : null;
 }
 
 function AppContent() {
-  const [activeView, setActiveView] = useState(VIEWS.SCHEDULE);
+  const [activeView, setActiveView] = useState(VIEWS.TODAY);
   const { isLoading, error } = useAppState();
 
   useEffect(() => {
@@ -52,7 +51,7 @@ function AppContent() {
     }
 
     if (requestedSchedule) {
-      setActiveView(VIEWS.SCHEDULE);
+      setActiveView(VIEWS.PLAN);
     }
   }, []);
 
@@ -81,50 +80,34 @@ function AppContent() {
       )}
       <ErrorBoundary>
         <div className={styles.content}>
-          {activeView === VIEWS.DASHBOARD && (
-            <div className={styles.dashboardView}>
+          {activeView === VIEWS.TODAY && (
+            <div className={styles.todayView}>
               <Dashboard />
             </div>
           )}
 
-          {activeView === VIEWS.SCHEDULE && (
-            <div className={styles.schedulesView}>
-              <ScheduleSetup
-                onNavigateToTasks={() => setActiveView(VIEWS.TASKS)}
-                onNavigateToCalendar={() => setActiveView(VIEWS.CALENDAR)}
-              />
+          {activeView === VIEWS.PLAN && (
+            <div className={styles.planView}>
+              <div className={styles.planCalendar}>
+                <CalendarView />
+              </div>
+              <div className={styles.planSchedule}>
+                <ScheduleSetup
+                  onNavigateToTasks={() => setActiveView(VIEWS.TASKS)}
+                  onNavigateToCalendar={() => {}}
+                />
+              </div>
             </div>
           )}
 
           {activeView === VIEWS.TASKS && (
-            <div className={styles.todosView}>
+            <div className={styles.tasksView}>
               <ItemList />
-            </div>
-          )}
-
-          {activeView === VIEWS.CALENDAR && (
-            <div className={styles.calendarView}>
-              <CalendarView />
-            </div>
-          )}
-
-          {activeView === VIEWS.COMMUNITY && (
-            <div className={styles.schedulesView}>
-              <Community />
-            </div>
-          )}
-
-          {activeView === VIEWS.HISTORY && (
-            <div className={styles.historyView}>
-              <History />
             </div>
           )}
         </div>
       </ErrorBoundary>
       <Notifications />
-      <CalendarSync />
-      <PWAStatus />
-      <OnboardingTour />
     </div>
   );
 }

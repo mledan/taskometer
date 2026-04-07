@@ -9,11 +9,9 @@ import { useEffect, useCallback, useState } from 'react';
 // Default shortcuts configuration
 export const DEFAULT_SHORTCUTS = {
   // Navigation
-  'g+d': { action: 'goToDashboard', description: 'Go to Dashboard', category: 'Navigation' },
-  'g+s': { action: 'goToSchedules', description: 'Go to Schedule', category: 'Navigation' },
+  'g+d': { action: 'goToDashboard', description: 'Go to Today', category: 'Navigation' },
+  'g+p': { action: 'goToPlan', description: 'Go to Plan', category: 'Navigation' },
   'g+t': { action: 'goToTodos', description: 'Go to Tasks', category: 'Navigation' },
-  'g+c': { action: 'goToCalendar', description: 'Go to Calendar', category: 'Navigation' },
-  'g+h': { action: 'goToHistory', description: 'Go to History', category: 'Navigation' },
 
   // Actions
   'n': { action: 'newTask', description: 'New Task', category: 'Actions' },
