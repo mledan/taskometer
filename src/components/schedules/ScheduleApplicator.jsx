@@ -175,26 +175,31 @@ function ScheduleApplicator({
       });
     }
 
-    // Apply each new slot
-    previewSlots.forEach(slotData => {
-      // For overlay mode, check if time is already occupied
-      if (applicationMode === 'overlay') {
-        const hasOverlap = existingSlots.some(existing =>
-          existing.date === slotData.date &&
-          ((slotData.startTime >= existing.startTime && slotData.startTime < existing.endTime) ||
-           (slotData.endTime > existing.startTime && slotData.endTime <= existing.endTime))
-        );
-        if (hasOverlap) return; // Skip this slot
-      }
-
-      dispatch({
-        type: ACTION_TYPES.ADD_SLOT,
-        payload: {
-          ...slotData,
-          sourceScheduleId: selectedSchedule.id
+    // Collect slots to create (filter for overlay mode)
+    const slotsToCreate = previewSlots
+      .filter(slotData => {
+        if (applicationMode === 'overlay') {
+          const hasOverlap = existingSlots.some(existing =>
+            existing.date === slotData.date &&
+            ((slotData.startTime >= existing.startTime && slotData.startTime < existing.endTime) ||
+             (slotData.endTime > existing.startTime && slotData.endTime <= existing.endTime))
+          );
+          return !hasOverlap;
         }
+        return true;
+      })
+      .map(slotData => ({
+        ...slotData,
+        sourceScheduleId: selectedSchedule.id
+      }));
+
+    // Batch-create all slots at once (triggers single backfill of unscheduled tasks)
+    if (slotsToCreate.length > 0) {
+      dispatch({
+        type: ACTION_TYPES.BATCH_CREATE_SLOTS,
+        payload: { slots: slotsToCreate }
       });
-    });
+    }
 
     // Record the schedule application
     dispatch({
