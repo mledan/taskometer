@@ -80,7 +80,9 @@ const initialState = {
     showCompletedTasks: false,
     defaultView: 'week',
     theme: 'dark',
-    defaultDaySlots: []
+    defaultDaySlots: [],
+    breakDuration: 0,
+    silenceOverflowNotifications: false
   }
 };
 
