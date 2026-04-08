@@ -483,16 +483,7 @@ function WeekView({
           </span>
         </div>
 
-        <div className={styles.navRight}>
-          {onSlotEditModeChange && (
-            <button
-              className={`${styles.editModeButton} ${isSlotEditMode ? styles.active : ''}`}
-              onClick={() => onSlotEditModeChange(!isSlotEditMode)}
-            >
-              {isSlotEditMode ? '✓ Done Editing' : '✏️ Edit Slots'}
-            </button>
-          )}
-        </div>
+        <div className={styles.navRight} />
       </div>
 
       {/* Calendar grid */}
@@ -556,12 +547,12 @@ function WeekView({
                     </div>
                   )}
 
-                  {/* Slot editor (when in edit mode) */}
+                  {/* Slot framework - always visible and interactive */}
                   {showSlots && (
                     <SlotEditor
                       date={day.date}
                       dayOffset={weekDays.indexOf(day)}
-                      isActive={isSlotEditMode}
+                      isActive={true}
                       existingSlots={daySlots}
                     />
                   )}

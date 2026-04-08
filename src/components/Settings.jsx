@@ -111,6 +111,29 @@ function Settings({ isOpen, onClose }) {
             />
             <span>Show completed tasks in task list</span>
           </label>
+          <div className={styles.fieldRow}>
+            <label className={styles.fieldLabel}>Break between tasks</label>
+            <div className={styles.chipGroup}>
+              {[0, 5, 10, 15].map(mins => (
+                <button
+                  key={mins}
+                  type="button"
+                  className={`${styles.chip} ${(settings.breakDuration || 0) === mins ? styles.chipActive : ''}`}
+                  onClick={() => updateSettings({ breakDuration: mins })}
+                >
+                  {mins === 0 ? 'None' : `${mins}m`}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className={styles.toggle}>
+            <input
+              type="checkbox"
+              checked={settings.silenceOverflowNotifications || false}
+              onChange={e => updateSettings({ silenceOverflowNotifications: e.target.checked })}
+            />
+            <span>Silence overflow notifications (tasks pushed to next day)</span>
+          </label>
         </section>
 
         {/* Notifications */}

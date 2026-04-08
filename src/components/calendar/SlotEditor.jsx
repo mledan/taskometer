@@ -24,7 +24,7 @@ const MIN_SLOT_DURATION = 15; // minimum 15 minutes
 function SlotEditor({
   date,
   dayOffset = 0,
-  isActive = false,
+  isActive = true,
   onSlotCreated,
   onSlotUpdated,
   onSlotDeleted,
@@ -354,21 +354,17 @@ function SlotEditor({
               }}
               onClick={(e) => handleSlotClick(e, slot)}
             >
-              {/* Resize handles */}
-              {isActive && (
-                <>
-                  <div
-                    className={styles.resizeHandle}
-                    style={{ top: 0 }}
-                    onMouseDown={(e) => handleResizeStart(e, slot, 'top')}
-                  />
-                  <div
-                    className={styles.resizeHandle}
-                    style={{ bottom: 0 }}
-                    onMouseDown={(e) => handleResizeStart(e, slot, 'bottom')}
-                  />
-                </>
-              )}
+              {/* Resize handles - always available */}
+              <div
+                className={styles.resizeHandle}
+                style={{ top: 0 }}
+                onMouseDown={(e) => handleResizeStart(e, slot, 'top')}
+              />
+              <div
+                className={styles.resizeHandle}
+                style={{ bottom: 0 }}
+                onMouseDown={(e) => handleResizeStart(e, slot, 'bottom')}
+              />
 
               {/* Slot content */}
               <div className={styles.slotContent}>

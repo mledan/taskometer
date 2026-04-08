@@ -8,13 +8,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.container.active {
   pointer-events: auto;
-  cursor: crosshair;
+  z-index: 3;
 }
 
 /* Existing slots */

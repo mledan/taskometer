@@ -378,8 +378,8 @@ function TaskInput({ onTaskAdded }) {
         )}
       </form>
 
-      {/* Post-schedule confirmation toast */}
-      {justScheduled && (
+      {/* Post-schedule confirmation toast (respect silence setting for overflow) */}
+      {justScheduled && !(justScheduled.overflowed && settings.silenceOverflowNotifications) && (
         <div className={`${styles.toast} ${justScheduled.overflowed ? styles.toastOverflow : ''}`}>
           <span className={styles.toastCheck}>
             {justScheduled.overflowed ? (

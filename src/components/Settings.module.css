@@ -139,6 +139,45 @@
   flex-wrap: wrap;
 }
 
+.fieldRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.fieldLabel {
+  font-size: 14px;
+  color: var(--font-color);
+}
+
+.chipGroup {
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  padding: 5px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent-color);
+}
+
+.chipActive {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
 .actionBtn {
   padding: 8px 14px;
   border: 1px solid var(--border-color);

@@ -4,6 +4,7 @@ import { createCalendarSlot, getSlotStartDateTime, getSlotDuration, canAssignTas
 const ADHOC_WORK_START = 9;
 const ADHOC_WORK_END = 22;
 const DEFAULT_DURATION = 30;
+const DEFAULT_BREAK_DURATION = 0;
 const SNAP_MINUTES = 15;
 const MAX_DAYS_AHEAD = 28;
 
@@ -27,13 +28,14 @@ export function scheduleTask(task, state) {
     taskTypes = [],
   } = state;
 
+  const breakDuration = settings.breakDuration || DEFAULT_BREAK_DURATION;
   const hasFramework = hasActiveFramework(slots, settings);
 
   if (hasFramework) {
-    return scheduleWithFramework(task, slots, tasks, settings, taskTypes);
+    return scheduleWithFramework(task, slots, tasks, settings, taskTypes, breakDuration);
   }
 
-  return scheduleWithoutFramework(task, tasks, taskTypes);
+  return scheduleWithoutFramework(task, tasks, taskTypes, breakDuration);
 }
 
 /**
@@ -89,7 +91,7 @@ function hasActiveFramework(slots, settings) {
 // Mode 1: Schedule with framework (slots exist)
 // ---------------------------------------------------------------------------
 
-function scheduleWithFramework(task, existingSlots, existingTasks, settings, taskTypes) {
+function scheduleWithFramework(task, existingSlots, existingTasks, settings, taskTypes, breakDuration = 0) {
   const now = new Date();
   const todayStr = format(now, 'yyyy-MM-dd');
   const taskType = task.primaryType || task.taskType || 'work';
@@ -112,7 +114,7 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
     });
 
   // Phase 1: exact type+tag match
-  const exactMatch = findFirstAvailable(candidates, task, existingTasks, (slot) => {
+  const exactMatch = findFirstAvailable(candidates, task, existingTasks, breakDuration, (slot) => {
     if (slot.slotType && slot.slotType === taskType) return true;
     if (slot.allowedTags?.length > 0 && taskTags.length > 0) {
       return taskTags.some(tag => slot.allowedTags.includes(tag));
@@ -125,7 +127,7 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
   }
 
   // Phase 2: type match only (ignore tags)
-  const typeMatch = findFirstAvailable(candidates, task, existingTasks, (slot) => {
+  const typeMatch = findFirstAvailable(candidates, task, existingTasks, breakDuration, (slot) => {
     return slot.slotType && slot.slotType === taskType;
   });
 
@@ -135,7 +137,7 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
 
   // Phase 3: tag match only
   if (taskTags.length > 0) {
-    const tagMatch = findFirstAvailable(candidates, task, existingTasks, (slot) => {
+    const tagMatch = findFirstAvailable(candidates, task, existingTasks, breakDuration, (slot) => {
       if (!slot.allowedTags || slot.allowedTags.length === 0) return false;
       return taskTags.some(tag => slot.allowedTags.includes(tag));
     });
@@ -145,7 +147,7 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
   }
 
   // Phase 4: flexible/untyped slots
-  const flexibleMatch = findFirstAvailable(candidates, task, existingTasks, (slot) => {
+  const flexibleMatch = findFirstAvailable(candidates, task, existingTasks, breakDuration, (slot) => {
     if (!slot.slotType && (!slot.allowedTags || slot.allowedTags.length === 0)) return true;
     if (slot.flexibility === 'flexible') return true;
     return false;
@@ -156,7 +158,7 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
   }
 
   // Phase 5: any slot that allows this task (preferred slots accept non-matching)
-  const anyMatch = findFirstAvailable(candidates, task, existingTasks, (slot) => {
+  const anyMatch = findFirstAvailable(candidates, task, existingTasks, breakDuration, (slot) => {
     const { allowed } = canAssignTaskToSlot(slot, task);
     return allowed;
   });
@@ -166,14 +168,14 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
   }
 
   // Phase 6: no framework slots worked, try ad-hoc as last resort
-  return scheduleWithoutFramework(task, existingTasks, taskTypes);
+  return scheduleWithoutFramework(task, existingTasks, taskTypes, breakDuration);
 }
 
 // ---------------------------------------------------------------------------
 // Mode 2: Schedule without framework (no slots at all)
 // ---------------------------------------------------------------------------
 
-function scheduleWithoutFramework(task, existingTasks, taskTypes) {
+function scheduleWithoutFramework(task, existingTasks, taskTypes, breakDuration = 0) {
   const now = new Date();
   const todayStr = format(now, 'yyyy-MM-dd');
   const taskDuration = task.duration || DEFAULT_DURATION;
@@ -208,7 +210,7 @@ function scheduleWithoutFramework(task, existingTasks, taskTypes) {
       const candidateEnd = addMinutes(candidate, taskDuration);
       if (candidateEnd > dayEnd) break;
 
-      if (!hasConflict(candidate, candidateEnd, existingTasks)) {
+      if (!hasConflict(candidate, candidateEnd, existingTasks, breakDuration)) {
         const scheduledDate = format(candidate, 'yyyy-MM-dd');
         const overflowedFromToday = dayOffset > 0 && scheduledDate !== todayStr;
         return {
@@ -284,7 +286,7 @@ function ensureFutureSlots(existingSlots, settings, daysAhead) {
   return [...existingSlots, ...generated];
 }
 
-function findFirstAvailable(candidates, task, existingTasks, filterFn) {
+function findFirstAvailable(candidates, task, existingTasks, breakDuration, filterFn) {
   const taskDuration = task.duration || DEFAULT_DURATION;
 
   for (const slot of candidates) {
@@ -303,7 +305,7 @@ function findFirstAvailable(candidates, task, existingTasks, filterFn) {
       const candidateEnd = addMinutes(candidateStart, taskDuration);
       if (candidateEnd > slotEnd) break;
 
-      if (!hasConflict(candidateStart, candidateEnd, existingTasks)) {
+      if (!hasConflict(candidateStart, candidateEnd, existingTasks, breakDuration)) {
         return { slot, startTime: candidateStart };
       }
 
@@ -340,7 +342,7 @@ function buildResult(match, task, reason) {
   };
 }
 
-function hasConflict(start, end, existingTasks) {
+function hasConflict(start, end, existingTasks, breakDuration = 0) {
   if (!Array.isArray(existingTasks)) return false;
 
   return existingTasks.some(t => {
@@ -348,7 +350,7 @@ function hasConflict(start, end, existingTasks) {
     if (t.status === 'completed' || t.status === 'cancelled') return false;
 
     const tStart = new Date(t.scheduledTime);
-    const tEnd = addMinutes(tStart, t.duration || DEFAULT_DURATION);
+    const tEnd = addMinutes(tStart, (t.duration || DEFAULT_DURATION) + breakDuration);
     return start < tEnd && end > tStart;
   });
 }
