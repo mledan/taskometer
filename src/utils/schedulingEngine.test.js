@@ -376,6 +376,142 @@ describe('Scenario 3: Overflow to next day/week', () => {
 });
 
 // ===========================================================================
+// SCENARIO: Tasks schedule into first available future time within active slots
+// ===========================================================================
+
+describe('Scheduling into currently active slots', () => {
+  it('schedules into a slot that has already started but still has remaining time', () => {
+    vi.useFakeTimers();
+    // It's 10:30 AM — the 9-12 morning slot started 1.5h ago
+    vi.setSystemTime(new Date(2026, 1, 24, 10, 30, 0));
+
+    const morningSlot = makeSlot({
+      id: 'slot-morning',
+      date: '2026-02-24',
+      startTime: '09:00',
+      endTime: '12:00',
+      slotType: 'work',
+      label: 'Morning',
+      flexibility: 'preferred',
+    });
+
+    const task = makeTask({ primaryType: 'work', duration: 30 });
+    const state = { slots: [morningSlot], tasks: [], settings: {}, taskTypes: [] };
+
+    const result = scheduleTask(task, state);
+
+    expect(result).not.toBeNull();
+    expect(result.slotId).toBe('slot-morning');
+    // Should schedule at 10:30 (snapped), not skip to a future slot
+    const scheduled = new Date(result.scheduledTime);
+    expect(scheduled.getHours()).toBe(10);
+    expect(scheduled.getMinutes()).toBe(30);
+  });
+
+  it('schedules at the next snapped time within an active slot', () => {
+    vi.useFakeTimers();
+    // It's 10:07 AM — should snap to 10:15
+    vi.setSystemTime(new Date(2026, 1, 24, 10, 7, 0));
+
+    const morningSlot = makeSlot({
+      id: 'slot-morning',
+      date: '2026-02-24',
+      startTime: '09:00',
+      endTime: '12:00',
+      slotType: 'work',
+      label: 'Morning',
+      flexibility: 'preferred',
+    });
+
+    const task = makeTask({ primaryType: 'work', duration: 30 });
+    const state = { slots: [morningSlot], tasks: [], settings: {}, taskTypes: [] };
+
+    const result = scheduleTask(task, state);
+
+    expect(result).not.toBeNull();
+    expect(result.slotId).toBe('slot-morning');
+    const scheduled = new Date(result.scheduledTime);
+    expect(scheduled.getHours()).toBe(10);
+    expect(scheduled.getMinutes()).toBe(15);
+  });
+
+  it('prefers the current active slot over a later future slot', () => {
+    vi.useFakeTimers();
+    // It's 10:00 AM
+    vi.setSystemTime(new Date(2026, 1, 24, 10, 0, 0));
+
+    const morningSlot = makeSlot({
+      id: 'slot-morning',
+      date: '2026-02-24',
+      startTime: '09:00',
+      endTime: '12:00',
+      slotType: 'work',
+      label: 'Morning',
+    });
+
+    const afternoonSlot = makeSlot({
+      id: 'slot-afternoon',
+      date: '2026-02-24',
+      startTime: '13:00',
+      endTime: '17:00',
+      slotType: 'work',
+      label: 'Afternoon',
+    });
+
+    const task = makeTask({ primaryType: 'work', duration: 30 });
+    const state = {
+      slots: [morningSlot, afternoonSlot],
+      tasks: [],
+      settings: {},
+      taskTypes: [],
+    };
+
+    const result = scheduleTask(task, state);
+
+    expect(result).not.toBeNull();
+    // Should use morning slot (active now), not skip to afternoon
+    expect(result.slotId).toBe('slot-morning');
+    const scheduled = new Date(result.scheduledTime);
+    expect(scheduled.getHours()).toBe(10);
+  });
+
+  it('skips a fully elapsed slot and uses the next one', () => {
+    vi.useFakeTimers();
+    // It's 1 PM — morning slot is completely over
+    vi.setSystemTime(new Date(2026, 1, 24, 13, 0, 0));
+
+    const morningSlot = makeSlot({
+      id: 'slot-morning',
+      date: '2026-02-24',
+      startTime: '09:00',
+      endTime: '12:00',
+      slotType: 'work',
+    });
+
+    const afternoonSlot = makeSlot({
+      id: 'slot-afternoon',
+      date: '2026-02-24',
+      startTime: '13:00',
+      endTime: '17:00',
+      slotType: 'work',
+    });
+
+    const task = makeTask({ primaryType: 'work', duration: 30 });
+    const state = {
+      slots: [morningSlot, afternoonSlot],
+      tasks: [],
+      settings: {},
+      taskTypes: [],
+    };
+
+    const result = scheduleTask(task, state);
+
+    expect(result).not.toBeNull();
+    expect(result.slotId).toBe('slot-afternoon');
+  });
+});
+
+// ===========================================================================
 // SCENARIO 4: Edge cases
 // ===========================================================================
 

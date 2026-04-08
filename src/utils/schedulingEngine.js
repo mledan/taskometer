@@ -103,7 +103,8 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
   const candidates = allSlots
     .filter(slot => {
       const slotStart = getSlotStartDateTime(slot);
-      if (slotStart <= now) return false;
+      const slotEnd = addMinutes(slotStart, getSlotDuration(slot));
+      if (slotEnd <= now) return false;
       if (getSlotDuration(slot) < taskDuration) return false;
       return true;
     })
@@ -288,6 +289,7 @@ function ensureFutureSlots(existingSlots, settings, daysAhead) {
 
 function findFirstAvailable(candidates, task, existingTasks, breakDuration, filterFn) {
   const taskDuration = task.duration || DEFAULT_DURATION;
+  const now = new Date();
 
   for (const slot of candidates) {
     if (!filterFn(slot)) continue;
@@ -296,7 +298,8 @@ function findFirstAvailable(candidates, task, existingTasks, breakDuration, filt
     const slotStart = getSlotStartDateTime(slot);
     const slotEnd = addMinutes(slotStart, getSlotDuration(slot));
 
-    let candidateStart = new Date(slotStart);
+    // Start from now if the slot has already begun, otherwise from slot start
+    let candidateStart = slotStart < now ? new Date(now) : new Date(slotStart);
     const roundedMinutes = Math.ceil(candidateStart.getMinutes() / SNAP_MINUTES) * SNAP_MINUTES;
     candidateStart.setMinutes(roundedMinutes, 0, 0);
     if (candidateStart < slotStart) candidateStart = new Date(slotStart);
