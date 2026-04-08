@@ -659,6 +659,11 @@ function appReducer(state, action) {
       const updateData = action.payload || action.item;
       const taskId = updateData.id || updateData.key;
 
+      // Find the old task to detect status/schedule changes
+      const oldTask = state.tasks.find(
+        t => t.id === taskId || t.key?.toString() === taskId?.toString()
+      );
+
       const updatedTasks = state.tasks.map(task => {
         const isMatch = task.id === taskId || task.key?.toString() === taskId?.toString();
         if (!isMatch) return task;
@@ -670,62 +675,43 @@ function appReducer(state, action) {
         };
       });
 
-      const taskToReschedule = updatedTasks.find((task) => {
-        return (task.id === taskId || task.key?.toString() === taskId?.toString()) &&
-          state.settings.autoSchedule &&
-          task.status === 'pending' &&
-          !task.scheduledTime &&
-          !task.specificTime;
-      });
-
-      if (taskToReschedule) {
-        const slotScheduled = scheduleTasksIntoSlots(
-          { ...state, tasks: updatedTasks },
-          [taskToReschedule],
-          timestamp
+      // If the task was previously scheduled and is now becoming pending
+      // without a scheduled time (e.g. paused→pending, or manually unscheduled),
+      // free its old slot so the system can place it (and others) optimally.
+      const updatedTask = updatedTasks.find(
+        t => t.id === taskId || t.key?.toString() === taskId?.toString()
+      );
+      let slotsAfterFree = state.slots;
+      const wasScheduledBefore = oldTask?.scheduledSlotId;
+      const isUnscheduledNow = updatedTask && !updatedTask.scheduledTime;
+      if (wasScheduledBefore && isUnscheduledNow) {
+        slotsAfterFree = state.slots.map(slot =>
+          slot.id === oldTask.scheduledSlotId
+            ? { ...slot, assignedTaskId: null, updatedAt: timestamp }
+            : slot
         );
+      }
 
-        if (slotScheduled) {
-          return {
-            ...state,
-            tasks: slotScheduled.tasks,
-            slots: slotScheduled.slots,
-            items: slotScheduled.tasks
-          };
-        }
+      // Try to schedule if task is pending and unscheduled
+      const shouldReschedule = updatedTask &&
+        state.settings.autoSchedule &&
+        updatedTask.status === 'pending' &&
+        !updatedTask.scheduledTime &&
+        !updatedTask.specificTime;
 
-        const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
-        if (activeSchedule) {
-          const otherTasks = updatedTasks.filter((task) =>
-            task.id !== taskToReschedule.id && task.key !== taskToReschedule.key
-          );
-          const optimalSlot = findOptimalTimeSlot(taskToReschedule, activeSchedule, otherTasks, state.taskTypes);
-          if (optimalSlot) {
-            const rescheduledTasks = updatedTasks.map((task) => {
-              if (task.id !== taskToReschedule.id && task.key !== taskToReschedule.key) {
-                return task;
-              }
-
-              return {
-                ...task,
-                scheduledTime: optimalSlot.scheduledFor,
-                scheduledFor: optimalSlot.scheduledFor,
-                specificTime: optimalSlot.specificTime
-              };
-            });
-
-            return {
-              ...state,
-              tasks: rescheduledTasks,
-              items: rescheduledTasks
-            };
-          }
+      if (shouldReschedule) {
+        // Use the unified backfill path which handles all unscheduled tasks
+        const intermediateState = { ...state, tasks: updatedTasks, slots: slotsAfterFree };
+        const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+        if (backfilled) {
+          return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
         }
       }
 
       return {
         ...state,
         tasks: updatedTasks,
+        slots: slotsAfterFree,
         items: updatedTasks
       };
     }
@@ -808,12 +794,40 @@ function appReducer(state, action) {
 
     case ACTION_TYPES.PAUSE_TASK: {
       const { taskId } = action.payload;
+      const pausedTask = state.tasks.find(
+        t => t.id === taskId || t.key?.toString() === taskId
+      );
       const newTasks = state.tasks.map(task => {
         if (task.id !== taskId && task.key?.toString() !== taskId) return task;
-        return { ...task, status: 'paused', updatedAt: timestamp };
+        return {
+          ...task,
+          status: 'paused',
+          scheduledTime: null,
+          scheduledFor: null,
+          specificTime: null,
+          scheduledSlotId: null,
+          updatedAt: timestamp
+        };
       });
 
-      return { ...state, tasks: newTasks, items: newTasks };
+      // Free the paused task's slot so another task can use it
+      const freedSlotId = pausedTask?.scheduledSlotId;
+      let newSlots = freedSlotId
+        ? state.slots.map(slot =>
+            slot.id === freedSlotId
+              ? { ...slot, assignedTaskId: null, updatedAt: timestamp }
+              : slot
+          )
+        : state.slots;
+
+      // Backfill freed slot with another unscheduled task
+      const intermediateState = { ...state, tasks: newTasks, slots: newSlots };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+      }
+
+      return { ...state, tasks: newTasks, slots: newSlots, items: newTasks };
     }
 
     case ACTION_TYPES.RESUME_TASK: {
@@ -822,6 +836,13 @@ function appReducer(state, action) {
         if (task.id !== taskId && task.key?.toString() !== taskId) return task;
         return { ...task, status: 'pending', updatedAt: timestamp };
       });
+
+      // Backfill: resumed task is now pending and may need scheduling
+      const intermediateState = { ...state, tasks: newTasks };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+      }
 
       return { ...state, tasks: newTasks, items: newTasks };
     }
@@ -849,6 +870,15 @@ function appReducer(state, action) {
           updatedAt: timestamp
         };
       });
+
+      // Backfill: the freed slot may be filled by another unscheduled task
+      if (oldSlotId) {
+        const intermediateState = { ...state, tasks: newTasks, slots: updatedSlots };
+        const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+        if (backfilled) {
+          return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+        }
+      }
 
       return { ...state, tasks: newTasks, slots: updatedSlots, items: newTasks };
     }
@@ -1144,12 +1174,44 @@ function appReducer(state, action) {
       const newSlots = state.slots.map(slot =>
         slot.id === slotId ? { ...slot, ...updates, updatedAt: timestamp } : slot
       );
+      // Backfill: slot may have been expanded or type changed, so unscheduled tasks may now fit
+      const intermediateState = { ...state, slots: newSlots };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+      }
       return { ...state, slots: newSlots };
     }
 
     case ACTION_TYPES.DELETE_SLOT: {
       const slotId = action.payload?.slotId || action.payload?.id;
-      return { ...state, slots: state.slots.filter(s => s.id !== slotId) };
+      const deletedSlot = state.slots.find(s => s.id === slotId);
+      const remainingSlots = state.slots.filter(s => s.id !== slotId);
+
+      // Unschedule any task assigned to the deleted slot so it can be rescheduled
+      let newTasks = state.tasks;
+      if (deletedSlot?.assignedTaskId) {
+        newTasks = state.tasks.map(task => {
+          const taskId = task.id || task.key?.toString();
+          if (taskId !== deletedSlot.assignedTaskId) return task;
+          return {
+            ...task,
+            scheduledTime: null,
+            scheduledFor: null,
+            specificTime: null,
+            scheduledSlotId: null,
+            updatedAt: timestamp
+          };
+        });
+      }
+
+      // Backfill: displaced task (and any other unscheduled) may fit elsewhere
+      const intermediateState = { ...state, tasks: newTasks, slots: remainingSlots };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+      }
+      return { ...state, tasks: newTasks, slots: remainingSlots, items: newTasks };
     }
 
     case ACTION_TYPES.ASSIGN_TASK_TO_SLOT: {
@@ -1162,10 +1224,35 @@ function appReducer(state, action) {
 
     case ACTION_TYPES.CLEAR_SLOT: {
       const { slotId } = action.payload;
+      const clearedSlot = state.slots.find(s => s.id === slotId);
       const newSlots = state.slots.map(slot =>
         slot.id === slotId ? { ...slot, assignedTaskId: null, updatedAt: timestamp } : slot
       );
-      return { ...state, slots: newSlots };
+
+      // Unschedule the displaced task so it can be rescheduled
+      let newTasks = state.tasks;
+      if (clearedSlot?.assignedTaskId) {
+        newTasks = state.tasks.map(task => {
+          const tid = task.id || task.key?.toString();
+          if (tid !== clearedSlot.assignedTaskId) return task;
+          return {
+            ...task,
+            scheduledTime: null,
+            scheduledFor: null,
+            specificTime: null,
+            scheduledSlotId: null,
+            updatedAt: timestamp
+          };
+        });
+      }
+
+      // Backfill: freed slot and displaced task may find better placement
+      const intermediateState = { ...state, tasks: newTasks, slots: newSlots };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+      }
+      return { ...state, tasks: newTasks, slots: newSlots, items: newTasks };
     }
 
     case ACTION_TYPES.BATCH_CREATE_SLOTS: {
@@ -1184,12 +1271,41 @@ function appReducer(state, action) {
 
     case ACTION_TYPES.CLEAR_SLOTS_FOR_DATE: {
       const { date, sourceScheduleId } = action.payload;
-      const newSlots = state.slots.filter(slot => {
-        if (slot.date !== date) return true;
-        if (sourceScheduleId && slot.sourceScheduleId !== sourceScheduleId) return true;
-        return false;
+      const removedSlots = state.slots.filter(slot => {
+        if (slot.date !== date) return false;
+        if (sourceScheduleId && slot.sourceScheduleId !== sourceScheduleId) return false;
+        return true;
       });
-      return { ...state, slots: newSlots };
+      const removedSlotIds = new Set(removedSlots.map(s => s.id));
+      const displacedTaskIds = new Set(
+        removedSlots.filter(s => s.assignedTaskId).map(s => s.assignedTaskId)
+      );
+      const newSlots = state.slots.filter(s => !removedSlotIds.has(s.id));
+
+      // Unschedule tasks that were assigned to removed slots
+      let newTasks = state.tasks;
+      if (displacedTaskIds.size > 0) {
+        newTasks = state.tasks.map(task => {
+          const tid = task.id || task.key?.toString();
+          if (!displacedTaskIds.has(tid)) return task;
+          return {
+            ...task,
+            scheduledTime: null,
+            scheduledFor: null,
+            specificTime: null,
+            scheduledSlotId: null,
+            updatedAt: timestamp
+          };
+        });
+      }
+
+      // Backfill: displaced tasks may fit in remaining slots
+      const intermediateState = { ...state, tasks: newTasks, slots: newSlots };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
+      }
+      return { ...state, tasks: newTasks, slots: newSlots, items: newTasks };
     }
 
     // ============================================
@@ -1514,19 +1630,73 @@ function appReducer(state, action) {
 
     case ACTION_TYPES.DAILY_RESET:
     case ACTION_TYPES.RESET_ALL: {
-      // Move completed tasks out, reset paused to pending
+      // Move completed tasks out, reset paused to pending, clear old schedules
       const newTasks = state.tasks
         .filter(item => item.status !== 'completed')
-        .map(item => {
-          if (item.status === 'paused') {
-            return { ...item, status: 'pending' };
-          }
-          return item;
-        });
+        .map(item => ({
+          ...item,
+          status: item.status === 'paused' ? 'pending' : item.status,
+          // Clear yesterday's scheduling so tasks get fresh placement
+          scheduledTime: null,
+          scheduledFor: null,
+          specificTime: null,
+          scheduledSlotId: null,
+          updatedAt: timestamp
+        }));
+
+      // Clear old slot assignments (keep slot structure, just unassign tasks)
+      const resetSlots = state.slots.map(slot => ({
+        ...slot,
+        assignedTaskId: null,
+        updatedAt: timestamp
+      }));
+
+      // Generate today's slots from defaultDaySlots if available
+      const defaultDaySlots = state.settings?.defaultDaySlots || [];
+      let newSlots = resetSlots;
+      if (defaultDaySlots.length > 0) {
+        const today = new Date();
+        const todayStr = format(today, 'yyyy-MM-dd');
+        const dayName = format(today, 'EEEE');
+        const todaySlotsExist = resetSlots.some(s => s.date === todayStr);
+
+        if (!todaySlotsExist) {
+          const todayDefaults = defaultDaySlots.filter(s => s.day === dayName);
+          const generatedSlots = todayDefaults.map(slot =>
+            createCalendarSlot({
+              date: todayStr,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              slotType: slot.slotType,
+              label: slot.label,
+              color: slot.color,
+              flexibility: slot.flexibility || 'preferred',
+              allowedTags: Array.isArray(slot.allowedTags) ? slot.allowedTags : [],
+              sourceScheduleId: 'default-day-slots',
+              sourceBlockId: slot.id,
+            })
+          );
+          newSlots = [...resetSlots, ...generatedSlots];
+        }
+      }
+
+      // Backfill: place all pending tasks into available slots
+      const intermediateState = { ...state, tasks: newTasks, slots: newSlots, settings: state.settings, taskTypes: state.taskTypes };
+      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
+      if (backfilled) {
+        return {
+          ...state,
+          tasks: backfilled.tasks,
+          slots: backfilled.slots,
+          items: backfilled.tasks,
+          date: getInitialDate()
+        };
+      }
 
       return {
         ...state,
         tasks: newTasks,
+        slots: newSlots,
         items: newTasks,
         date: getInitialDate()
       };
