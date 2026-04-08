@@ -935,9 +935,18 @@ function ScheduleSetup({ onNavigateToTasks, onNavigateToCalendar }) {
       payload: { defaultDaySlots: allDaySlots },
     });
 
+    // Also create actual CalendarSlots on the calendar for the next 21 days
+    const calendarBlocks = buildUpcomingBlocks(allDaySlots, 21);
+    if (calendarBlocks.length > 0) {
+      dispatch({
+        type: ACTION_TYPES.APPLY_SCHEDULE,
+        payload: { blocks: calendarBlocks, options: { mergeWithExisting: true } },
+      });
+    }
+
     const perDay = Math.round(allDaySlots.length / 7);
     setHasApplied(true);
-    setFrameworkMessage(`Schedule applied! ~${perDay} blocks per day across all 7 days. Switch to Day Builder to fine-tune.`);
+    setFrameworkMessage(`Schedule applied! ${calendarBlocks.length} slots created across the next 21 days (~${perDay}/day).`);
     setTimeout(() => setFrameworkMessage(''), 4000);
   }
 
