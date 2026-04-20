@@ -1,50 +1,42 @@
 import React from 'react';
 import { TaskRow } from './shared.jsx';
 
-export default function WheelView({ tasks, onToggle, onNavigate }) {
-  const wedges = [
-    { label: 'sleep', start: 0, end: 6, kind: 'rest' },
-    { label: 'morning', start: 6, end: 8, kind: 'light', count: 2 },
-    { label: 'breakfast', start: 8, end: 9, kind: 'blank' },
-    { label: 'deep work', start: 9, end: 12, kind: 'hot', count: 3, current: true },
-    { label: 'lunch', start: 12, end: 13, kind: 'blank' },
-    { label: 'meetings', start: 13, end: 15, kind: 'light', count: 2 },
-    { label: 'admin', start: 15, end: 17, kind: 'light', count: 1 },
-    { label: 'workout', start: 17, end: 18, kind: 'light' },
-    { label: 'family', start: 18, end: 21, kind: 'soft' },
-    { label: 'wind down', start: 21, end: 24, kind: 'rest' },
-  ];
+export default function WheelView({ wedges, nowTask, upcoming, pushed, onToggle, onNavigate }) {
+  const now = new Date();
+  const nowHour = now.getHours() + now.getMinutes() / 60;
+  const currentWedge = wedges.find(w => w.current);
+  const currentLabel = currentWedge
+    ? `now · ${currentWedge.label} · ${fmtHr(currentWedge.start)}–${fmtHr(currentWedge.end)}`
+    : `now · ${fmtHr(nowHour)}`;
 
-  const now = tasks.find(t => t.now);
-  const upcoming = tasks.filter(t => !t.now && t.status === 'open').slice(0, 2);
-  const pushed = tasks.filter(t => t.status === 'pushed').slice(0, 2);
+  const nowTaskRow = nowTask ? toRow(nowTask, { now: true }) : null;
+  const upcomingRows = (upcoming || []).map(t => toRow(t));
+  const pushedRows = (pushed || []).map(t => toRow(t, { pushed: true }));
 
   return (
     <div className="tm-fade-up tm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 28, alignItems: 'start' }}>
       <div style={{ position: 'relative' }}>
-        <WheelSvg wedges={wedges} nowHour={11 + 23 / 60} />
+        <WheelSvg wedges={wedges} nowHour={nowHour} stats={computeStats(nowTask, upcoming, pushed)} />
       </div>
 
       <div style={{ paddingTop: 8 }}>
         <div className="tm-mono tm-md" style={{ color: 'var(--orange)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 6 }}>
-          now · deep work · 9a–12p
+          {currentLabel.toLowerCase()}
         </div>
         <div className="tm-card tm-flush" style={{ marginBottom: 20 }}>
-          {now && (
-            <TaskRow
-              task={{ ...now, title: now.title || 'finish Q2 planning doc' }}
-              onToggle={onToggle}
-              metaOverride="in progress · 23m left"
-            />
+          {nowTaskRow && <TaskRow task={nowTaskRow} onToggle={onToggle} />}
+          {upcomingRows.map(t => <TaskRow key={t.id} task={t} onToggle={onToggle} />)}
+          {!nowTaskRow && upcomingRows.length === 0 && (
+            <div style={{ padding: '14px 16px' }} className="tm-mono">nothing scheduled right now</div>
           )}
-          {upcoming.map(t => <TaskRow key={t.id} task={t} onToggle={onToggle} />)}
         </div>
 
-        <div className="tm-mono tm-md" style={{ letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 4 }}>up next · lunch · 12p</div>
-        <div className="tm-mono tm-md" style={{ letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>moved to tomorrow</div>
+        <div className="tm-mono tm-md" style={{ letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+          pushed to tomorrow
+        </div>
         <div className="tm-card tm-dashed tm-flush" style={{ background: 'rgba(242,196,166,0.18)', borderColor: 'var(--ink-mute)' }}>
-          {pushed.length > 0
-            ? pushed.map(t => <TaskRow key={t.id} task={t} onToggle={onToggle} />)
+          {pushedRows.length > 0
+            ? pushedRows.map(t => <TaskRow key={t.id} task={t} onToggle={onToggle} />)
             : <div style={{ padding: '12px 14px' }} className="tm-mono">nothing pushed yet</div>}
         </div>
       </div>
@@ -59,7 +51,50 @@ export default function WheelView({ tasks, onToggle, onNavigate }) {
   );
 }
 
-function WheelSvg({ wedges, nowHour = 11.4 }) {
+function toRow(t, extras = {}) {
+  const dur = typeof t.duration === 'number' ? t.duration : 30;
+  return {
+    id: t.id || t.key,
+    title: t.text || t.title || 'untitled',
+    ctx: t.primaryType || t.taskType || 'task',
+    when: t.scheduledTime ? fmtTimeRange(t.scheduledTime, dur) : 'unscheduled',
+    status: extras.pushed ? 'pushed' : t.status,
+    done: t.status === 'completed',
+    now: !!extras.now,
+    note: extras.now ? `in progress · ${dur}m` : null,
+    duration: dur,
+  };
+}
+
+function fmtTimeRange(iso, dur) {
+  const d = new Date(iso);
+  const end = new Date(d.getTime() + dur * 60 * 1000);
+  return `${fmtClock(d)}–${fmtClock(end)}`;
+}
+
+function fmtClock(d) {
+  const h = d.getHours();
+  const hr = ((h % 12) || 12);
+  const ampm = h < 12 ? 'a' : 'p';
+  const m = d.getMinutes();
+  return m ? `${hr}:${m < 10 ? '0' + m : m}${ampm}` : `${hr}${ampm}`;
+}
+
+function fmtHr(h) {
+  const base = Math.floor(h) % 24;
+  const mins = Math.round((h - Math.floor(h)) * 60);
+  const hr = ((base % 12) || 12);
+  const ampm = base < 12 ? 'a' : 'p';
+  return mins ? `${hr}:${mins < 10 ? '0' + mins : mins}${ampm}` : `${hr}${ampm}`;
+}
+
+function computeStats(nowTask, upcoming, pushed) {
+  const total = (upcoming?.length || 0) + (pushed?.length || 0) + (nowTask ? 1 : 0);
+  const done = 0;
+  return { total, done, pushed: pushed?.length || 0 };
+}
+
+function WheelSvg({ wedges, nowHour, stats }) {
   const cx = 220, cy = 220, rOuter = 200, rInner = 78;
   const labelR = (rOuter + rInner) / 2;
 
@@ -69,13 +104,13 @@ function WheelSvg({ wedges, nowHour = 11.4 }) {
     return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
   };
 
-  const wedgePath = (start, end, rO = rOuter, rI = rInner) => {
-    const [x0, y0] = polar(start, rO);
-    const [x1, y1] = polar(end, rO);
-    const [x2, y2] = polar(end, rI);
-    const [x3, y3] = polar(start, rI);
+  const wedgePath = (start, end) => {
+    const [x0, y0] = polar(start, rOuter);
+    const [x1, y1] = polar(end, rOuter);
+    const [x2, y2] = polar(end, rInner);
+    const [x3, y3] = polar(start, rInner);
     const large = (end - start) > 12 ? 1 : 0;
-    return `M${x0} ${y0} A${rO} ${rO} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${rI} ${rI} 0 ${large} 0 ${x3} ${y3} Z`;
+    return `M${x0} ${y0} A${rOuter} ${rOuter} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${rInner} ${rInner} 0 ${large} 0 ${x3} ${y3} Z`;
   };
 
   const hourTicks = [];
@@ -102,7 +137,7 @@ function WheelSvg({ wedges, nowHour = 11.4 }) {
         const [lx, ly] = polar((w.start + w.end) / 2, labelR);
         const isCurrent = w.current;
         return (
-          <g key={i}>
+          <g key={w.id || i}>
             <path d={wedgePath(w.start, w.end)} fill={fillFor(w.kind, isCurrent)}
               stroke={isCurrent ? 'var(--ink)' : 'var(--rule)'}
               strokeWidth={isCurrent ? 2.2 : 1} />
@@ -128,15 +163,19 @@ function WheelSvg({ wedges, nowHour = 11.4 }) {
 
       <text x={cx} y={18} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" textAnchor="middle" fontStyle="italic">12a</text>
       <text x={cx} y={438} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" textAnchor="middle" fontStyle="italic">12p</text>
-      <text x={10} y={cy + 4} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" fontStyle="italic">18p</text>
+      <text x={10} y={cy + 4} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" fontStyle="italic">6p</text>
       <text x={420} y={cy + 4} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" fontStyle="italic">6a</text>
 
       <line x1={cx} y1={cy} x2={nxEnd} y2={nyEnd} stroke="var(--orange)" strokeWidth="2" opacity="0.5" />
       <circle cx={nxEnd} cy={nyEnd} r="5" fill="var(--orange)" />
 
       <text x={cx} y={cy - 14} fontFamily="JetBrains Mono" fontSize="10" fill="var(--ink-mute)" textAnchor="middle" letterSpacing="2">TODAY</text>
-      <text x={cx} y={cy + 10} fontFamily="Caveat" fontSize="26" fill="var(--ink)" textAnchor="middle" fontStyle="italic">6 of 9</text>
-      <text x={cx} y={cy + 28} fontFamily="JetBrains Mono" fontSize="9" fill="var(--ink-mute)" textAnchor="middle" letterSpacing="1">3 pushed · 0 dropped</text>
+      <text x={cx} y={cy + 10} fontFamily="Caveat" fontSize="26" fill="var(--ink)" textAnchor="middle" fontStyle="italic">
+        {stats.done} of {stats.total}
+      </text>
+      <text x={cx} y={cy + 28} fontFamily="JetBrains Mono" fontSize="9" fill="var(--ink-mute)" textAnchor="middle" letterSpacing="1">
+        {stats.pushed} pushed
+      </text>
     </svg>
   );
 }

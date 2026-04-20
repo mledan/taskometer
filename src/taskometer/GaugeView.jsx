@@ -1,35 +1,18 @@
 import React from 'react';
 import { SectionLabel } from './shared.jsx';
 
-export default function GaugeView({ load, tasks, onToggle, showCoach, onNavigate }) {
+export default function GaugeView({
+  load,
+  next,
+  pressure,
+  timeline,
+  stats,
+  showCoach,
+  onToggle,
+  onNavigate,
+}) {
   const angle = 180 + Math.min(120, Math.max(0, load)) / 120 * 180;
-
-  const next = tasks.find(t => t.now) || tasks[0] || { title: 'nothing scheduled', note: 'add a task to begin' };
-
-  const days = [
-    { d: 'M', h: 42, hot: false },
-    { d: 'T', h: 55, hot: false },
-    { d: 'W', h: 95, hot: true },
-    { d: 'T', h: 110, hot: true },
-    { d: 'F', h: 70, hot: false },
-    { d: 'S', h: 30, hot: false },
-    { d: 'S', h: 25, hot: false },
-    { d: 'M', h: 50, hot: false },
-    { d: 'T', h: 60, hot: false },
-    { d: 'W', h: 90, hot: true },
-    { d: 'T', h: 105, hot: true },
-    { d: 'F', h: 72, hot: false },
-    { d: 'S', h: 35, hot: false },
-    { d: 'N', h: load, hot: load > 85, now: true },
-  ];
-
-  const slots = [
-    { label: 'morning', start: 6, end: 8, kind: 'light' },
-    { label: 'deep work', start: 9, end: 13, kind: 'hot', current: true },
-    { label: 'lunch', start: 13, end: 14, kind: 'blank' },
-    { label: 'meetings', start: 14, end: 18, kind: 'light' },
-    { label: 'errands', start: 18, end: 23, kind: 'blank' },
-  ];
+  const nextLabel = buildNextLabel(next);
 
   return (
     <div className="tm-fade-up">
@@ -39,45 +22,109 @@ export default function GaugeView({ load, tasks, onToggle, showCoach, onNavigate
 
       <div style={{ textAlign: 'center', marginTop: -10, marginBottom: 24 }}>
         <div className="tm-mono tm-md" style={{ letterSpacing: '.14em', color: 'var(--orange)', textTransform: 'uppercase' }}>
-          next · in 23 min · deep work 11a–1p
+          {nextLabel.meta}
         </div>
-        <div style={{ fontSize: 44, lineHeight: 1.05, marginTop: 4, marginBottom: 4 }}>{next.title}</div>
-        <div className="tm-mono tm-md">{next.note || `est ${next.est || 45}m remaining`}</div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
-          <button className="tm-btn tm-primary">resume</button>
-          <button className="tm-btn">do later</button>
-          <button className="tm-btn" onClick={() => next.id && onToggle && onToggle(next.id)}>done</button>
+        <div style={{ fontSize: 44, lineHeight: 1.05, marginTop: 4, marginBottom: 4 }}>
+          {nextLabel.title}
         </div>
+        <div className="tm-mono tm-md">{nextLabel.note}</div>
+        {next && (
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
+            <button className="tm-btn tm-primary">resume</button>
+            <button className="tm-btn">do later</button>
+            <button className="tm-btn" onClick={() => onToggle && onToggle(next.id || next.key)}>done</button>
+          </div>
+        )}
       </div>
 
       <div className="tm-mb-lg">
-        <SectionLabel right={`4 overworked · avg 62%`}>Pressure · last 14 days</SectionLabel>
+        <SectionLabel right={pressureSummary(pressure)}>Pressure · last {pressure.length} days</SectionLabel>
         <div className="tm-card tm-soft" style={{ padding: '14px 16px' }}>
-          <PressureBars days={days} />
+          <PressureBars days={pressure} />
         </div>
       </div>
 
-      {showCoach && (
-        <div className="tm-card tm-dashed tm-mb-lg" style={{ padding: '14px 18px' }}>
-          <div className="tm-coach-quote">
-            noticed: <b>wed + thu</b> ran hot this week and last. want to shift one <i>deep work</i> block to mon or fri?
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            <button className="tm-btn tm-sage tm-sm">try it</button>
-            <button className="tm-btn tm-sm">what's going on?</button>
-            <button className="tm-btn tm-ghost tm-sm">dismiss</button>
-          </div>
-        </div>
-      )}
+      {showCoach && <CoachCard pressure={pressure} />}
 
       <div>
-        <SectionLabel right="5 slots · 3 full · 2 open">Today</SectionLabel>
-        <DayTimeline slots={slots} />
+        <SectionLabel right={timelineSummary(timeline)}>Today</SectionLabel>
+        <DayTimeline slots={timeline} />
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 32, alignItems: 'baseline' }}>
         <button className="tm-btn tm-ghost tm-sm" onClick={() => onNavigate('wheel')}>day wheel →</button>
         <button className="tm-btn tm-ghost tm-sm" onClick={() => onNavigate('fit')}>week fit →</button>
+      </div>
+    </div>
+  );
+}
+
+function buildNextLabel(next) {
+  if (!next) {
+    return {
+      meta: 'nothing scheduled',
+      title: 'add a task to begin',
+      note: 'tap a slot on the day wheel or the fit view to plan',
+    };
+  }
+  if (next.scheduledTime) {
+    const d = new Date(next.scheduledTime);
+    const diffMin = Math.round((d.getTime() - Date.now()) / 60000);
+    const windowLabel = formatWindow(d, next.duration || 30);
+    let meta;
+    if (diffMin < -1) meta = `in progress · ${windowLabel}`;
+    else if (diffMin <= 0) meta = `starting now · ${windowLabel}`;
+    else meta = `next · in ${diffMin} min · ${windowLabel}`;
+    return {
+      meta: meta.toLowerCase(),
+      title: next.text || next.title || 'untitled',
+      note: next.description ? next.description : `est ${next.duration || 30}m`,
+    };
+  }
+  return {
+    meta: 'next (unscheduled)',
+    title: next.text || next.title || 'untitled',
+    note: `est ${next.duration || 30}m · not yet slotted`,
+  };
+}
+
+function formatWindow(start, durationMin) {
+  const end = new Date(start.getTime() + durationMin * 60 * 1000);
+  const fmt = (d) => {
+    const h = d.getHours();
+    const hr = ((h % 12) || 12);
+    const ampm = h < 12 ? 'a' : 'p';
+    const m = d.getMinutes();
+    return m ? `${hr}:${m < 10 ? '0' + m : m}${ampm}` : `${hr}${ampm}`;
+  };
+  return `${fmt(start)}–${fmt(end)}`;
+}
+
+function pressureSummary(pressure) {
+  const hot = pressure.filter(d => d.hot).length;
+  const avg = Math.round(pressure.reduce((s, d) => s + d.h, 0) / Math.max(1, pressure.length));
+  return `${hot} overworked · avg ${avg}%`;
+}
+
+function timelineSummary(timeline) {
+  const full = timeline.filter(s => s.kind === 'hot' || s.kind === 'light').length;
+  const open = timeline.filter(s => s.kind === 'blank').length;
+  return `${timeline.length} slots · ${full} full · ${open} open`;
+}
+
+function CoachCard({ pressure }) {
+  const hotDays = pressure.filter(d => d.hot && !d.now);
+  const message = hotDays.length >= 2
+    ? `noticed: ${hotDays.length} of your last ${pressure.length} days ran hot. want to shift a block to a lighter day?`
+    : `looking good — only ${hotDays.length} hot day in the last ${pressure.length}. keep it up.`;
+
+  return (
+    <div className="tm-card tm-dashed tm-mb-lg" style={{ padding: '14px 18px' }}>
+      <div className="tm-coach-quote">{message}</div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+        <button className="tm-btn tm-sage tm-sm">try it</button>
+        <button className="tm-btn tm-sm">what's going on?</button>
+        <button className="tm-btn tm-ghost tm-sm">dismiss</button>
       </div>
     </div>
   );
@@ -96,15 +143,14 @@ function GaugeSvg({ angle, load }) {
     ticks.push(<line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--ink)" strokeWidth="1.5" strokeLinecap="round" />);
   }
 
-  const arcPath = (startPct, endPct, offset = 0) => {
+  const arcPath = (startPct, endPct) => {
     const a0 = (180 + (startPct / 120) * 180) * Math.PI / 180;
     const a1 = (180 + (endPct / 120) * 180) * Math.PI / 180;
-    const rr = r + offset;
-    const x0 = cx + Math.cos(a0) * rr;
-    const y0 = cy + Math.sin(a0) * rr;
-    const x1 = cx + Math.cos(a1) * rr;
-    const y1 = cy + Math.sin(a1) * rr;
-    return `M${x0} ${y0} A${rr} ${rr} 0 0 1 ${x1} ${y1}`;
+    const x0 = cx + Math.cos(a0) * r;
+    const y0 = cy + Math.sin(a0) * r;
+    const x1 = cx + Math.cos(a1) * r;
+    const y1 = cy + Math.sin(a1) * r;
+    return `M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}`;
   };
 
   const stroke = 22;
@@ -145,7 +191,6 @@ function PressureBars({ days }) {
       <div style={{ position: 'relative', height: 100, display: 'flex', alignItems: 'flex-end', gap: 6 }}>
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: (100 / max) * 100, height: 0, borderTop: '1.5px dashed var(--orange)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', right: 0, bottom: (100 / max) * 100 + 2 }} className="tm-mono">overflow</div>
-
         {days.map((d, i) => {
           const h = Math.min(max, d.h) / max * 100;
           const bg = d.now ? 'var(--ink)' : (d.hot ? 'var(--orange)' : 'var(--sage-pale)');
@@ -169,7 +214,15 @@ function PressureBars({ days }) {
 }
 
 function DayTimeline({ slots }) {
-  const startHr = 6, endHr = 23;
+  if (!slots.length) {
+    return (
+      <div className="tm-card tm-dashed" style={{ padding: '18px 16px', textAlign: 'center' }}>
+        <div className="tm-mono">no slots yet — add a schedule to shape your day</div>
+      </div>
+    );
+  }
+  const startHr = Math.min(...slots.map(s => s.start), 6);
+  const endHr = Math.max(...slots.map(s => s.end), 23);
   const total = endHr - startHr;
   return (
     <div className="tm-card tm-flush" style={{ overflow: 'hidden' }}>
@@ -178,10 +231,11 @@ function DayTimeline({ slots }) {
           const w = ((s.end - s.start) / total) * 100;
           let bg = 'transparent';
           if (s.kind === 'hot') bg = 'var(--orange-pale)';
-          else if (s.kind === 'light') bg = 'var(--sage-pale)';
+          else if (s.kind === 'light' || s.kind === 'soft') bg = 'var(--sage-pale)';
+          else if (s.kind === 'rest') bg = '#EAE4DA';
           return (
             <div
-              key={i}
+              key={s.id || i}
               style={{
                 width: `${w}%`,
                 background: bg,
@@ -198,11 +252,6 @@ function DayTimeline({ slots }) {
             </div>
           );
         })}
-      </div>
-      <div style={{ display: 'flex', padding: '2px 0 6px' }}>
-        {['6a', '', '', '12p', '', '', '6p', '', '11p'].map((t, i) => (
-          <div key={i} className="tm-mono tm-sm" style={{ flex: 1, textAlign: 'left', paddingLeft: 6 }}>{t}</div>
-        ))}
       </div>
     </div>
   );

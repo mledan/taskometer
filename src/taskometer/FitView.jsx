@@ -1,47 +1,21 @@
 import React from 'react';
 import { Check, SectionLabel } from './shared.jsx';
 
-export default function FitView({ tasks, onToggle, onNavigate }) {
-  const rowLabels = ['deep', 'mtgs', 'admin', 'calls', 'play'];
-  const days = [
-    { label: 'M 20', today: true },
-    { label: 'T 21' },
-    { label: 'W 22' },
-    { label: 'T 23' },
-    { label: 'F 24' },
-  ];
+export default function FitView({ weekFit, backlog, onToggle, onNavigate }) {
+  const { rowLabels, dayLabels, placed, capacity } = weekFit;
 
-  const placed = [
-    { row: 0, col: 0, label: 'Q2 doc', kind: 'now' },
-    { row: 0, col: 1, label: 'blog outline', kind: 'routed' },
-    { row: 1, col: 0, label: 'standup' },
-    { row: 1, col: 1, label: '1:1 Dana' },
-    { row: 1, col: 2, label: 'all-hands' },
-    { row: 1, col: 4, label: 'retro', kind: 'light' },
-    { row: 2, col: 0, label: 'expenses' },
-    { row: 2, col: 1, label: 'review PRs', kind: 'routed' },
-    { row: 2, col: 2, label: 'faucet', kind: 'routed' },
-    { row: 3, col: 2, label: 'mom', kind: 'routed' },
-    { row: 4, col: 4, label: "Josie's bday", kind: 'light' },
-  ];
-
-  const placeable = [
-    { id: 'a', title: 'finish Q2 planning doc', ctx: 'deep work · 90m' },
-    { id: 'b', title: 'draft blog outline', ctx: 'deep work · 60m' },
-    { id: 'c', title: 'review PRs', ctx: 'admin · 30m' },
-    { id: 'd', title: 'call mom', ctx: 'calls · 20m' },
-    { id: 'e', title: "plan Josie's birthday", ctx: 'play · 45m' },
-    { id: 'f', title: 'fix leaky faucet', ctx: 'admin · 30m' },
-    { id: 'g', title: 'research new laptop', ctx: 'admin · 30m', warn: true },
-  ];
+  const fitsText = capacity.fits ? 'everything fits.' : 'overflowing.';
+  const fitsColor = capacity.fits ? 'var(--sage)' : 'var(--orange)';
 
   return (
     <div className="tm-fade-up">
       <div style={{ marginBottom: 14 }}>
-        <SectionLabel right="38h slotted · 12h to place · 6h buffer">Week capacity</SectionLabel>
-        <CapacityBar />
-        <div style={{ textAlign: 'center', marginTop: 8, fontSize: 26, fontStyle: 'italic', color: 'var(--sage)' }}>
-          everything fits.
+        <SectionLabel right={`${capacity.slotted} slotted · ${capacity.incoming} to place · ${capacity.buffer} buffer`}>
+          Week capacity
+        </SectionLabel>
+        <CapacityBar capacity={capacity} />
+        <div style={{ textAlign: 'center', marginTop: 8, fontSize: 26, fontStyle: 'italic', color: fitsColor }}>
+          {fitsText}
         </div>
       </div>
 
@@ -49,18 +23,29 @@ export default function FitView({ tasks, onToggle, onNavigate }) {
         <div>
           <SectionLabel right={<span style={{ color: 'var(--orange)' }}>+ add</span>}>To place</SectionLabel>
           <div className="tm-card tm-flush">
-            {placeable.map(t => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderBottom: '1px solid var(--rule-soft)' }}>
-                <Check checked={false} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 20, lineHeight: 1.1 }}>{t.title}</div>
-                  <div className="tm-mono">{t.ctx}</div>
+            {backlog.length === 0 ? (
+              <div style={{ padding: '14px 16px' }} className="tm-mono">nothing to place</div>
+            ) : backlog.map(t => {
+              const id = t.id || t.key;
+              const dur = typeof t.duration === 'number' ? t.duration : 30;
+              const ctx = `${t.primaryType || t.taskType || 'task'} · ${dur}m`;
+              const warn = !!t.metadata?.warn;
+              return (
+                <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderBottom: '1px solid var(--rule-soft)' }}>
+                  <Check
+                    checked={t.status === 'completed'}
+                    onToggle={() => onToggle && onToggle(id)}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 20, lineHeight: 1.1 }}>{t.text || t.title || 'untitled'}</div>
+                    <div className="tm-mono">{ctx}</div>
+                  </div>
+                  {warn ? (
+                    <span className="tm-mono tm-sm" style={{ border: '1.5px solid var(--orange)', color: 'var(--orange)', borderRadius: 4, padding: '2px 6px' }}>⚠</span>
+                  ) : null}
                 </div>
-                {t.warn ? (
-                  <span className="tm-mono tm-sm" style={{ border: '1.5px solid var(--orange)', color: 'var(--orange)', borderRadius: 4, padding: '2px 6px' }}>⚠</span>
-                ) : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="tm-card tm-dashed" style={{ marginTop: 14, padding: '10px 14px', background: 'var(--sage-pale)', borderColor: 'var(--sage)' }}>
             <div style={{ fontSize: 20, lineHeight: 1.1 }}>↓ auto-routed into the week →</div>
@@ -72,7 +57,7 @@ export default function FitView({ tasks, onToggle, onNavigate }) {
           <SectionLabel right="orange = auto-routed · drag to move">This week</SectionLabel>
           <div style={{ display: 'grid', gridTemplateColumns: '58px repeat(5, 1fr)', gap: 4 }}>
             <div />
-            {days.map((d, i) => (
+            {dayLabels.map((d, i) => (
               <div key={i} className="tm-mono tm-md" style={{ textAlign: 'center', color: d.today ? 'var(--orange)' : 'var(--ink-mute)', paddingBottom: 4 }}>
                 {d.label}{d.today ? ' · now' : ''}
               </div>
@@ -80,7 +65,7 @@ export default function FitView({ tasks, onToggle, onNavigate }) {
             {rowLabels.map((row, ri) => (
               <React.Fragment key={ri}>
                 <div className="tm-mono tm-md" style={{ display: 'flex', alignItems: 'center' }}>{row}</div>
-                {days.map((d, ci) => {
+                {dayLabels.map((_, ci) => {
                   const p = placed.find(x => x.row === ri && x.col === ci);
                   let bg = 'var(--paper)', bd = 'var(--rule)', fg = 'var(--ink)';
                   if (p) {
@@ -126,18 +111,26 @@ export default function FitView({ tasks, onToggle, onNavigate }) {
   );
 }
 
-function CapacityBar() {
+function CapacityBar({ capacity }) {
+  const placed = Math.max(1, capacity.placedMin);
+  const incoming = Math.max(0, capacity.incomingMin);
+  const buffer = Math.max(0, capacity.bufferMin);
+  const total = placed + incoming + buffer || 1;
   return (
     <div style={{ display: 'flex', height: 30, border: '1.5px solid var(--ink)', borderRadius: 6, overflow: 'hidden' }}>
-      <div className="tm-caveat" style={{ flex: '38 38 0%', background: 'var(--sage-pale)', display: 'flex', alignItems: 'center', paddingLeft: 10 }}>
+      <div className="tm-caveat" style={{ flex: `${placed} ${placed} 0%`, background: 'var(--sage-pale)', display: 'flex', alignItems: 'center', paddingLeft: 10 }}>
         <span style={{ fontSize: 17 }}>already placed</span>
       </div>
-      <div className="tm-caveat" style={{ flex: '12 12 0%', background: 'var(--orange-pale)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--orange)', fontStyle: 'italic' }}>
-        incoming
-      </div>
-      <div className="tm-caveat" style={{ flex: '6 6 0%', background: 'var(--paper)', borderLeft: '1px dashed var(--ink-mute)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        buffer ✓
-      </div>
+      {incoming > 0 && (
+        <div className="tm-caveat" style={{ flex: `${incoming} ${incoming} 0%`, background: 'var(--orange-pale)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--orange)', fontStyle: 'italic' }}>
+          incoming
+        </div>
+      )}
+      {buffer > 0 && (
+        <div className="tm-caveat" style={{ flex: `${buffer} ${buffer} 0%`, background: 'var(--paper)', borderLeft: '1px dashed var(--ink-mute)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          buffer ✓
+        </div>
+      )}
     </div>
   );
 }
