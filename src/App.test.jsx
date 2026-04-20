@@ -2,30 +2,28 @@ import { test, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import App from "./App.jsx";
 
-test("starts on the today view", () => {
+test("renders the taskometer header", () => {
   render(<App />);
-  // Today view shows the day of the week as a heading
-  expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+  expect(screen.getByText(/taskometer/i)).toBeInTheDocument();
 });
 
-test("shows the three core tabs in top nav", () => {
+test("shows the three view tabs: gauge, wheel, fit", () => {
   render(<App />);
-  const navButtons = screen.getAllByRole("button");
-  const tabLabels = navButtons.map((b) => b.textContent);
-  expect(tabLabels).toContain("Today");
-  expect(tabLabels).toContain("Plan");
-  expect(tabLabels).toContain("Tasks");
+  const tabs = screen.getAllByRole("button").map((b) => b.textContent);
+  expect(tabs).toContain("gauge");
+  expect(tabs).toContain("wheel");
+  expect(tabs).toContain("fit");
 });
 
-test("navigates to tasks tab", () => {
+test("switching to the wheel tab reveals the 24h slot subhead", () => {
   render(<App />);
-  const allTasksBtns = screen.getAllByRole("button", { name: "Tasks" });
-  fireEvent.click(allTasksBtns[0]);
-  expect(screen.getByPlaceholderText(/what needs to be done/i)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "wheel" }));
+  expect(screen.getByText(/24h slots/i)).toBeInTheDocument();
 });
 
-test("navigates to today tab", () => {
+test("switching to the fit tab shows the week capacity label", () => {
   render(<App />);
-  fireEvent.click(screen.getByRole("button", { name: "Today" }));
-  expect(screen.getByText(/Quick Add/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "fit" }));
+  expect(screen.getAllByText(/week capacity/i).length).toBeGreaterThan(0);
+  expect(screen.getByText(/everything fits/i)).toBeInTheDocument();
 });
