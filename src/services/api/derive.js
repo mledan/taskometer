@@ -69,12 +69,14 @@ function classifyKind(label = '') {
  * Compute today's load %:
  *   scheduled minutes on today's tasks ÷ total slot minutes today × 100.
  *
- * Clamps 0..120. If there are no slots, falls back to the manual override.
+ * Clamps 0..120. With no slots today, load is 0.
  */
-export function deriveLoad({ tasks = [], slots = [], date = new Date(), override = null }) {
+export function deriveLoad({ tasks = [], slots = [], date = new Date() }) {
   const dayKey = ymd(date);
   const todaySlots = slots.filter(s => s?.date === dayKey);
   const capacity = todaySlots.reduce((sum, s) => sum + (getSlotDuration(s) || 0), 0);
+
+  if (capacity <= 0) return 0;
 
   const scheduled = tasks
     .filter(t => {
@@ -84,12 +86,6 @@ export function deriveLoad({ tasks = [], slots = [], date = new Date(), override
     })
     .filter(t => t.status !== 'completed' && t.status !== 'cancelled')
     .reduce((sum, t) => sum + (typeof t.duration === 'number' ? t.duration : 30), 0);
-
-  if (capacity <= 0) {
-    // No calendar shape yet — fall back to the override slider so the
-    // gauge still does something in empty-state demo mode.
-    return override == null ? 0 : Math.max(0, Math.min(120, override));
-  }
 
   const pct = (scheduled / capacity) * 100;
   return Math.max(0, Math.min(120, Math.round(pct)));
@@ -160,15 +156,7 @@ export function derivePressureHistory({ tasks = [], slots = [], today = new Date
 export function deriveDayTimeline({ slots = [], tasks = [], date = new Date(), now = new Date() }) {
   const dayKey = ymd(date);
   const today = slots.filter(s => s?.date === dayKey);
-  if (today.length === 0) {
-    return [
-      { label: 'morning', start: 6, end: 8, kind: 'light' },
-      { label: 'deep work', start: 9, end: 13, kind: 'hot', current: sameDay(date, now) && now.getHours() >= 9 && now.getHours() < 13 },
-      { label: 'lunch', start: 13, end: 14, kind: 'blank' },
-      { label: 'meetings', start: 14, end: 18, kind: 'light' },
-      { label: 'errands', start: 18, end: 23, kind: 'blank' },
-    ];
-  }
+  if (today.length === 0) return [];
 
   const nowHr = sameDay(date, now) ? now.getHours() + now.getMinutes() / 60 : -1;
   return today
@@ -203,20 +191,7 @@ export function deriveDayTimeline({ slots = [], tasks = [], date = new Date(), n
 export function deriveWheelWedges({ slots = [], tasks = [], date = new Date(), now = new Date() }) {
   const dayKey = ymd(date);
   const today = slots.filter(s => s?.date === dayKey);
-  if (today.length === 0) {
-    return [
-      { label: 'sleep', start: 0, end: 6, kind: 'rest' },
-      { label: 'morning', start: 6, end: 8, kind: 'light', count: 0 },
-      { label: 'breakfast', start: 8, end: 9, kind: 'blank' },
-      { label: 'deep work', start: 9, end: 12, kind: 'hot', count: 0, current: sameDay(date, now) && now.getHours() >= 9 && now.getHours() < 12 },
-      { label: 'lunch', start: 12, end: 13, kind: 'blank' },
-      { label: 'meetings', start: 13, end: 15, kind: 'light', count: 0 },
-      { label: 'admin', start: 15, end: 17, kind: 'light', count: 0 },
-      { label: 'workout', start: 17, end: 18, kind: 'light' },
-      { label: 'family', start: 18, end: 21, kind: 'soft' },
-      { label: 'wind down', start: 21, end: 24, kind: 'rest' },
-    ];
-  }
+  if (today.length === 0) return [];
 
   const nowHr = sameDay(date, now) ? now.getHours() + now.getMinutes() / 60 : -1;
   const wedges = today

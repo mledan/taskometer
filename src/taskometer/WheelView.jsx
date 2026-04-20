@@ -1,7 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TaskRow } from './shared.jsx';
+import { SlotComposer, TaskRowEditor } from './Composers.jsx';
 
-export default function WheelView({ wedges, nowTask, upcoming, pushed, onToggle, onNavigate }) {
+export default function WheelView({
+  wedges,
+  nowTask,
+  upcoming,
+  pushed,
+  slots = [],
+  api,
+  rowHandlers = {},
+  onNavigate,
+}) {
+  const { onToggle, onDelete, onEdit, onSaveEdit, editingTaskId } = rowHandlers;
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState(null);
+
   const now = new Date();
   const nowHour = now.getHours() + now.getMinutes() / 60;
   const currentWedge = wedges.find(w => w.current);
@@ -12,6 +26,39 @@ export default function WheelView({ wedges, nowTask, upcoming, pushed, onToggle,
   const nowTaskRow = nowTask ? toRow(nowTask, { now: true }) : null;
   const upcomingRows = (upcoming || []).map(t => toRow(t));
   const pushedRows = (pushed || []).map(t => toRow(t, { pushed: true }));
+
+  const rowProps = (t) => ({
+    onToggle,
+    onEdit,
+    onDelete,
+  });
+
+  const renderTaskEntry = (t, source) => {
+    const id = t.id;
+    if (editingTaskId === id) {
+      const original = source?.find(x => (x.id || x.key) === id);
+      return (
+        <div key={id} style={{ padding: '6px 10px', borderBottom: '1px solid var(--rule-soft)' }}>
+          <TaskRowEditor
+            task={original || t}
+            onSave={(updates) => onSaveEdit && onSaveEdit(id, updates)}
+            onCancel={() => onEdit && onEdit(id)}
+            onDelete={() => onDelete && onDelete(id)}
+          />
+        </div>
+      );
+    }
+    return <TaskRow key={id} task={t} {...rowProps(t)} />;
+  };
+
+  const todaySlots = slots
+    .filter(s => s?.date === todayYMD())
+    .slice()
+    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+  const editingSlot = editingSlotId
+    ? todaySlots.find(s => s.id === editingSlotId)
+    : null;
 
   return (
     <div className="tm-fade-up tm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 28, alignItems: 'start' }}>
@@ -24,8 +71,8 @@ export default function WheelView({ wedges, nowTask, upcoming, pushed, onToggle,
           {currentLabel.toLowerCase()}
         </div>
         <div className="tm-card tm-flush" style={{ marginBottom: 20 }}>
-          {nowTaskRow && <TaskRow task={nowTaskRow} onToggle={onToggle} />}
-          {upcomingRows.map(t => <TaskRow key={t.id} task={t} onToggle={onToggle} />)}
+          {nowTaskRow && renderTaskEntry(nowTaskRow, [nowTask])}
+          {upcomingRows.map(t => renderTaskEntry(t, upcoming))}
           {!nowTaskRow && upcomingRows.length === 0 && (
             <div style={{ padding: '14px 16px' }} className="tm-mono">nothing scheduled right now</div>
           )}
@@ -36,19 +83,76 @@ export default function WheelView({ wedges, nowTask, upcoming, pushed, onToggle,
         </div>
         <div className="tm-card tm-dashed tm-flush" style={{ background: 'rgba(242,196,166,0.18)', borderColor: 'var(--ink-mute)' }}>
           {pushedRows.length > 0
-            ? pushedRows.map(t => <TaskRow key={t.id} task={t} onToggle={onToggle} />)
+            ? pushedRows.map(t => renderTaskEntry(t, pushed))
             : <div style={{ padding: '12px 14px' }} className="tm-mono">nothing pushed yet</div>}
         </div>
       </div>
 
-      <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, alignItems: 'baseline', marginTop: 18, paddingTop: 14, borderTop: '1px dashed var(--rule)' }}>
-        <button className="tm-btn tm-primary tm-sm">+ task</button>
-        <button className="tm-btn tm-sm">edit day shape</button>
-        <button className="tm-btn tm-sm" onClick={() => onNavigate('fit')}>week view</button>
-        <span className="tm-mono tm-md" style={{ marginLeft: 'auto' }}>drag a task to any wedge to override</span>
+      <div style={{ gridColumn: '1 / -1', marginTop: 18, paddingTop: 14, borderTop: '1px dashed var(--rule)' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className="tm-mono tm-md" style={{ letterSpacing: '.14em', textTransform: 'uppercase' }}>
+            day shape ({todaySlots.length} block{todaySlots.length === 1 ? '' : 's'})
+          </span>
+          <button
+            className="tm-btn tm-primary tm-sm"
+            onClick={() => { setComposerOpen(v => !v); setEditingSlotId(null); }}
+          >
+            {composerOpen ? 'close' : '+ time block'}
+          </button>
+          <button className="tm-btn tm-sm" onClick={() => onNavigate('fit')}>week view</button>
+        </div>
+
+        {(composerOpen || editingSlot) && (
+          <div style={{ marginTop: 10 }}>
+            <SlotComposer
+              initial={editingSlot || undefined}
+              onSave={async (data) => {
+                if (editingSlot) {
+                  await api.slots.update(editingSlot.id, data);
+                  setEditingSlotId(null);
+                } else {
+                  await api.slots.add(data);
+                  setComposerOpen(false);
+                }
+              }}
+              onCancel={() => { setComposerOpen(false); setEditingSlotId(null); }}
+              onDelete={editingSlot ? async () => {
+                await api.slots.remove(editingSlot.id);
+                setEditingSlotId(null);
+              } : undefined}
+            />
+          </div>
+        )}
+
+        {todaySlots.length > 0 && (
+          <div className="tm-slot-list">
+            {todaySlots.map(s => (
+              <div key={s.id} className="tm-slot-row">
+                <span className="tm-slot-label">{s.label || s.slotType || 'block'}</span>
+                <span className="tm-slot-time">{s.startTime}–{s.endTime}</span>
+                {s.slotType && (
+                  <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{s.slotType}</span>
+                )}
+                <button
+                  className="tm-btn tm-sm"
+                  onClick={() => { setEditingSlotId(s.id); setComposerOpen(false); }}
+                >
+                  edit
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
+}
+
+function todayYMD() {
+  const d = new Date();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${d.getFullYear()}-${m < 10 ? '0' + m : m}-${day < 10 ? '0' + day : day}`;
 }
 
 function toRow(t, extras = {}) {

@@ -13,9 +13,8 @@ import {
 const TODAY = new Date('2026-04-20T09:00:00');
 
 describe('deriveLoad', () => {
-  test('returns override when no slots exist', () => {
-    expect(deriveLoad({ tasks: [], slots: [], date: TODAY, override: 42 })).toBe(42);
-    expect(deriveLoad({ tasks: [], slots: [], date: TODAY, override: null })).toBe(0);
+  test('returns 0 when no slots exist', () => {
+    expect(deriveLoad({ tasks: [], slots: [], date: TODAY })).toBe(0);
   });
 
   test('computes percentage from scheduled minutes vs slot capacity', () => {
@@ -83,11 +82,11 @@ describe('derivePressureHistory', () => {
 });
 
 describe('deriveDayTimeline + deriveWheelWedges', () => {
-  test('return defaults when no slots for today', () => {
+  test('return empty arrays when no slots for today', () => {
     const timeline = deriveDayTimeline({ slots: [], tasks: [], date: TODAY, now: TODAY });
     const wedges = deriveWheelWedges({ slots: [], tasks: [], date: TODAY, now: TODAY });
-    expect(timeline.length).toBeGreaterThan(0);
-    expect(wedges.length).toBeGreaterThan(0);
+    expect(timeline).toEqual([]);
+    expect(wedges).toEqual([]);
   });
 
   test('derive wedges from real slots with task counts', () => {

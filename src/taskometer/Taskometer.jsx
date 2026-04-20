@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import GaugeView from './GaugeView.jsx';
 import WheelView from './WheelView.jsx';
 import FitView from './FitView.jsx';
+import { TaskComposer } from './Composers.jsx';
 import { useTaskometerAPI } from '../services/api';
 import './taskometer.css';
 
@@ -15,7 +16,6 @@ const DEFAULT_TWEAKS = {
   palette: 'warm',
   rules: 'lines',
   showCoach: true,
-  loadOverride: null, // only used when there are no real slots
 };
 
 function readStoredTweaks() {
@@ -33,10 +33,9 @@ export default function Taskometer() {
   const [tweaks, setTweaks] = useState(readStoredTweaks);
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [nowLabel, setNowLabel] = useState(formatNowLabel());
+  const [editingTaskId, setEditingTaskId] = useState(null);
 
-  const { state, api, derived } = useTaskometerAPI({
-    loadOverride: tweaks.loadOverride,
-  });
+  const { state, api, derived } = useTaskometerAPI();
 
   useEffect(() => { localStorage.setItem('tm.view', view); }, [view]);
   useEffect(() => {
@@ -68,10 +67,28 @@ export default function Taskometer() {
   }, [tweaks.palette, tweaks.rules]);
 
   const setTweak = (k, v) => setTweaks(prev => ({ ...prev, [k]: v }));
+
   const handleToggle = (id) => api.tasks.toggleComplete(id);
+  const handleDelete = (id) => api.tasks.remove(id);
+  const handleEdit = (id) => setEditingTaskId(prev => (prev === id ? null : id));
+  const handleSaveEdit = (id, updates) => {
+    api.tasks.update(id, updates);
+    setEditingTaskId(null);
+  };
+  const handleAddTask = (data) => api.tasks.add(data);
 
   const { todayDone, todayTotal, pushed } = derived.stats;
-  const isEmpty = (state.tasks?.length || 0) === 0 && (state.slots?.length || 0) === 0;
+  const hasSlots = (state.slots?.length || 0) > 0;
+  const hasTasks = (state.tasks?.length || 0) > 0;
+  const isEmpty = !hasSlots && !hasTasks;
+
+  const rowHandlers = {
+    onToggle: handleToggle,
+    onDelete: handleDelete,
+    onEdit: handleEdit,
+    onSaveEdit: handleSaveEdit,
+    editingTaskId,
+  };
 
   return (
     <div id="tm-root-frame" className="tm-root tm-paper">
@@ -103,7 +120,20 @@ export default function Taskometer() {
         {VIEW_LABELS[view].title} <span className="tm-sub">— {VIEW_LABELS[view].sub}</span>
       </div>
 
-      {isEmpty && <EmptyStateHint api={api} />}
+      <div style={{ marginBottom: 18 }}>
+        <TaskComposer onAdd={handleAddTask} />
+        {!hasSlots && (
+          <div className="tm-mono tm-md" style={{ marginTop: 6, color: 'var(--ink-mute)' }}>
+            tip: add time blocks in the <button
+              type="button"
+              onClick={() => setView('wheel')}
+              style={{ background: 'none', border: 'none', color: 'var(--orange)', cursor: 'pointer', padding: 0, textDecoration: 'underline', font: 'inherit' }}
+            >wheel view</button> so new tasks auto-route into them.
+          </div>
+        )}
+      </div>
+
+      {isEmpty && <EmptyStateHint />}
 
       {view === 'gauge' && (
         <GaugeView
@@ -113,7 +143,7 @@ export default function Taskometer() {
           timeline={derived.timeline}
           stats={derived.stats}
           showCoach={tweaks.showCoach}
-          onToggle={handleToggle}
+          rowHandlers={rowHandlers}
           onNavigate={setView}
         />
       )}
@@ -123,7 +153,9 @@ export default function Taskometer() {
           nowTask={derived.nowTask}
           upcoming={derived.upcoming}
           pushed={derived.pushed}
-          onToggle={handleToggle}
+          slots={state.slots || []}
+          api={api}
+          rowHandlers={rowHandlers}
           onNavigate={setView}
         />
       )}
@@ -131,7 +163,8 @@ export default function Taskometer() {
         <FitView
           weekFit={derived.weekFit}
           backlog={derived.backlog}
-          onToggle={handleToggle}
+          api={api}
+          rowHandlers={rowHandlers}
           onNavigate={setView}
         />
       )}
@@ -147,7 +180,7 @@ export default function Taskometer() {
           setTweak={setTweak}
           api={api}
           derivedLoad={derived.load}
-          hasSlots={(state.slots?.length || 0) > 0}
+          hasSlots={hasSlots}
           onClose={() => setTweaksOpen(false)}
         />
       )}
@@ -155,73 +188,15 @@ export default function Taskometer() {
   );
 }
 
-function EmptyStateHint({ api }) {
+function EmptyStateHint() {
   return (
     <div className="tm-card tm-dashed" style={{ padding: '16px 20px', marginBottom: 18 }}>
-      <div style={{ fontSize: 22 }}>empty slate — nothing scheduled yet</div>
+      <div style={{ fontSize: 22 }}>empty slate — shape your day first</div>
       <div className="tm-mono" style={{ marginTop: 4 }}>
-        add your first task, or drop in a sample to see how things work.
-      </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-        <button
-          className="tm-btn tm-primary tm-sm"
-          onClick={() => seedDemoData(api)}
-        >
-          add sample tasks
-        </button>
-        <button
-          className="tm-btn tm-sm"
-          onClick={() => api.backup.exportICS()}
-        >
-          export calendar
-        </button>
+        add time blocks in the wheel view (morning, deep work, lunch…), then type a task above. tasks flow into the right block automatically; overflow pushes to the next available slot.
       </div>
     </div>
   );
-}
-
-async function seedDemoData(api) {
-  const today = new Date();
-  const mk = (h, title, type, dur = 30) => {
-    const d = new Date(today);
-    d.setHours(h, 0, 0, 0);
-    return {
-      text: title,
-      primaryType: type,
-      duration: dur,
-      status: 'pending',
-      scheduledTime: d.toISOString(),
-    };
-  };
-  const ymd = (d) => {
-    const dd = new Date(d);
-    const m = dd.getMonth() + 1;
-    const day = dd.getDate();
-    return `${dd.getFullYear()}-${m < 10 ? '0' + m : m}-${day < 10 ? '0' + day : day}`;
-  };
-  const dayKey = ymd(today);
-  const demoSlots = [
-    { date: dayKey, startTime: '08:00', endTime: '09:00', label: 'morning',   slotType: 'routine' },
-    { date: dayKey, startTime: '09:00', endTime: '12:00', label: 'deep work', slotType: 'deep' },
-    { date: dayKey, startTime: '12:00', endTime: '13:00', label: 'lunch',     slotType: 'break' },
-    { date: dayKey, startTime: '13:00', endTime: '15:00', label: 'meetings',  slotType: 'mtgs' },
-    { date: dayKey, startTime: '15:00', endTime: '17:00', label: 'admin',     slotType: 'admin' },
-    { date: dayKey, startTime: '17:00', endTime: '18:00', label: 'workout',   slotType: 'play' },
-  ];
-  for (const s of demoSlots) await api.slots.add(s);
-
-  const demoTasks = [
-    mk(9, 'finish Q2 planning doc', 'deep', 90),
-    mk(11, 'reply to Sam re: contract', 'deep', 30),
-    mk(13, 'standup', 'mtgs', 15),
-    mk(14, '1:1 with Dana', 'mtgs', 30),
-    mk(15, 'review PRs', 'admin', 45),
-    mk(17, 'workout', 'play', 45),
-    { text: 'draft blog post outline', primaryType: 'deep', duration: 60, status: 'pending' },
-    { text: 'call mom', primaryType: 'calls', duration: 20, status: 'pending' },
-    { text: "plan Josie's birthday", primaryType: 'play', duration: 45, status: 'pending' },
-  ];
-  for (const t of demoTasks) await api.tasks.add(t);
 }
 
 function TweaksPanel({ tweaks, setTweak, api, derivedLoad, hasSlots, onClose }) {
@@ -245,6 +220,13 @@ function TweaksPanel({ tweaks, setTweak, api, derivedLoad, hasSlots, onClose }) 
     e.target.value = '';
   };
 
+  const confirmWipe = async () => {
+    if (!window.confirm('delete all tasks and time blocks? this cannot be undone.')) return;
+    await api.backup.wipe();
+    setStatus('wiped');
+    setTimeout(() => setStatus(null), 2000);
+  };
+
   return (
     <div className="tm-tweaks">
       <h4 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -256,20 +238,8 @@ function TweaksPanel({ tweaks, setTweak, api, derivedLoad, hasSlots, onClose }) 
       </h4>
 
       <div className="tm-mono tm-md" style={{ marginTop: 2 }}>
-        load: {derivedLoad}% {hasSlots ? '· live' : '· demo'}
+        load: {derivedLoad}% {hasSlots ? '· live' : '· no blocks yet'}
       </div>
-      {!hasSlots && (
-        <label>
-          preview load
-          <input
-            type="range"
-            min="0"
-            max="120"
-            value={tweaks.loadOverride ?? 0}
-            onChange={(e) => setTweak('loadOverride', +e.target.value)}
-          />
-        </label>
-      )}
 
       <label>
         show coach
@@ -324,6 +294,9 @@ function TweaksPanel({ tweaks, setTweak, api, derivedLoad, hasSlots, onClose }) 
           </button>
           <button className="tm-btn tm-sm" onClick={() => fileRef.current?.click()}>
             restore .json
+          </button>
+          <button className="tm-btn tm-sm tm-danger" onClick={confirmWipe}>
+            wipe
           </button>
           <input
             ref={fileRef}

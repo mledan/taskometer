@@ -1,5 +1,6 @@
 import React from 'react';
 import { SectionLabel } from './shared.jsx';
+import { TaskRowEditor } from './Composers.jsx';
 
 export default function GaugeView({
   load,
@@ -8,11 +9,14 @@ export default function GaugeView({
   timeline,
   stats,
   showCoach,
-  onToggle,
+  rowHandlers = {},
   onNavigate,
 }) {
+  const { onToggle, onDelete, onEdit, onSaveEdit, editingTaskId } = rowHandlers;
   const angle = 180 + Math.min(120, Math.max(0, load)) / 120 * 180;
   const nextLabel = buildNextLabel(next);
+  const nextId = next ? (next.id || next.key) : null;
+  const editingNext = nextId && editingTaskId === nextId;
 
   return (
     <div className="tm-fade-up">
@@ -24,16 +28,29 @@ export default function GaugeView({
         <div className="tm-mono tm-md" style={{ letterSpacing: '.14em', color: 'var(--orange)', textTransform: 'uppercase' }}>
           {nextLabel.meta}
         </div>
-        <div style={{ fontSize: 44, lineHeight: 1.05, marginTop: 4, marginBottom: 4 }}>
-          {nextLabel.title}
-        </div>
-        <div className="tm-mono tm-md">{nextLabel.note}</div>
-        {next && (
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
-            <button className="tm-btn tm-primary">resume</button>
-            <button className="tm-btn">do later</button>
-            <button className="tm-btn" onClick={() => onToggle && onToggle(next.id || next.key)}>done</button>
+        {editingNext ? (
+          <div style={{ maxWidth: 560, margin: '10px auto 0' }}>
+            <TaskRowEditor
+              task={next}
+              onSave={(updates) => onSaveEdit && onSaveEdit(nextId, updates)}
+              onCancel={() => onEdit && onEdit(nextId)}
+              onDelete={() => onDelete && onDelete(nextId)}
+            />
           </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 44, lineHeight: 1.05, marginTop: 4, marginBottom: 4 }}>
+              {nextLabel.title}
+            </div>
+            <div className="tm-mono tm-md">{nextLabel.note}</div>
+            {next && (
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
+                <button className="tm-btn tm-primary" onClick={() => onToggle && onToggle(nextId)}>done</button>
+                <button className="tm-btn" onClick={() => onEdit && onEdit(nextId)}>edit</button>
+                <button className="tm-btn tm-danger" onClick={() => onDelete && onDelete(nextId)}>delete</button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
