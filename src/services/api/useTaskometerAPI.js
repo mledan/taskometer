@@ -26,7 +26,7 @@ import {
   deriveStats,
 } from './derive';
 
-export function useTaskometerAPI({ loadOverride = null } = {}) {
+export function useTaskometerAPI() {
   const state = useAppState();
   const dispatch = useAppReducer();
   const stateRef = useRef(state);
@@ -49,7 +49,7 @@ export function useTaskometerAPI({ loadOverride = null } = {}) {
     const date = now;
 
     return {
-      load: deriveLoad({ tasks, slots, date, override: loadOverride }),
+      load: deriveLoad({ tasks, slots, date }),
       next: deriveNextTask({ tasks, now }),
       pressure: derivePressureHistory({ tasks, slots, today: date }),
       timeline: deriveDayTimeline({ slots, tasks, date, now }),
@@ -61,7 +61,7 @@ export function useTaskometerAPI({ loadOverride = null } = {}) {
       weekFit: deriveWeekFit({ tasks, slots, today: date }),
       stats: deriveStats({ tasks, date }),
     };
-  }, [state.tasks, state.slots, loadOverride, now]);
+  }, [state.tasks, state.slots, now]);
 
   return { state, api, derived };
 }

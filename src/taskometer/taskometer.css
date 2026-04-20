@@ -332,9 +332,111 @@ body.tm-body {
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
 
+/* Composer (inline task / slot form) */
+.tm-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tm-composer-wrap { margin-top: 2px; }
+.tm-composer-row {
+  width: 100%;
+  padding: 6px 0;
+}
+.tm-composer-input {
+  flex: 1 1 220px;
+  min-width: 140px;
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1.5px solid var(--rule);
+  border-radius: 6px;
+  color: var(--ink);
+  outline: none;
+}
+.tm-composer-input:focus { border-color: var(--ink); }
+.tm-composer-select,
+.tm-composer-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 4px 6px;
+  background: var(--paper);
+  border: 1.5px solid var(--rule);
+  border-radius: 6px;
+  color: var(--ink);
+  outline: none;
+}
+.tm-composer-num { width: 72px; }
+.tm-composer-select:focus,
+.tm-composer-num:focus { border-color: var(--ink); }
+.tm-composer-input:disabled,
+.tm-composer-num:disabled,
+.tm-composer-select:disabled { opacity: 0.5; }
+
+.tm-btn.tm-danger {
+  color: var(--orange);
+  border-color: var(--orange);
+}
+.tm-btn.tm-danger:hover { background: rgba(217,102,58,0.08); }
+
+/* Task-row actions */
+.tm-row-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 6px;
+}
+.tm-row-actions button {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  color: var(--ink-mute);
+  cursor: pointer;
+}
+.tm-row-actions button:hover {
+  color: var(--ink);
+  border-color: var(--ink-mute);
+}
+.tm-row-actions button.tm-del:hover {
+  color: var(--orange);
+  border-color: var(--orange);
+}
+
+/* Slot list (wheel view) */
+.tm-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.tm-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.tm-slot-row .tm-slot-label {
+  flex: 1;
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+}
+.tm-slot-row .tm-slot-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+
 /* Responsive */
 @media (max-width: 760px) {
   .tm-root { padding: 0 16px 80px; }
   .tm-grid-2 { grid-template-columns: 1fr !important; }
   .tm-tweaks { left: 16px; width: auto; }
+  .tm-composer-input { flex-basis: 100%; }
 }

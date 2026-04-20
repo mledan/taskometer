@@ -1,7 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, SectionLabel } from './shared.jsx';
+import { SlotComposer, TaskRowEditor } from './Composers.jsx';
 
-export default function FitView({ weekFit, backlog, onToggle, onNavigate }) {
+export default function FitView({
+  weekFit,
+  backlog,
+  api,
+  rowHandlers = {},
+  onNavigate,
+}) {
+  const { onToggle, onDelete, onEdit, onSaveEdit, editingTaskId } = rowHandlers;
+  const [slotComposerOpen, setSlotComposerOpen] = useState(false);
   const { rowLabels, dayLabels, placed, capacity } = weekFit;
 
   const fitsText = capacity.fits ? 'everything fits.' : 'overflowing.';
@@ -21,15 +30,31 @@ export default function FitView({ weekFit, backlog, onToggle, onNavigate }) {
 
       <div className="tm-grid-2" style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.6fr', gap: 22, alignItems: 'start' }}>
         <div>
-          <SectionLabel right={<span style={{ color: 'var(--orange)' }}>+ add</span>}>To place</SectionLabel>
+          <SectionLabel>To place</SectionLabel>
           <div className="tm-card tm-flush">
             {backlog.length === 0 ? (
-              <div style={{ padding: '14px 16px' }} className="tm-mono">nothing to place</div>
+              <div style={{ padding: '14px 16px' }} className="tm-mono">
+                nothing to place — tasks route into slots automatically
+              </div>
             ) : backlog.map(t => {
               const id = t.id || t.key;
               const dur = typeof t.duration === 'number' ? t.duration : 30;
               const ctx = `${t.primaryType || t.taskType || 'task'} · ${dur}m`;
               const warn = !!t.metadata?.warn;
+
+              if (editingTaskId === id) {
+                return (
+                  <div key={id} style={{ padding: '8px 12px', borderBottom: '1px solid var(--rule-soft)' }}>
+                    <TaskRowEditor
+                      task={t}
+                      onSave={(updates) => onSaveEdit && onSaveEdit(id, updates)}
+                      onCancel={() => onEdit && onEdit(id)}
+                      onDelete={() => onDelete && onDelete(id)}
+                    />
+                  </div>
+                );
+              }
+
               return (
                 <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderBottom: '1px solid var(--rule-soft)' }}>
                   <Check
@@ -43,18 +68,18 @@ export default function FitView({ weekFit, backlog, onToggle, onNavigate }) {
                   {warn ? (
                     <span className="tm-mono tm-sm" style={{ border: '1.5px solid var(--orange)', color: 'var(--orange)', borderRadius: 4, padding: '2px 6px' }}>⚠</span>
                   ) : null}
+                  <div className="tm-row-actions">
+                    {onEdit && <button onClick={() => onEdit(id)}>edit</button>}
+                    {onDelete && <button className="tm-del" onClick={() => onDelete(id)}>×</button>}
+                  </div>
                 </div>
               );
             })}
           </div>
-          <div className="tm-card tm-dashed" style={{ marginTop: 14, padding: '10px 14px', background: 'var(--sage-pale)', borderColor: 'var(--sage)' }}>
-            <div style={{ fontSize: 20, lineHeight: 1.1 }}>↓ auto-routed into the week →</div>
-            <div className="tm-mono">drag a row onto any cell to override</div>
-          </div>
         </div>
 
         <div>
-          <SectionLabel right="orange = auto-routed · drag to move">This week</SectionLabel>
+          <SectionLabel right="colored cells = auto-routed tasks">This week</SectionLabel>
           <div style={{ display: 'grid', gridTemplateColumns: '58px repeat(5, 1fr)', gap: 4 }}>
             <div />
             {dayLabels.map((d, i) => (
@@ -102,10 +127,28 @@ export default function FitView({ weekFit, backlog, onToggle, onNavigate }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', marginTop: 22, paddingTop: 14, borderTop: '1px dashed var(--rule)' }}>
-        <button className="tm-btn tm-primary tm-sm">auto-fit all</button>
-        <button className="tm-btn tm-sm">add time block</button>
-        <button className="tm-btn tm-sm" onClick={() => onNavigate('gauge')}>back to today</button>
+      <div style={{ marginTop: 22, paddingTop: 14, borderTop: '1px dashed var(--rule)' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="tm-btn tm-primary tm-sm"
+            onClick={() => setSlotComposerOpen(v => !v)}
+          >
+            {slotComposerOpen ? 'close' : '+ time block'}
+          </button>
+          <button className="tm-btn tm-sm" onClick={() => onNavigate('wheel')}>day shape</button>
+          <button className="tm-btn tm-sm" onClick={() => onNavigate('gauge')}>back to today</button>
+        </div>
+        {slotComposerOpen && (
+          <div style={{ marginTop: 10 }}>
+            <SlotComposer
+              onSave={async (data) => {
+                await api.slots.add(data);
+                setSlotComposerOpen(false);
+              }}
+              onCancel={() => setSlotComposerOpen(false)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

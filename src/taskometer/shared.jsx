@@ -52,7 +52,17 @@ export function Doodle({ kind = 'star', size = 22, color = 'var(--ink-mute)' }) 
   );
 }
 
-export function TaskRow({ task, onToggle, rightSlot, compact = false, onClick, titleOverride, metaOverride }) {
+export function TaskRow({
+  task,
+  onToggle,
+  rightSlot,
+  compact = false,
+  onClick,
+  titleOverride,
+  metaOverride,
+  onEdit,
+  onDelete,
+}) {
   const isNow = !!task.now;
   const isPushed = task.status === 'pushed';
   const cls = [
@@ -61,6 +71,17 @@ export function TaskRow({ task, onToggle, rightSlot, compact = false, onClick, t
     isPushed ? 'tm-pushed-row' : '',
     compact ? 'tm-compact' : '',
   ].filter(Boolean).join(' ');
+
+  const actions = (onEdit || onDelete) ? (
+    <div className="tm-row-actions" onClick={(e) => e.stopPropagation()}>
+      {onEdit && (
+        <button onClick={() => onEdit(task.id)} title="edit">edit</button>
+      )}
+      {onDelete && (
+        <button className="tm-del" onClick={() => onDelete(task.id)} title="delete">×</button>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div
@@ -86,11 +107,13 @@ export function TaskRow({ task, onToggle, rightSlot, compact = false, onClick, t
           {metaOverride ? <span>· {metaOverride}</span> : null}
         </div>
       </div>
-      {rightSlot !== undefined
-        ? rightSlot
-        : (isNow
-          ? <Pill kind="now">now</Pill>
-          : (isPushed ? <Pill kind="tmw">→ tmw</Pill> : null))}
+      {rightSlot !== undefined ? rightSlot : (
+        <>
+          {isNow && <Pill kind="now">now</Pill>}
+          {isPushed && <Pill kind="tmw">→ tmw</Pill>}
+          {actions}
+        </>
+      )}
     </div>
   );
 }
@@ -103,19 +126,6 @@ export function SectionLabel({ children, right }) {
     </div>
   );
 }
-
-/* Sample / fallback task list for demos when the store is empty */
-export const SAMPLE_TASKS = [
-  { id: 't1', title: 'finish Q2 planning doc', ctx: 'deep work', when: 'today 11a', slot: 'deep', status: 'in-progress', note: 'left off at § "risks" · est 45m remaining', now: true, est: 45 },
-  { id: 't2', title: 'reply to Sam re: contract', ctx: 'deep work', when: 'today 11a', slot: 'deep', status: 'open', est: 10 },
-  { id: 't3', title: 'review PRs', ctx: 'admin', when: 'tmw 4p', slot: 'admin', status: 'open', est: 30 },
-  { id: 't4', title: 'groceries for week', ctx: 'errands', when: 'today 6p', slot: 'errands', status: 'open', est: 25 },
-  { id: 't5', title: 'draft blog post outline', ctx: 'deep work', when: 'tmw 9a', slot: 'deep', status: 'pushed', est: 60 },
-  { id: 't6', title: 'call mom', ctx: 'calls', when: 'tmw 7p', slot: 'calls', status: 'pushed', est: 20 },
-  { id: 't7', title: "plan Josie's birthday", ctx: 'play', when: 'sat 10a', slot: 'play', status: 'open', est: 45 },
-  { id: 't8', title: 'fix leaky faucet', ctx: 'admin', when: 'wed 4p', slot: 'admin', status: 'open', est: 30 },
-  { id: 't9', title: 'research new laptop', ctx: 'admin', when: 'no matching slot', slot: null, status: 'unfit', est: 30, warn: true },
-];
 
 /**
  * Adapt an AppContext task (rich domain model) into the lightweight
