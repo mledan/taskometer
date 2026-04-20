@@ -1,125 +1,67 @@
-import { useEffect, useState } from 'react';
-import ItemList from './components/ItemList.jsx';
-import CalendarView from './components/CalendarView.jsx';
-import Dashboard from './components/Dashboard.jsx';
-import ScheduleSetup from './components/ScheduleSetup.jsx';
-import TabNavigation, { VIEWS } from './components/TabNavigation.jsx';
+import { useCallback } from 'react';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Notifications from './components/Notifications.jsx';
-import { AppStateProvider, useAppState } from './AppContext.jsx';
+import Taskometer from './taskometer/Taskometer.jsx';
+import {
+  AppStateProvider,
+  useAppState,
+  useAppReducer,
+  ACTION_TYPES,
+} from './AppContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
-import styles from './App.module.css';
-
-const CANONICAL_VIEWS = new Set(['today', 'plan', 'tasks']);
-
-function resolveView(raw) {
-  if (!raw) return null;
-  const mapped = {
-    dashboard: 'today',
-    schedule: 'plan',
-    schedules: 'plan',
-    calendar: 'plan',
-    community: 'plan',
-    history: 'today',
-    defaults: 'plan',
-    palace: 'today',
-    'task-types': 'today',
-  };
-  const resolved = mapped[raw] || raw;
-  return CANONICAL_VIEWS.has(resolved) ? resolved : null;
-}
 
 function AppContent() {
-  const [activeView, setActiveView] = useState(VIEWS.TODAY);
-  const { isLoading, error } = useAppState();
+  const { tasks, isLoading, error } = useAppState();
+  const dispatch = useAppReducer();
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const requestedAction = params.get('action');
-    const requestedView = params.get('view');
-    const requestedSchedule = params.get('schedule');
-
-    if (requestedAction === 'add') {
-      setActiveView(VIEWS.TASKS);
-      return;
-    }
-
-    const resolved = resolveView(requestedView);
-    if (resolved) {
-      setActiveView(resolved);
-      return;
-    }
-
-    if (requestedSchedule) {
-      setActiveView(VIEWS.PLAN);
-    }
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('view') === activeView) return;
-    params.set('view', activeView);
-    const queryString = params.toString();
-    const nextUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ''}${window.location.hash}`;
-    window.history.replaceState({}, '', nextUrl);
-  }, [activeView]);
+  const onToggleTask = useCallback((taskId) => {
+    const task = tasks.find(t => (t.id || t.key) === taskId);
+    if (!task) return;
+    const nextStatus = task.status === 'completed' ? 'pending' : 'completed';
+    dispatch({
+      type: ACTION_TYPES.UPDATE_TASK,
+      payload: { id: task.id || task.key, status: nextStatus },
+    });
+  }, [tasks, dispatch]);
 
   return (
-    <div className={styles.app}>
-      <TabNavigation activeView={activeView} onViewChange={setActiveView} />
-
-      {isLoading && (
-        <div className={styles.statusBanner}>
-          Loading your saved workspace...
-        </div>
-      )}
+    <ErrorBoundary>
       {error && (
-        <div className={`${styles.statusBanner} ${styles.errorBanner}`}>
-          Data load warning: {error}
+        <div style={{
+          position: 'fixed', top: 8, left: '50%', transform: 'translateX(-50%)',
+          padding: '6px 12px', borderRadius: 8,
+          background: 'rgba(212, 102, 58, 0.1)', color: 'var(--orange, #D4663A)',
+          border: '1px solid var(--orange, #D4663A)', fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 12, zIndex: 200,
+        }}>
+          data warning: {error}
         </div>
       )}
-      <ErrorBoundary>
-        <div className={styles.content}>
-          {activeView === VIEWS.TODAY && (
-            <div className={styles.todayView}>
-              <Dashboard />
-            </div>
-          )}
-
-          {activeView === VIEWS.PLAN && (
-            <div className={styles.planView}>
-              <div className={styles.planCalendar}>
-                <CalendarView />
-              </div>
-              <div className={styles.planSchedule}>
-                <ScheduleSetup
-                  onNavigateToTasks={() => setActiveView(VIEWS.TASKS)}
-                  onNavigateToCalendar={() => {}}
-                />
-              </div>
-            </div>
-          )}
-
-          {activeView === VIEWS.TASKS && (
-            <div className={styles.tasksView}>
-              <ItemList />
-            </div>
-          )}
+      {isLoading && (
+        <div style={{
+          position: 'fixed', top: 8, left: '50%', transform: 'translateX(-50%)',
+          padding: '6px 12px', borderRadius: 8,
+          background: 'rgba(168, 191, 140, 0.2)', color: 'var(--ink-soft, #4A433C)',
+          border: '1px dashed var(--ink-mute, #8A8078)', fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 12, zIndex: 200,
+        }}>
+          loading workspace…
         </div>
-      </ErrorBoundary>
+      )}
+      <Taskometer tasks={tasks} onToggleTask={onToggleTask} />
       <Notifications />
-    </div>
+    </ErrorBoundary>
   );
 }
 
 function App() {
-	return (
-		<ThemeProvider>
-			<AppStateProvider>
-				<AppContent />
-			</AppStateProvider>
-		</ThemeProvider>
-	);
+  return (
+    <ThemeProvider>
+      <AppStateProvider>
+        <AppContent />
+      </AppStateProvider>
+    </ThemeProvider>
+  );
 }
 
 export default App;
