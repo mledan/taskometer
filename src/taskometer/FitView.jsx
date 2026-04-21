@@ -29,7 +29,7 @@ export default function FitView({
   const [slotComposerOpen, setSlotComposerOpen] = useState(false);
   const [cellDraft, setCellDraft] = useState(null);
   const [dayMenu, setDayMenu] = useState(null);
-  const { rowLabels, dayLabels, placed, capacity } = weekFit;
+  const { rowLabels, dayLabels, placed, itinerary = [] } = weekFit;
 
   const closeDayMenu = () => setDayMenu(null);
   const dayMenuHandlers = buildDayMenuHandlers({ api, menu: dayMenu, close: closeDayMenu });
@@ -43,19 +43,15 @@ export default function FitView({
     });
   };
 
-  const fitsText = capacity.fits ? 'everything fits.' : 'overflowing.';
-  const fitsColor = capacity.fits ? 'var(--sage)' : 'var(--orange)';
+  const upcomingCount = itinerary.reduce((sum, d) => sum + d.tasks.length, 0);
 
   return (
     <div className="tm-fade-up">
       <div style={{ marginBottom: 14 }}>
-        <SectionLabel right={`${capacity.slotted} slotted · ${capacity.incoming} to place · ${capacity.buffer} buffer`}>
-          Week capacity
+        <SectionLabel right={upcomingCount ? `${upcomingCount} upcoming` : 'nothing upcoming'}>
+          itinerary
         </SectionLabel>
-        <CapacityBar capacity={capacity} />
-        <div style={{ textAlign: 'center', marginTop: 8, fontSize: 26, fontStyle: 'italic', color: fitsColor }}>
-          {fitsText}
-        </div>
+        <Itinerary itinerary={itinerary} rowHandlers={rowHandlers} />
       </div>
 
       <div className="tm-grid-2" style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.6fr', gap: 22, alignItems: 'start' }}>
@@ -284,26 +280,105 @@ export default function FitView({
   );
 }
 
-function CapacityBar({ capacity }) {
-  const placed = Math.max(1, capacity.placedMin);
-  const incoming = Math.max(0, capacity.incomingMin);
-  const buffer = Math.max(0, capacity.bufferMin);
-  const total = placed + incoming + buffer || 1;
-  return (
-    <div style={{ display: 'flex', height: 30, border: '1.5px solid var(--ink)', borderRadius: 6, overflow: 'hidden' }}>
-      <div className="tm-caveat" style={{ flex: `${placed} ${placed} 0%`, background: 'var(--sage-pale)', display: 'flex', alignItems: 'center', paddingLeft: 10 }}>
-        <span style={{ fontSize: 17 }}>already placed</span>
+/**
+ * Chronological, day-grouped list of every scheduled task in the horizon.
+ * Reads like an itinerary — what's up today, what's up tomorrow, in order.
+ * Replaces the old capacity/buffer readout (uninformative because auto-
+ * schedule already guarantees fit).
+ */
+function Itinerary({ itinerary, rowHandlers = {} }) {
+  const { onToggle, onDelete, onEdit } = rowHandlers;
+
+  if (!itinerary.length) {
+    return (
+      <div className="tm-card tm-dashed" style={{ padding: '14px 16px' }}>
+        <div className="tm-mono">no scheduled tasks yet — add one above and it will slot in.</div>
       </div>
-      {incoming > 0 && (
-        <div className="tm-caveat" style={{ flex: `${incoming} ${incoming} 0%`, background: 'var(--orange-pale)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--orange)', fontStyle: 'italic' }}>
-          incoming
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {itinerary.map(day => (
+        <div key={day.date} className="tm-card tm-flush">
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              padding: '8px 14px',
+              borderBottom: '1px solid var(--rule-soft)',
+              background: day.today ? 'var(--orange-pale)' : 'var(--paper-warm)',
+            }}
+          >
+            <span className="tm-caveat" style={{ fontSize: 20, fontStyle: 'italic', color: day.today ? 'var(--orange)' : 'var(--ink)' }}>
+              {day.label}{day.today ? ' · today' : ''}
+            </span>
+            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+              {day.tasks.length} task{day.tasks.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          {day.tasks.map(t => {
+            const id = t.id || t.key;
+            const dur = typeof t.duration === 'number' ? t.duration : 30;
+            const done = t.status === 'completed';
+            return (
+              <div
+                key={id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '8px 14px',
+                  borderBottom: '1px solid var(--rule-soft)',
+                  opacity: done ? 0.55 : 1,
+                }}
+              >
+                <span className="tm-mono tm-sm" style={{ minWidth: 90, color: 'var(--ink-mute)' }}>
+                  {fmtWindow(t.scheduledTime, dur)}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 18, lineHeight: 1.15, textDecoration: done ? 'line-through' : 'none' }}>
+                    {t.text || t.title || 'untitled'}
+                  </div>
+                  <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                    {t.primaryType || t.taskType || 'task'} · {dur}m
+                    {t.metadata?.segmentsTotal > 1 ? ` · pt ${(t.metadata.segmentIndex ?? 0) + 1} of ${t.metadata.segmentsTotal}` : ''}
+                  </div>
+                </div>
+                {onToggle && (
+                  <button
+                    className={`tm-btn tm-sm${done ? '' : ' tm-primary'}`}
+                    onClick={() => onToggle(id)}
+                  >
+                    {done ? 'undo' : 'done'}
+                  </button>
+                )}
+                {onEdit && (
+                  <button className="tm-btn tm-sm" onClick={() => onEdit(id)}>edit</button>
+                )}
+                {onDelete && (
+                  <button className="tm-btn tm-sm tm-danger" onClick={() => onDelete(id)}>×</button>
+                )}
+              </div>
+            );
+          })}
         </div>
-      )}
-      {buffer > 0 && (
-        <div className="tm-caveat" style={{ flex: `${buffer} ${buffer} 0%`, background: 'var(--paper)', borderLeft: '1px dashed var(--ink-mute)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          buffer ✓
-        </div>
-      )}
+      ))}
     </div>
   );
+}
+
+function fmtWindow(iso, durMin) {
+  if (!iso) return '—';
+  const start = new Date(iso);
+  const end = new Date(start.getTime() + durMin * 60 * 1000);
+  const fmt = (d) => {
+    const h = d.getHours();
+    const hr = ((h % 12) || 12);
+    const ampm = h < 12 ? 'a' : 'p';
+    const m = d.getMinutes();
+    return m ? `${hr}:${m < 10 ? '0' + m : m}${ampm}` : `${hr}${ampm}`;
+  };
+  return `${fmt(start)}–${fmt(end)}`;
 }
