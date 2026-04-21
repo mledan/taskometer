@@ -581,6 +581,37 @@ describe('Scenario 4: Edge cases', () => {
     expect(result.slotId).toBe('slot-flex');
   });
 
+  it('anchors an oversized task to the start of its matching slot (overflow path)', () => {
+    vi.useFakeTimers();
+    // Mirrors the user-reported case: it's mid-slot, task doesn't fit, but
+    // we still want the task pinned to the slot start (09:15), not dropped
+    // into ad-hoc scheduling at "now".
+    vi.setSystemTime(new Date(2026, 1, 24, 11, 36, 0));
+
+    const workSlot = makeSlot({
+      id: 'slot-helix',
+      date: '2026-02-24',
+      startTime: '09:15',
+      endTime: '16:30',
+      slotType: 'work',
+      label: 'Helix Cold Calling',
+      flexibility: 'preferred',
+    });
+
+    // 500 minutes > slot's 435 minutes.
+    const task = makeTask({ primaryType: 'work', duration: 500 });
+    const state = { slots: [workSlot], tasks: [], settings: {}, taskTypes: [] };
+
+    const result = scheduleTask(task, state);
+
+    expect(result).not.toBeNull();
+    expect(result.slotId).toBe('slot-helix');
+    const scheduled = new Date(result.scheduledTime);
+    expect(scheduled.getHours()).toBe(9);
+    expect(scheduled.getMinutes()).toBe(15);
+    expect(result.reason).toMatch(/overflow/i);
+  });
+
   it('previewTaskSchedule works identically to scheduleTask', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 1, 24, 10, 0, 0));

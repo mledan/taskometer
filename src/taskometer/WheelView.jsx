@@ -20,6 +20,7 @@ export default function WheelView({
   pushed,
   slots = [],
   taskTypes = [],
+  todayTasks = [],
   dayOverrides = {},
   api,
   rowHandlers = {},
@@ -31,6 +32,7 @@ export default function WheelView({
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [typeMgrOpen, setTypeMgrOpen] = useState(false);
   const [draftSlot, setDraftSlot] = useState(null);
+  const [expandedSlotIds, setExpandedSlotIds] = useState(() => new Set());
 
   const now = new Date();
   const nowHour = now.getHours() + now.getMinutes() / 60;
@@ -73,6 +75,17 @@ export default function WheelView({
     .slice()
     .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
+  const tasksBySlotId = groupTasksBySlot(todayTasks, todaySlots);
+
+  const toggleExpanded = useCallback((slotId) => {
+    setExpandedSlotIds(prev => {
+      const next = new Set(prev);
+      if (next.has(slotId)) next.delete(slotId);
+      else next.add(slotId);
+      return next;
+    });
+  }, []);
+
   const editingSlot = editingSlotId
     ? todaySlots.find(s => s.id === editingSlotId)
     : null;
@@ -83,10 +96,30 @@ export default function WheelView({
     await api.slots.update(id, { startTime, endTime });
   }, [api]);
 
+  const slotRowRefs = useRef(new Map());
+
   const handleWedgeClick = useCallback((id) => {
-    setEditingSlotId(id);
-    setComposerOpen(false);
-    setDraftSlot(null);
+    let expanding = false;
+    setExpandedSlotIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        expanding = true;
+      }
+      return next;
+    });
+    // When we're opening the row, pull it into view so the tasks underneath
+    // are visible without a manual scroll.
+    if (expanding) {
+      requestAnimationFrame(() => {
+        const node = slotRowRefs.current.get(id);
+        if (node?.scrollIntoView) {
+          node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+    }
   }, []);
 
   const handleEmptyHourClick = useCallback((hourFloat) => {
@@ -304,7 +337,7 @@ export default function WheelView({
           <button className="tm-btn tm-sm" onClick={() => onNavigate('fit')}>week view</button>
           <button className="tm-btn tm-sm" onClick={() => onNavigate('calendar')}>calendar</button>
           <span className="tm-mono tm-sm" style={{ marginLeft: 'auto', color: 'var(--ink-mute)' }}>
-            drag wedge · drag handle · hover handle for ±15m · click empty ring to add
+            click wedge or row to reveal tasks · drag wedge to move · hover handle for ±15m · click empty ring to add
           </span>
         </div>
 
@@ -358,22 +391,88 @@ export default function WheelView({
             {todaySlots.map(s => {
               const color = s.color || resolveTypeColor(taskTypes, s.slotType);
               const overnight = isOvernightSlot(s);
+              const slotTasks = tasksBySlotId.get(s.id) || [];
+              const expanded = expandedSlotIds.has(s.id);
               return (
-                <div key={s.id} className={`tm-slot-row${editingSlotId === s.id ? ' tm-slot-row-active' : ''}`}>
-                  {color && <span className="tm-slot-dot" style={{ background: color }} />}
-                  <span className="tm-slot-label">{s.label || s.slotType || 'block'}</span>
-                  <span className="tm-slot-time">
-                    {s.startTime}–{s.endTime}{overnight ? ' (+1d)' : ''}
-                  </span>
-                  {s.slotType && (
-                    <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{s.slotType}</span>
-                  )}
-                  <button
-                    className="tm-btn tm-sm"
-                    onClick={() => { setEditingSlotId(s.id); setComposerOpen(false); setDraftSlot(null); }}
+                <div
+                  key={s.id}
+                  ref={(node) => {
+                    if (node) slotRowRefs.current.set(s.id, node);
+                    else slotRowRefs.current.delete(s.id);
+                  }}
+                  className={`tm-slot-row-wrap${expanded ? ' tm-slot-row-expanded' : ''}`}
+                >
+                  <div
+                    className={`tm-slot-row${editingSlotId === s.id ? ' tm-slot-row-active' : ''}`}
+                    onClick={() => toggleExpanded(s.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault();
+                        toggleExpanded(s.id);
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
                   >
-                    edit
-                  </button>
+                    <span
+                      className="tm-slot-caret"
+                      aria-hidden="true"
+                    >
+                      {expanded ? '▾' : '▸'}
+                    </span>
+                    {color && <span className="tm-slot-dot" style={{ background: color }} />}
+                    <span className="tm-slot-label">{s.label || s.slotType || 'block'}</span>
+                    {slotTasks.length > 0 && (
+                      <span
+                        className="tm-mono tm-sm tm-slot-count"
+                        title={`${slotTasks.length} task${slotTasks.length === 1 ? '' : 's'} in this block`}
+                      >
+                        {slotTasks.length} task{slotTasks.length === 1 ? '' : 's'}
+                      </span>
+                    )}
+                    <span className="tm-slot-time">
+                      {s.startTime}–{s.endTime}{overnight ? ' (+1d)' : ''}
+                    </span>
+                    {s.slotType && (
+                      <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{s.slotType}</span>
+                    )}
+                    <button
+                      className="tm-btn tm-sm"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        setEditingSlotId(s.id);
+                        setComposerOpen(false);
+                        setDraftSlot(null);
+                      }}
+                    >
+                      edit
+                    </button>
+                  </div>
+                  {expanded && (
+                    <div className="tm-slot-tasks">
+                      {slotTasks.length === 0 ? (
+                        <div className="tm-mono tm-sm tm-slot-tasks-empty">
+                          no tasks in this block yet
+                        </div>
+                      ) : (
+                        slotTasks.map(entry => {
+                          const row = toRow(entry.task, { now: entry.state === 'live' });
+                          const overflow = overflowsSlot(entry, s);
+                          return (
+                            <div key={entry.task.id || entry.task.key} className="tm-slot-task-line">
+                              {renderTaskEntry(row, slotTasks.map(e => e.task))}
+                              {overflow && (
+                                <div className="tm-mono tm-sm tm-slot-task-warn">
+                                  overflows this block by {fmtMinutes(overflow)}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -472,6 +571,71 @@ function slotSpan(slot) {
   const eRaw = hhmmToMin(slot.endTime);
   const eMin = eRaw <= sMin ? eRaw + DAY_MIN : eRaw;
   return { sMin, eMin };
+}
+
+/**
+ * Bucket today's tasks into their owning slot. A task belongs to a slot
+ * when its scheduledSlotId matches, or when its start time falls inside
+ * the slot window. Each task lands in at most one slot (first match wins)
+ * so clicking a category gives an unambiguous list.
+ */
+function groupTasksBySlot(todayTasks = [], todaySlots = []) {
+  const map = new Map();
+  todaySlots.forEach(s => map.set(s.id, []));
+
+  const spans = todaySlots.map(s => ({ slot: s, ...slotSpan(s) }));
+
+  for (const entry of todayTasks) {
+    const task = entry.task;
+    if (!task) continue;
+
+    const byId = task.scheduledSlotId && map.has(task.scheduledSlotId)
+      ? task.scheduledSlotId
+      : null;
+
+    let targetId = byId;
+    if (!targetId) {
+      const startDate = new Date(entry.start);
+      const startMin = startDate.getHours() * 60 + startDate.getMinutes();
+      const match = spans.find(({ sMin, eMin }) => {
+        const normStart = sMin;
+        // Handle overnight slots by wrapping the candidate upward when
+        // it falls before the slot's start on the same day.
+        const normCandidate = startMin < sMin && eMin > DAY_MIN
+          ? startMin + DAY_MIN
+          : startMin;
+        return normCandidate >= normStart && normCandidate < eMin;
+      });
+      targetId = match?.slot.id || null;
+    }
+
+    if (targetId) map.get(targetId).push(entry);
+  }
+
+  // Sort each bucket by start time
+  for (const bucket of map.values()) {
+    bucket.sort((a, b) => a.start - b.start);
+  }
+  return map;
+}
+
+/**
+ * Minutes a task extends past its slot's end. Zero if it fits.
+ */
+function overflowsSlot(entry, slot) {
+  const { eMin } = slotSpan(slot);
+  const start = new Date(entry.start);
+  const startMin = start.getHours() * 60 + start.getMinutes();
+  const endMinRaw = startMin + (entry.duration || 30);
+  const over = endMinRaw - eMin;
+  return over > 0 ? over : 0;
+}
+
+function fmtMinutes(mins) {
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
 }
 
 function findFirstFreeGap(slots, lengthMin) {

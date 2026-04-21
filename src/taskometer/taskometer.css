@@ -444,6 +444,51 @@ body.tm-body {
   font-size: 11px;
   color: var(--ink-mute);
 }
+.tm-slot-row:hover {
+  border-color: var(--ink-mute);
+}
+.tm-slot-row .tm-slot-caret {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-mute);
+  width: 10px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.tm-slot-row .tm-slot-count {
+  color: var(--orange);
+  letter-spacing: .08em;
+  text-transform: lowercase;
+  padding: 2px 6px;
+  border: 1px solid var(--orange);
+  border-radius: 999px;
+}
+.tm-slot-row-wrap.tm-slot-row-expanded .tm-slot-row {
+  border-color: var(--ink-mute);
+  background: var(--paper-warm);
+}
+.tm-slot-tasks {
+  margin: 2px 0 4px 28px;
+  padding: 4px 0 4px 10px;
+  border-left: 2px dashed var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tm-slot-tasks-empty {
+  padding: 6px 4px;
+  color: var(--ink-mute);
+  font-style: italic;
+}
+.tm-slot-task-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tm-slot-task-warn {
+  color: var(--orange);
+  padding: 0 0 4px 34px;
+}
 
 /* Wheel empty-state hint overlay */
 .tm-wheel-empty {

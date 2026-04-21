@@ -168,6 +168,7 @@ export default function Taskometer() {
           pushed={derived.pushed}
           slots={state.slots || []}
           taskTypes={state.taskTypes || []}
+          todayTasks={derived.todayTasks}
           dayOverrides={derived.dayOverrides}
           api={api}
           rowHandlers={rowHandlers}

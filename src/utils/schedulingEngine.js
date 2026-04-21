@@ -100,19 +100,21 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
 
   const allSlots = ensureFutureSlots(existingSlots, settings, MAX_DAYS_AHEAD);
 
-  const candidates = allSlots
+  // Slots still in the future (by end time). Includes slots too short for
+  // the task — those are used by the overflow phase at the bottom.
+  const liveSlots = allSlots
     .filter(slot => {
       const slotStart = getSlotStartDateTime(slot);
       const slotEnd = addMinutes(slotStart, getSlotDuration(slot));
-      if (slotEnd <= now) return false;
-      if (getSlotDuration(slot) < taskDuration) return false;
-      return true;
+      return slotEnd > now;
     })
     .sort((a, b) => {
       const dateCompare = a.date.localeCompare(b.date);
       if (dateCompare !== 0) return dateCompare;
       return a.startTime.localeCompare(b.startTime);
     });
+
+  const candidates = liveSlots.filter(slot => getSlotDuration(slot) >= taskDuration);
 
   // Phase 1: exact type+tag match
   const exactMatch = findFirstAvailable(candidates, task, existingTasks, breakDuration, (slot) => {
@@ -168,7 +170,23 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
     return buildResult(anyMatch, task, 'Best available slot');
   }
 
-  // Phase 6: no framework slots worked, try ad-hoc as last resort
+  // Phase 6: overflow — no slot is large enough to fit the task, but if one
+  // matches by type/tag we'd rather anchor the task to its start (and let it
+  // visually spill past the end) than drop it into an unrelated ad-hoc
+  // window. Keeps the user's "this task lives in that block" mental model.
+  const overflowMatch =
+    findOverflow(liveSlots, task, existingTasks, breakDuration, (slot) => (
+      slot.slotType && slot.slotType === taskType
+    )) ||
+    (taskTags.length > 0 && findOverflow(liveSlots, task, existingTasks, breakDuration, (slot) => (
+      Array.isArray(slot.allowedTags) && slot.allowedTags.some(tag => taskTags.includes(tag))
+    )));
+
+  if (overflowMatch) {
+    return buildResult(overflowMatch, task, 'Anchored to matching slot (overflows past end)');
+  }
+
+  // Phase 7: no framework slots worked, try ad-hoc as last resort
   return scheduleWithoutFramework(task, existingTasks, taskTypes, breakDuration);
 }
 
@@ -313,6 +331,30 @@ function findFirstAvailable(candidates, task, existingTasks, breakDuration, filt
       }
 
       candidateStart = addMinutes(candidateStart, SNAP_MINUTES);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Anchor a task to the start of the first type/tag-matching slot, regardless
+ * of whether the task fits. Used as a fallback so oversized tasks still line
+ * up with the slot the user meant them to occupy.
+ */
+function findOverflow(slots, task, existingTasks, breakDuration, filterFn) {
+  const taskDuration = task.duration || DEFAULT_DURATION;
+
+  for (const slot of slots) {
+    if (!filterFn(slot)) continue;
+    if (slot.assignedTaskId && slot.assignedTaskId !== task.id) continue;
+
+    // Oversized task: anchor to slot start so the task visually lives in
+    // the block the user picked, even when the slot is already in progress.
+    const candidateStart = getSlotStartDateTime(slot);
+    const candidateEnd = addMinutes(candidateStart, taskDuration);
+    if (!hasConflict(candidateStart, candidateEnd, existingTasks, breakDuration)) {
+      return { slot, startTime: candidateStart, overflow: true };
     }
   }
 
