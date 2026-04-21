@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { TASK_PRIORITIES } from '../models/Task';
 
 const FALLBACK_TYPES = [
   { id: 'deep', name: 'deep', color: '#D4663A', icon: '🔥' },
@@ -64,6 +65,9 @@ export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [] }) {
   const [text, setText] = useState('');
   const [duration, setDuration] = useState(30);
   const [type, setType] = useState(types[0]?.id || 'deep');
+  const [priority, setPriority] = useState('medium');
+  const [showMore, setShowMore] = useState(false);
+  const [recurrence, setRecurrence] = useState({ frequency: 'none', interval: 1 });
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -81,49 +85,153 @@ export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [] }) {
       text: t,
       primaryType: type,
       duration: Number(duration) || 30,
+      priority,
+      recurrence: recurrence.frequency === 'none'
+        ? { frequency: 'none', interval: 1, daysOfWeek: [], dayOfMonth: null, endDate: null, occurrences: null }
+        : recurrence,
       status: 'pending',
     });
     setText('');
+    setShowMore(false);
+    setRecurrence({ frequency: 'none', interval: 1 });
   };
 
   return (
-    <div className="tm-composer">
-      <input
-        ref={inputRef}
-        className="tm-composer-input"
-        placeholder="what do you need to do?"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-      />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="tm-composer">
+        <input
+          ref={inputRef}
+          className="tm-composer-input"
+          placeholder="what do you need to do?"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+        />
+        <select
+          className="tm-composer-select"
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+          title="task type"
+        >
+          {types.map(t => (
+            <option key={t.id} value={t.id}>{t.name || t.id}</option>
+          ))}
+        </select>
+        <input
+          className="tm-composer-num"
+          type="number"
+          min="5"
+          max="480"
+          step="5"
+          value={duration}
+          onChange={(e) => setDuration(e.target.value)}
+          title="minutes"
+        />
+        <span className="tm-mono tm-md">m</span>
+        <button
+          type="button"
+          className={`tm-btn tm-sm${showMore ? ' tm-primary' : ''}`}
+          onClick={() => setShowMore(v => !v)}
+          title="priority / repeat"
+        >
+          {showMore ? 'less' : 'more'}
+        </button>
+        <button
+          className="tm-btn tm-primary tm-sm"
+          onClick={submit}
+          disabled={!text.trim()}
+        >
+          add
+        </button>
+      </div>
+      {showMore && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', paddingLeft: 2 }}>
+          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>priority</span>
+          <PrioritySegment value={priority} onChange={setPriority} />
+          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 8 }}>repeat</span>
+          <RecurrencePicker value={recurrence} onChange={setRecurrence} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PrioritySegment({ value, onChange }) {
+  return (
+    <div className="tm-seg">
+      {Object.keys(TASK_PRIORITIES).map(p => (
+        <button
+          key={p}
+          type="button"
+          className={value === p ? 'tm-on' : ''}
+          onClick={() => onChange(p)}
+          title={TASK_PRIORITIES[p].name}
+          style={value === p ? { color: TASK_PRIORITIES[p].color } : undefined}
+        >
+          {p === 'medium' ? 'med' : p}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const WEEKDAY_SHORT = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const WEEKDAY_FULL = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+function RecurrencePicker({ value, onChange }) {
+  const freq = value?.frequency || 'none';
+  const interval = value?.interval || 1;
+  const daysOfWeek = value?.daysOfWeek || [];
+  const patch = (p) => onChange({ ...value, ...p });
+  const toggleDay = (idx) => {
+    const name = WEEKDAY_FULL[idx];
+    const next = daysOfWeek.includes(name)
+      ? daysOfWeek.filter(d => d !== name)
+      : [...daysOfWeek, name];
+    patch({ daysOfWeek: next });
+  };
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
       <select
         className="tm-composer-select"
-        value={type}
-        onChange={(e) => setType(e.target.value)}
-        title="task type"
+        value={freq}
+        onChange={(e) => patch({ frequency: e.target.value })}
       >
-        {types.map(t => (
-          <option key={t.id} value={t.id}>{t.name || t.id}</option>
-        ))}
+        <option value="none">none</option>
+        <option value="daily">daily</option>
+        <option value="weekly">weekly</option>
+        <option value="monthly">monthly</option>
       </select>
-      <input
-        className="tm-composer-num"
-        type="number"
-        min="5"
-        max="480"
-        step="5"
-        value={duration}
-        onChange={(e) => setDuration(e.target.value)}
-        title="minutes"
-      />
-      <span className="tm-mono tm-md">m</span>
-      <button
-        className="tm-btn tm-primary tm-sm"
-        onClick={submit}
-        disabled={!text.trim()}
-      >
-        add
-      </button>
+      {freq !== 'none' && (
+        <>
+          <span className="tm-mono tm-sm">every</span>
+          <input
+            type="number"
+            min="1"
+            max="30"
+            step="1"
+            className="tm-composer-num"
+            value={interval}
+            onChange={(e) => patch({ interval: Math.max(1, Number(e.target.value) || 1) })}
+            style={{ width: 56 }}
+          />
+          <span className="tm-mono tm-sm">
+            {freq === 'daily' ? 'day(s)' : freq === 'weekly' ? 'week(s)' : 'month(s)'}
+          </span>
+        </>
+      )}
+      {freq === 'weekly' && (
+        <div className="tm-seg" style={{ flexWrap: 'wrap' }}>
+          {WEEKDAY_SHORT.map((d, i) => (
+            <button
+              key={d}
+              type="button"
+              className={daysOfWeek.includes(WEEKDAY_FULL[i]) ? 'tm-on' : ''}
+              onClick={() => toggleDay(i)}
+            >{d}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -329,6 +437,12 @@ export function TaskRowEditor({ task, onSave, onCancel, onDelete, taskTypes = []
     typeof task.duration === 'number' ? task.duration : 30
   );
   const [type, setType] = useState(task.primaryType || task.taskType || types[0]?.id || 'deep');
+  const [priority, setPriority] = useState(task.priority || 'medium');
+  const [recurrence, setRecurrence] = useState(
+    task.recurrence && typeof task.recurrence === 'object'
+      ? { frequency: task.recurrence.frequency || 'none', interval: task.recurrence.interval || 1, daysOfWeek: task.recurrence.daysOfWeek || [] }
+      : { frequency: 'none', interval: 1 }
+  );
   const inputRef = useRef(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
@@ -340,45 +454,57 @@ export function TaskRowEditor({ task, onSave, onCancel, onDelete, taskTypes = []
       text: t,
       primaryType: type,
       duration: Number(duration) || 30,
+      priority,
+      recurrence: recurrence.frequency === 'none'
+        ? { frequency: 'none', interval: 1, daysOfWeek: [], dayOfMonth: null, endDate: null, occurrences: null }
+        : recurrence,
     });
   };
 
   return (
-    <div className="tm-composer tm-composer-row">
-      <input
-        ref={inputRef}
-        className="tm-composer-input"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') submit();
-          if (e.key === 'Escape') onCancel();
-        }}
-      />
-      <select
-        className="tm-composer-select"
-        value={type}
-        onChange={(e) => setType(e.target.value)}
-      >
-        {types.map(t => (
-          <option key={t.id} value={t.id}>{t.name || t.id}</option>
-        ))}
-      </select>
-      <input
-        className="tm-composer-num"
-        type="number"
-        min="5"
-        max="480"
-        step="5"
-        value={duration}
-        onChange={(e) => setDuration(e.target.value)}
-      />
-      <span className="tm-mono tm-md">m</span>
-      <button className="tm-btn tm-primary tm-sm" onClick={submit}>save</button>
-      <button className="tm-btn tm-sm" onClick={onCancel}>cancel</button>
-      {onDelete && (
-        <button className="tm-btn tm-sm tm-danger" onClick={onDelete}>delete</button>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="tm-composer tm-composer-row">
+        <input
+          ref={inputRef}
+          className="tm-composer-input"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+            if (e.key === 'Escape') onCancel();
+          }}
+        />
+        <select
+          className="tm-composer-select"
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+        >
+          {types.map(t => (
+            <option key={t.id} value={t.id}>{t.name || t.id}</option>
+          ))}
+        </select>
+        <input
+          className="tm-composer-num"
+          type="number"
+          min="5"
+          max="480"
+          step="5"
+          value={duration}
+          onChange={(e) => setDuration(e.target.value)}
+        />
+        <span className="tm-mono tm-md">m</span>
+        <button className="tm-btn tm-primary tm-sm" onClick={submit}>save</button>
+        <button className="tm-btn tm-sm" onClick={onCancel}>cancel</button>
+        {onDelete && (
+          <button className="tm-btn tm-sm tm-danger" onClick={onDelete}>delete</button>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', paddingLeft: 2 }}>
+        <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>priority</span>
+        <PrioritySegment value={priority} onChange={setPriority} />
+        <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 8 }}>repeat</span>
+        <RecurrencePicker value={recurrence} onChange={setRecurrence} />
+      </div>
     </div>
   );
 }

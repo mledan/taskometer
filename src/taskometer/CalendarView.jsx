@@ -71,21 +71,41 @@ export default function CalendarView({
 
   const dayMenuHandlers = buildDayMenuHandlers({ api, menu: dayMenu, close: closeDayMenu });
 
-  // Drag-paint: hold a wheel, hover over days to assign
+  // Drag-paint: hold a wheel, hover over days to assign. When the starting
+  // cell already has slots (or an override), confirm once before we nuke it —
+  // then the drag can continue freely for the rest of the gesture.
+  const [paintMode, setPaintMode] = useState('replace'); // 'replace' | 'merge'
+  const paintConfirmedRef = React.useRef(false);
   const onDayPointerDown = async (dateKey, ev) => {
     if (ev.button !== 0) return;
     if (!paintWheel) return;
+
+    if (paintMode === 'replace' && !paintConfirmedRef.current) {
+      const existing = (slots || []).filter(s => s.date === dateKey).length;
+      if (existing > 0) {
+        const ok = window.confirm(
+          `replace ${existing} existing block${existing === 1 ? '' : 's'} on ${dateKey}? this also applies to every day you drag across.`
+        );
+        if (!ok) return;
+      }
+      paintConfirmedRef.current = true;
+    }
+
     setIsPainting(true);
-    await api.wheels.applyToDate(paintWheel, dateKey, { mode: 'replace' });
+    await api.wheels.applyToDate(paintWheel, dateKey, { mode: paintMode });
   };
   const onDayPointerEnter = async (dateKey) => {
     if (!isPainting || !paintWheel) return;
-    await api.wheels.applyToDate(paintWheel, dateKey, { mode: 'replace' });
+    await api.wheels.applyToDate(paintWheel, dateKey, { mode: paintMode });
   };
 
-  // Global pointer up clears painting
+  // Global pointer up clears painting and resets the "I've confirmed"
+  // latch so the next drag gets its own confirmation prompt.
   React.useEffect(() => {
-    const up = () => setIsPainting(false);
+    const up = () => {
+      setIsPainting(false);
+      paintConfirmedRef.current = false;
+    };
     window.addEventListener('pointerup', up);
     return () => window.removeEventListener('pointerup', up);
   }, []);
@@ -111,7 +131,7 @@ export default function CalendarView({
             >{s}</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
             paint with:
           </span>
@@ -126,6 +146,20 @@ export default function CalendarView({
               <option key={w.id} value={w.id}>{w.name}</option>
             ))}
           </select>
+          {paintWheel && (
+            <div className="tm-seg">
+              <button
+                className={paintMode === 'replace' ? 'tm-on' : ''}
+                onClick={() => setPaintMode('replace')}
+                title="clear existing blocks then paint (asks once per drag)"
+              >replace</button>
+              <button
+                className={paintMode === 'merge' ? 'tm-on' : ''}
+                onClick={() => setPaintMode('merge')}
+                title="layer the wheel on top of existing blocks"
+              >merge</button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -29,7 +29,10 @@ export default function WheelView({
   onNavigate,
   onOpenWheels,
 }) {
-  const { onToggle, onDelete, onEdit, onSaveEdit, editingTaskId } = rowHandlers;
+  const {
+    onToggle, onDelete, onEdit, onSaveEdit, editingTaskId,
+    onSeriesComplete, onSeriesDelete, onSeriesBump,
+  } = rowHandlers;
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [typeMgrOpen, setTypeMgrOpen] = useState(false);
@@ -49,7 +52,10 @@ export default function WheelView({
   const upcomingRows = (upcoming || []).map(t => toRow(t));
   const pushedRows = (pushed || []).map(t => toRow(t, { pushed: true }));
 
-  const rowProps = () => ({ onToggle, onEdit, onDelete });
+  const rowProps = () => ({
+    onToggle, onEdit, onDelete,
+    onSeriesComplete, onSeriesDelete, onSeriesBump,
+  });
 
   const renderTaskEntry = (t, source) => {
     const id = t.id;
@@ -542,6 +548,12 @@ function toRow(t, extras = {}) {
     now: !!extras.now,
     note: extras.now ? `in progress · ${dur}m` : null,
     duration: dur,
+    priority: t.priority,
+    tags: t.tags,
+    recurrence: t.recurrence,
+    seriesId: inSeries ? meta.seriesId : null,
+    segmentIndex: meta.segmentIndex,
+    segmentsTotal: meta.segmentsTotal,
   };
 }
 

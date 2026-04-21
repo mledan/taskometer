@@ -21,9 +21,11 @@ test("switching to the wheel tab reveals the 24h slot subhead", () => {
   expect(screen.getByText(/24h slots/i)).toBeInTheDocument();
 });
 
-test("switching to the fit tab shows the week capacity label", () => {
+test("switching to the fit tab shows the itinerary label", () => {
   render(<App />);
   fireEvent.click(screen.getByRole("button", { name: "fit" }));
-  expect(screen.getAllByText(/week capacity/i).length).toBeGreaterThan(0);
-  expect(screen.getByText(/everything fits/i)).toBeInTheDocument();
+  // Subhead flips to the itinerary label. The old "everything fits"
+  // readout is gone because auto-schedule makes that guarantee a tautology.
+  expect(screen.getAllByText(/itinerary/i).length).toBeGreaterThan(0);
+  expect(screen.queryByText(/everything fits/i)).not.toBeInTheDocument();
 });

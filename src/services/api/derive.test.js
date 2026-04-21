@@ -146,9 +146,15 @@ describe('deriveWeekFit', () => {
     expect(fit.placed.find(p => p.id === 't2').col).toBe(2);
   });
 
-  test('capacity buffer is non-negative when empty', () => {
+  test('empty state produces an empty itinerary with today still present', () => {
     const fit = deriveWeekFit({ tasks: [], slots: [], today: TODAY });
-    expect(fit.capacity.bufferMin).toBeGreaterThanOrEqual(0);
+    // The "capacity" readout is gone (auto-schedule guarantees fit). The
+    // itinerary replaces it — today is always included even if empty so the
+    // view has an anchor.
+    expect(fit.capacity).toBeUndefined();
+    expect(Array.isArray(fit.itinerary)).toBe(true);
+    expect(fit.itinerary.length).toBeGreaterThanOrEqual(1);
+    expect(fit.itinerary[0].today).toBe(true);
   });
 });
 
