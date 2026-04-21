@@ -2,15 +2,27 @@ import React, { useState } from 'react';
 import { Check, SectionLabel } from './shared.jsx';
 import { SlotComposer, TaskRowEditor } from './Composers.jsx';
 
+// Default time hint per row type, used when the user clicks an empty
+// week-cell to pre-populate the slot composer.
+const ROW_DEFAULT_TIMES = {
+  deep: ['09:00', '11:00'],
+  mtgs: ['13:00', '14:00'],
+  admin: ['15:00', '16:00'],
+  calls: ['11:00', '12:00'],
+  play: ['18:00', '19:00'],
+};
+
 export default function FitView({
   weekFit,
   backlog,
+  taskTypes = [],
   api,
   rowHandlers = {},
   onNavigate,
 }) {
   const { onToggle, onDelete, onEdit, onSaveEdit, editingTaskId } = rowHandlers;
   const [slotComposerOpen, setSlotComposerOpen] = useState(false);
+  const [cellDraft, setCellDraft] = useState(null);
   const { rowLabels, dayLabels, placed, capacity } = weekFit;
 
   const fitsText = capacity.fits ? 'everything fits.' : 'overflowing.';
@@ -90,7 +102,7 @@ export default function FitView({
             {rowLabels.map((row, ri) => (
               <React.Fragment key={ri}>
                 <div className="tm-mono tm-md" style={{ display: 'flex', alignItems: 'center' }}>{row}</div>
-                {dayLabels.map((_, ci) => {
+                {dayLabels.map((dayInfo, ci) => {
                   const p = placed.find(x => x.row === ri && x.col === ci);
                   let bg = 'var(--paper)', bd = 'var(--rule)', fg = 'var(--ink)';
                   if (p) {
@@ -99,22 +111,44 @@ export default function FitView({
                     else if (p.kind === 'light') { bg = 'var(--sage-pale)'; bd = 'var(--sage)'; }
                     else { bg = 'var(--paper)'; bd = 'var(--ink-mute)'; }
                   }
+                  const onCellClick = () => {
+                    if (p && onEdit) {
+                      onEdit(p.id);
+                      return;
+                    }
+                    const rowKey = rowLabels[ri] || 'deep';
+                    const [startTime, endTime] = ROW_DEFAULT_TIMES[rowKey] || ['09:00', '10:00'];
+                    setCellDraft({
+                      date: dayInfo.date,
+                      startTime,
+                      endTime,
+                      slotType: rowKey,
+                      label: '',
+                    });
+                    setSlotComposerOpen(false);
+                  };
                   return (
-                    <div key={ci} style={{
-                      border: `1px ${p ? 'solid' : 'dashed'} ${bd}`,
-                      background: bg,
-                      color: fg,
-                      borderRadius: 6,
-                      minHeight: 44,
-                      padding: '6px 8px',
-                      fontSize: 17,
-                      fontStyle: p ? 'italic' : 'normal',
-                      lineHeight: 1.05,
-                      display: 'flex',
-                      alignItems: 'center',
-                      position: 'relative',
-                    }}>
-                      {p ? p.label : <span style={{ color: 'var(--ink-mute)', fontFamily: 'JetBrains Mono', fontSize: 10 }}>—</span>}
+                    <div
+                      key={ci}
+                      onClick={onCellClick}
+                      title={p ? 'click to edit task' : `click to add a ${rowLabels[ri] || 'block'} on ${dayInfo.label}`}
+                      style={{
+                        border: `1px ${p ? 'solid' : 'dashed'} ${bd}`,
+                        background: bg,
+                        color: fg,
+                        borderRadius: 6,
+                        minHeight: 44,
+                        padding: '6px 8px',
+                        fontSize: 17,
+                        fontStyle: p ? 'italic' : 'normal',
+                        lineHeight: 1.05,
+                        display: 'flex',
+                        alignItems: 'center',
+                        position: 'relative',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {p ? p.label : <span style={{ color: 'var(--ink-mute)', fontFamily: 'JetBrains Mono', fontSize: 10 }}>+ add</span>}
                       {p?.kind === 'now' && (
                         <span className="tm-mono" style={{ position: 'absolute', top: -8, right: 4, background: 'var(--paper)', padding: '0 4px', color: 'var(--orange)', border: '1px solid var(--orange)', borderRadius: 3, fontSize: 9 }}>now</span>
                       )}
@@ -131,21 +165,31 @@ export default function FitView({
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             className="tm-btn tm-primary tm-sm"
-            onClick={() => setSlotComposerOpen(v => !v)}
+            onClick={() => {
+              setCellDraft(null);
+              setSlotComposerOpen(v => !v);
+            }}
           >
             {slotComposerOpen ? 'close' : '+ time block'}
           </button>
           <button className="tm-btn tm-sm" onClick={() => onNavigate('wheel')}>day shape</button>
+          <button className="tm-btn tm-sm" onClick={() => onNavigate('calendar')}>month / year</button>
           <button className="tm-btn tm-sm" onClick={() => onNavigate('gauge')}>back to today</button>
+          <span className="tm-mono tm-sm" style={{ marginLeft: 'auto', color: 'var(--ink-mute)' }}>
+            click a cell to edit a task or add a block
+          </span>
         </div>
-        {slotComposerOpen && (
+        {(slotComposerOpen || cellDraft) && (
           <div style={{ marginTop: 10 }}>
             <SlotComposer
+              initial={cellDraft || undefined}
+              taskTypes={taskTypes}
               onSave={async (data) => {
                 await api.slots.add(data);
                 setSlotComposerOpen(false);
+                setCellDraft(null);
               }}
-              onCancel={() => setSlotComposerOpen(false)}
+              onCancel={() => { setSlotComposerOpen(false); setCellDraft(null); }}
             />
           </div>
         )}

@@ -182,9 +182,9 @@ function GaugeSvg({ angle, load }) {
       <path d={arcPath(0, 120)} stroke="var(--ink)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
       {ticks}
 
-      <text x="55" y="210" fontFamily="Caveat" fontSize="20" fill="var(--sage)" fontStyle="italic">room</text>
+      <text x="10" y="210" fontFamily="Caveat" fontSize="20" fill="var(--sage)" fontStyle="italic" textAnchor="start">free as a bird</text>
       <text x="200" y="25" fontFamily="Caveat" fontSize="20" fill="var(--sand)" fontStyle="italic" textAnchor="middle">tight</text>
-      <text x="345" y="210" fontFamily="Caveat" fontSize="20" fill="var(--orange)" fontStyle="italic">overflow</text>
+      <text x="390" y="210" fontFamily="Caveat" fontSize="20" fill="var(--orange)" fontStyle="italic" textAnchor="end">busy as a bee</text>
 
       <g style={{ transformOrigin: `${cx}px ${cy}px`, transform: `rotate(${angle}deg)`, transition: 'transform .7s cubic-bezier(.34,1.56,.64,1)' }}>
         <line x1={cx} y1={cy} x2={cx + r * 0.88} y2={cy} stroke="var(--orange)" strokeWidth="3" strokeLinecap="round" />
@@ -207,7 +207,7 @@ function PressureBars({ days }) {
     <div>
       <div style={{ position: 'relative', height: 100, display: 'flex', alignItems: 'flex-end', gap: 6 }}>
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: (100 / max) * 100, height: 0, borderTop: '1.5px dashed var(--orange)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', right: 0, bottom: (100 / max) * 100 + 2 }} className="tm-mono">overflow</div>
+        <div style={{ position: 'absolute', right: 0, bottom: (100 / max) * 100 + 2 }} className="tm-mono">busy line</div>
         {days.map((d, i) => {
           const h = Math.min(max, d.h) / max * 100;
           const bg = d.now ? 'var(--ink)' : (d.hot ? 'var(--orange)' : 'var(--sage-pale)');

@@ -47,6 +47,7 @@ export function useTaskometerAPI() {
     const tasks = state.tasks || [];
     const slots = state.slots || [];
     const date = now;
+    const settings = state.settings || {};
 
     return {
       load: deriveLoad({ tasks, slots, date }),
@@ -60,8 +61,11 @@ export function useTaskometerAPI() {
       backlog: deriveBacklog({ tasks, limit: 10 }),
       weekFit: deriveWeekFit({ tasks, slots, today: date }),
       stats: deriveStats({ tasks, date }),
+      wheels: settings.wheels || [],
+      dayAssignments: settings.dayAssignments || {},
+      dayOverrides: settings.dayOverrides || {},
     };
-  }, [state.tasks, state.slots, now]);
+  }, [state.tasks, state.slots, state.settings, now]);
 
   return { state, api, derived };
 }

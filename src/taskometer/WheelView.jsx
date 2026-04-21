@@ -1,6 +1,17 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { TaskRow } from './shared.jsx';
-import { SlotComposer, TaskRowEditor } from './Composers.jsx';
+import {
+  SlotComposer,
+  SlotTypeManager,
+  TaskRowEditor,
+  getEffectiveTypes,
+  resolveTypeColor,
+} from './Composers.jsx';
+
+const SNAP_MIN = 15;          // snap resolution in minutes
+const DEFAULT_LEN_MIN = 60;   // length for click-to-create
+const MIN_LEN_MIN = 15;       // smallest allowed arc
+const DAY_MIN = 24 * 60;
 
 export default function WheelView({
   wedges,
@@ -8,30 +19,33 @@ export default function WheelView({
   upcoming,
   pushed,
   slots = [],
+  taskTypes = [],
+  dayOverrides = {},
   api,
   rowHandlers = {},
   onNavigate,
+  onOpenWheels,
 }) {
   const { onToggle, onDelete, onEdit, onSaveEdit, editingTaskId } = rowHandlers;
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingSlotId, setEditingSlotId] = useState(null);
+  const [typeMgrOpen, setTypeMgrOpen] = useState(false);
+  const [draftSlot, setDraftSlot] = useState(null);
 
   const now = new Date();
   const nowHour = now.getHours() + now.getMinutes() / 60;
+
+  // Use live-derived wedges only for .current/.count annotations.
   const currentWedge = wedges.find(w => w.current);
   const currentLabel = currentWedge
-    ? `now · ${currentWedge.label} · ${fmtHr(currentWedge.start)}–${fmtHr(currentWedge.end)}`
+    ? `now · ${currentWedge.label} · ${fmtHr(currentWedge.start)}–${fmtHr(currentWedge.end % 24)}`
     : `now · ${fmtHr(nowHour)}`;
 
   const nowTaskRow = nowTask ? toRow(nowTask, { now: true }) : null;
   const upcomingRows = (upcoming || []).map(t => toRow(t));
   const pushedRows = (pushed || []).map(t => toRow(t, { pushed: true }));
 
-  const rowProps = (t) => ({
-    onToggle,
-    onEdit,
-    onDelete,
-  });
+  const rowProps = () => ({ onToggle, onEdit, onDelete });
 
   const renderTaskEntry = (t, source) => {
     const id = t.id;
@@ -44,15 +58,18 @@ export default function WheelView({
             onSave={(updates) => onSaveEdit && onSaveEdit(id, updates)}
             onCancel={() => onEdit && onEdit(id)}
             onDelete={() => onDelete && onDelete(id)}
+            taskTypes={taskTypes}
           />
         </div>
       );
     }
-    return <TaskRow key={id} task={t} {...rowProps(t)} />;
+    return <TaskRow key={id} task={t} {...rowProps()} />;
   };
 
+  const todayKey = todayYMD();
+  const todayOverride = dayOverrides[todayKey] || null;
   const todaySlots = slots
-    .filter(s => s?.date === todayYMD())
+    .filter(s => s?.date === todayKey)
     .slice()
     .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
@@ -60,10 +77,186 @@ export default function WheelView({
     ? todaySlots.find(s => s.id === editingSlotId)
     : null;
 
+  const handleWedgeCommit = useCallback(async (id, { startMin, endMinUnwrapped }) => {
+    const startTime = minToHHMM(startMin);
+    const endTime = minToHHMM(endMinUnwrapped % DAY_MIN === 0 && endMinUnwrapped !== 0 ? 0 : endMinUnwrapped % DAY_MIN);
+    await api.slots.update(id, { startTime, endTime });
+  }, [api]);
+
+  const handleWedgeClick = useCallback((id) => {
+    setEditingSlotId(id);
+    setComposerOpen(false);
+    setDraftSlot(null);
+  }, []);
+
+  const handleEmptyHourClick = useCallback((hourFloat) => {
+    const startMin = snapMin(Math.round(hourFloat * 60));
+    const endMin = Math.min(DAY_MIN, startMin + DEFAULT_LEN_MIN);
+    setDraftSlot({
+      date: todayKey,
+      startTime: minToHHMM(startMin),
+      endTime: minToHHMM(endMin % DAY_MIN),
+      label: '',
+    });
+    setEditingSlotId(null);
+    setComposerOpen(true);
+  }, [todayKey]);
+
+  const handleAddFromButton = useCallback(() => {
+    // find first free gap of >= DEFAULT_LEN_MIN, else propose 09:00-10:00
+    const gap = findFirstFreeGap(todaySlots, DEFAULT_LEN_MIN);
+    const startMin = gap ? gap.startMin : 9 * 60;
+    const endMin = gap ? gap.endMin : 10 * 60;
+    setDraftSlot({
+      date: todayKey,
+      startTime: minToHHMM(startMin),
+      endTime: minToHHMM(endMin % DAY_MIN),
+      label: '',
+    });
+    setEditingSlotId(null);
+    setComposerOpen(true);
+  }, [todaySlots, todayKey]);
+
+  const closeComposer = () => {
+    setComposerOpen(false);
+    setEditingSlotId(null);
+    setDraftSlot(null);
+  };
+
+  const handleSplit = async () => {
+    if (!editingSlot) return;
+    const startMin = hhmmToMin(editingSlot.startTime);
+    const endRaw = hhmmToMin(editingSlot.endTime);
+    const endMin = endRaw <= startMin ? endRaw + DAY_MIN : endRaw;
+    const midMin = snapMin(Math.round((startMin + endMin) / 2));
+    if (midMin - startMin < MIN_LEN_MIN || endMin - midMin < MIN_LEN_MIN) return;
+
+    await api.slots.update(editingSlot.id, {
+      endTime: minToHHMM(midMin % DAY_MIN),
+    });
+    await api.slots.add({
+      date: editingSlot.date,
+      startTime: minToHHMM(midMin % DAY_MIN),
+      endTime: minToHHMM(endMin % DAY_MIN),
+      slotType: editingSlot.slotType,
+      label: editingSlot.label,
+      color: editingSlot.color,
+    });
+    setEditingSlotId(null);
+  };
+
+  const findMergeTarget = () => {
+    if (!editingSlot) return null;
+    const sMin = hhmmToMin(editingSlot.startTime);
+    const eRaw = hhmmToMin(editingSlot.endTime);
+    const eMin = eRaw <= sMin ? eRaw + DAY_MIN : eRaw;
+    // candidate: a slot whose startTime == editingSlot.endTime (adjacent after)
+    // or whose endTime == editingSlot.startTime (adjacent before)
+    const after = todaySlots.find(s => {
+      if (s.id === editingSlot.id) return false;
+      const ss = hhmmToMin(s.startTime);
+      return ss === eMin % DAY_MIN;
+    });
+    if (after) return { neighbor: after, direction: 'after' };
+    const before = todaySlots.find(s => {
+      if (s.id === editingSlot.id) return false;
+      const se = hhmmToMin(s.endTime);
+      return se === sMin;
+    });
+    if (before) return { neighbor: before, direction: 'before' };
+    return null;
+  };
+
+  const handleMerge = async () => {
+    if (!editingSlot) return;
+    const target = findMergeTarget();
+    if (!target) return;
+    const { neighbor, direction } = target;
+    const newStart = direction === 'before' ? neighbor.startTime : editingSlot.startTime;
+    const newEnd = direction === 'before' ? editingSlot.endTime : neighbor.endTime;
+    await api.slots.update(editingSlot.id, { startTime: newStart, endTime: newEnd });
+    await api.slots.remove(neighbor.id);
+    setEditingSlotId(null);
+  };
+
+  const handleNudgeEdge = useCallback(async (slotId, which, deltaMin) => {
+    const slot = todaySlots.find(s => s.id === slotId);
+    if (!slot) return;
+    const sMin = hhmmToMin(slot.startTime);
+    const eRaw = hhmmToMin(slot.endTime);
+    const eMin = eRaw <= sMin ? eRaw + DAY_MIN : eRaw;
+    if (which === 'start') {
+      const newStart = clamp(sMin + deltaMin, 0, eMin - MIN_LEN_MIN);
+      await api.slots.update(slotId, { startTime: minToHHMM(newStart) });
+    } else {
+      const newEnd = Math.max(sMin + MIN_LEN_MIN, Math.min(sMin + DAY_MIN, eMin + deltaMin));
+      await api.slots.update(slotId, { endTime: minToHHMM(newEnd % DAY_MIN) });
+    }
+  }, [todaySlots, api]);
+
+  const mergeTarget = findMergeTarget();
+
   return (
     <div className="tm-fade-up tm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 28, alignItems: 'start' }}>
+      {todayOverride && (
+        <div
+          style={{
+            gridColumn: '1 / -1',
+            padding: '10px 14px',
+            borderRadius: 10,
+            border: `1.5px solid ${todayOverride.color || 'var(--ink-mute)'}`,
+            background: hexAlpha(todayOverride.color || '#94A3B8', 0.18),
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span
+            className="tm-mono tm-md"
+            style={{
+              letterSpacing: '.14em',
+              textTransform: 'uppercase',
+              color: todayOverride.color || 'var(--ink-mute)',
+              fontWeight: 700,
+            }}
+          >
+            today · {todayOverride.type}
+          </span>
+          <span className="tm-caveat" style={{ fontSize: 22 }}>{todayOverride.label || todayOverride.type}</span>
+          {todayOverride.note && (
+            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{todayOverride.note}</span>
+          )}
+          <button
+            className="tm-btn tm-sm"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => api.days.clearOverride(todayKey)}
+          >
+            clear override
+          </button>
+        </div>
+      )}
       <div style={{ position: 'relative' }}>
-        <WheelSvg wedges={wedges} nowHour={nowHour} stats={computeStats(nowTask, upcoming, pushed)} />
+        <WheelSvg
+          wedges={wedges}
+          slots={todaySlots}
+          taskTypes={taskTypes}
+          nowHour={nowHour}
+          stats={computeStats(nowTask, upcoming, pushed)}
+          onWedgeCommit={handleWedgeCommit}
+          onWedgeClick={handleWedgeClick}
+          onEmptyHourClick={handleEmptyHourClick}
+          onNudgeEdge={handleNudgeEdge}
+          editingSlotId={editingSlotId}
+        />
+        {todaySlots.length === 0 && (
+          <div className="tm-wheel-empty">
+            <div className="tm-caveat" style={{ fontSize: 24, marginBottom: 4 }}>tap the ring to drop a block</div>
+            <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)' }}>
+              or use <span className="tm-mono" style={{ color: 'var(--orange)' }}>+ time block</span> below
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ paddingTop: 8 }}>
@@ -95,17 +288,32 @@ export default function WheelView({
           </span>
           <button
             className="tm-btn tm-primary tm-sm"
-            onClick={() => { setComposerOpen(v => !v); setEditingSlotId(null); }}
+            onClick={() => {
+              if (composerOpen || editingSlot) closeComposer();
+              else handleAddFromButton();
+            }}
           >
-            {composerOpen ? 'close' : '+ time block'}
+            {(composerOpen || editingSlot) ? 'close' : '+ time block'}
           </button>
+          <button className="tm-btn tm-sm" onClick={() => setTypeMgrOpen(true)}>types</button>
+          {onOpenWheels && (
+            <button className="tm-btn tm-sm" onClick={onOpenWheels} title="save this day as a wheel, or apply one">
+              wheels
+            </button>
+          )}
           <button className="tm-btn tm-sm" onClick={() => onNavigate('fit')}>week view</button>
+          <button className="tm-btn tm-sm" onClick={() => onNavigate('calendar')}>calendar</button>
+          <span className="tm-mono tm-sm" style={{ marginLeft: 'auto', color: 'var(--ink-mute)' }}>
+            drag wedge · drag handle · hover handle for ±15m · click empty ring to add
+          </span>
         </div>
 
         {(composerOpen || editingSlot) && (
           <div style={{ marginTop: 10 }}>
             <SlotComposer
-              initial={editingSlot || undefined}
+              initial={editingSlot || draftSlot || undefined}
+              taskTypes={taskTypes}
+              onOpenTypeManager={() => setTypeMgrOpen(true)}
               onSave={async (data) => {
                 if (editingSlot) {
                   await api.slots.update(editingSlot.id, data);
@@ -113,40 +321,80 @@ export default function WheelView({
                 } else {
                   await api.slots.add(data);
                   setComposerOpen(false);
+                  setDraftSlot(null);
                 }
               }}
-              onCancel={() => { setComposerOpen(false); setEditingSlotId(null); }}
+              onCancel={closeComposer}
               onDelete={editingSlot ? async () => {
                 await api.slots.remove(editingSlot.id);
                 setEditingSlotId(null);
               } : undefined}
+              extraActions={editingSlot ? (
+                <>
+                  <button
+                    className="tm-btn tm-sm"
+                    onClick={handleSplit}
+                    title="split this block in half"
+                  >
+                    split
+                  </button>
+                  {mergeTarget && (
+                    <button
+                      className="tm-btn tm-sm"
+                      onClick={handleMerge}
+                      title={`merge with the adjacent block (${mergeTarget.direction})`}
+                    >
+                      merge {mergeTarget.direction === 'before' ? '←' : '→'}
+                    </button>
+                  )}
+                </>
+              ) : null}
             />
           </div>
         )}
 
         {todaySlots.length > 0 && (
           <div className="tm-slot-list">
-            {todaySlots.map(s => (
-              <div key={s.id} className="tm-slot-row">
-                <span className="tm-slot-label">{s.label || s.slotType || 'block'}</span>
-                <span className="tm-slot-time">{s.startTime}–{s.endTime}</span>
-                {s.slotType && (
-                  <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{s.slotType}</span>
-                )}
-                <button
-                  className="tm-btn tm-sm"
-                  onClick={() => { setEditingSlotId(s.id); setComposerOpen(false); }}
-                >
-                  edit
-                </button>
-              </div>
-            ))}
+            {todaySlots.map(s => {
+              const color = s.color || resolveTypeColor(taskTypes, s.slotType);
+              const overnight = isOvernightSlot(s);
+              return (
+                <div key={s.id} className={`tm-slot-row${editingSlotId === s.id ? ' tm-slot-row-active' : ''}`}>
+                  {color && <span className="tm-slot-dot" style={{ background: color }} />}
+                  <span className="tm-slot-label">{s.label || s.slotType || 'block'}</span>
+                  <span className="tm-slot-time">
+                    {s.startTime}–{s.endTime}{overnight ? ' (+1d)' : ''}
+                  </span>
+                  {s.slotType && (
+                    <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{s.slotType}</span>
+                  )}
+                  <button
+                    className="tm-btn tm-sm"
+                    onClick={() => { setEditingSlotId(s.id); setComposerOpen(false); setDraftSlot(null); }}
+                  >
+                    edit
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
+
+      {typeMgrOpen && (
+        <SlotTypeManager
+          taskTypes={taskTypes}
+          api={api}
+          onClose={() => setTypeMgrOpen(false)}
+        />
+      )}
     </div>
   );
 }
+
+// -------------------------------------------------------------------------
+// Helpers
+// -------------------------------------------------------------------------
 
 function todayYMD() {
   const d = new Date();
@@ -198,9 +446,81 @@ function computeStats(nowTask, upcoming, pushed) {
   return { total, done, pushed: pushed?.length || 0 };
 }
 
-function WheelSvg({ wedges, nowHour, stats }) {
+function hhmmToMin(s) {
+  if (!s) return 0;
+  const [h, m] = s.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function minToHHMM(min) {
+  const m = ((Math.round(min) % DAY_MIN) + DAY_MIN) % DAY_MIN;
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${pad(h)}:${pad(mm)}`;
+}
+
+function pad(n) { return n < 10 ? `0${n}` : `${n}`; }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function snapMin(min) { return Math.round(min / SNAP_MIN) * SNAP_MIN; }
+
+function isOvernightSlot(slot) {
+  return hhmmToMin(slot.endTime) <= hhmmToMin(slot.startTime);
+}
+
+function slotSpan(slot) {
+  const sMin = hhmmToMin(slot.startTime);
+  const eRaw = hhmmToMin(slot.endTime);
+  const eMin = eRaw <= sMin ? eRaw + DAY_MIN : eRaw;
+  return { sMin, eMin };
+}
+
+function findFirstFreeGap(slots, lengthMin) {
+  // Produces the first gap of at least lengthMin after 00:00. Ignores overnight slots' second half.
+  const occupied = slots
+    .map(s => slotSpan(s))
+    .map(({ sMin, eMin }) => [sMin, Math.min(DAY_MIN, eMin)])
+    .sort((a, b) => a[0] - b[0]);
+
+  let cursor = 0;
+  for (const [os, oe] of occupied) {
+    if (os - cursor >= lengthMin) {
+      return { startMin: cursor, endMin: cursor + lengthMin };
+    }
+    cursor = Math.max(cursor, oe);
+  }
+  if (DAY_MIN - cursor >= lengthMin) {
+    return { startMin: cursor, endMin: cursor + lengthMin };
+  }
+  return null;
+}
+
+// -------------------------------------------------------------------------
+// Interactive wheel SVG
+// -------------------------------------------------------------------------
+
+function WheelSvg({
+  wedges,
+  slots,
+  taskTypes,
+  nowHour,
+  stats,
+  onWedgeCommit,
+  onWedgeClick,
+  onEmptyHourClick,
+  onNudgeEdge,
+  editingSlotId,
+}) {
   const cx = 220, cy = 220, rOuter = 200, rInner = 78;
   const labelR = (rOuter + rInner) / 2;
+  const svgRef = useRef(null);
+
+  const [drag, setDrag] = useState(null);
+  const dragRef = useRef(null);
+  useEffect(() => { dragRef.current = drag; }, [drag]);
+
+  const [hoverHandle, setHoverHandle] = useState(null); // {slotId, which}
+
+  const wedgeById = (id) => wedges.find(w => w.id === id);
 
   const ang = (h) => (h / 24) * 360 - 90;
   const polar = (h, r) => {
@@ -208,12 +528,16 @@ function WheelSvg({ wedges, nowHour, stats }) {
     return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
   };
 
-  const wedgePath = (start, end) => {
-    const [x0, y0] = polar(start, rOuter);
-    const [x1, y1] = polar(end, rOuter);
-    const [x2, y2] = polar(end, rInner);
-    const [x3, y3] = polar(start, rInner);
-    const large = (end - start) > 12 ? 1 : 0;
+  const wedgePath = (startH, endH) => {
+    // arc from startH to endH; clip into [0,24]; caller handles splitting overnight
+    const sH = Math.max(0, startH);
+    const eH = Math.min(24, endH);
+    if (eH <= sH) return '';
+    const [x0, y0] = polar(sH, rOuter);
+    const [x1, y1] = polar(eH, rOuter);
+    const [x2, y2] = polar(eH, rInner);
+    const [x3, y3] = polar(sH, rInner);
+    const large = (eH - sH) > 12 ? 1 : 0;
     return `M${x0} ${y0} A${rOuter} ${rOuter} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${rInner} ${rInner} 0 ${large} 0 ${x3} ${y3} Z`;
   };
 
@@ -224,62 +548,448 @@ function WheelSvg({ wedges, nowHour, stats }) {
     hourTicks.push(<line key={h} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--ink)" strokeWidth={h % 6 === 0 ? 1.6 : 1} />);
   }
 
-  const fillFor = (k, cur) => {
-    if (cur) return 'var(--orange-pale)';
-    if (k === 'hot') return 'var(--orange-pale)';
-    if (k === 'light') return 'var(--sage-pale)';
-    if (k === 'rest') return '#EAE4DA';
-    if (k === 'soft') return '#F3EFE5';
+  const fillFor = (slot, wedge) => {
+    const typeColor = slot.color || resolveTypeColor(taskTypes, slot.slotType);
+    if (typeColor) return hexWithAlpha(typeColor, 0.28);
+    if (wedge?.current) return 'var(--orange-pale)';
+    if (wedge?.kind === 'hot') return 'var(--orange-pale)';
+    if (wedge?.kind === 'light') return 'var(--sage-pale)';
+    if (wedge?.kind === 'rest') return '#EAE4DA';
+    if (wedge?.kind === 'soft') return '#F3EFE5';
     return 'var(--paper)';
   };
 
+  const strokeFor = (slot, wedge, isCurrent, isEditing) => {
+    if (isEditing) return 'var(--orange)';
+    const typeColor = slot.color || resolveTypeColor(taskTypes, slot.slotType);
+    if (typeColor && !isCurrent) return typeColor;
+    return isCurrent ? 'var(--ink)' : 'var(--rule)';
+  };
+
+  const pointerToHour = (ev) => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    const scale = rect.width / 440;
+    const sx = rect.left + (cx / 440) * rect.width;
+    const sy = rect.top + (cy / 440) * rect.height;
+    const dx = ev.clientX - sx;
+    const dy = ev.clientY - sy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const rInnerPx = rInner * scale;
+    const rOuterPx = rOuter * scale;
+    const angleFromTop = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+    const normalized = ((angleFromTop % 360) + 360) % 360;
+    const hour = (normalized / 360) * 24;
+    return { hour, dist, rInnerPx, rOuterPx };
+  };
+
+  // Snap a raw pointer "min" value to the interpretation closest to `near`.
+  // Allows handles to wrap across midnight without jumping half a day.
+  const nearestMin = (rawMin, near) => {
+    const candidates = [rawMin, rawMin + DAY_MIN, rawMin - DAY_MIN, rawMin + 2 * DAY_MIN];
+    let best = rawMin, bestDist = Infinity;
+    for (const c of candidates) {
+      const d = Math.abs(c - near);
+      if (d < bestDist) { bestDist = d; best = c; }
+    }
+    return best;
+  };
+
+  const commitDrag = useCallback(async (d) => {
+    if (!d) return;
+    await onWedgeCommit(d.id, {
+      startMin: ((d.startMin % DAY_MIN) + DAY_MIN) % DAY_MIN,
+      endMinUnwrapped: d.endMin,
+    });
+  }, [onWedgeCommit]);
+
+  useEffect(() => {
+    if (!drag) return undefined;
+
+    const move = (ev) => {
+      const info = pointerToHour(ev);
+      if (!info) return;
+      const rawMin = snapMin(Math.round(info.hour * 60));
+      setDrag(prev => {
+        if (!prev) return prev;
+        if (prev.mode === 'start') {
+          const snapped = nearestMin(rawMin, prev.origStartMin);
+          const maxStart = prev.endMin - MIN_LEN_MIN;
+          const minStart = prev.endMin - DAY_MIN + MIN_LEN_MIN;
+          const s = clamp(snapped, minStart, maxStart);
+          return { ...prev, startMin: s };
+        }
+        if (prev.mode === 'end') {
+          const snapped = nearestMin(rawMin, prev.origEndMin);
+          const minEnd = prev.startMin + MIN_LEN_MIN;
+          const maxEnd = prev.startMin + DAY_MIN;
+          const e = clamp(snapped, minEnd, maxEnd);
+          return { ...prev, endMin: e };
+        }
+        // move: shift by delta; wrap origin too so wedge can cross midnight
+        const snapped = nearestMin(rawMin, prev.originMin);
+        const delta = snapped - prev.originMin;
+        const length = prev.origEndMin - prev.origStartMin;
+        const s = prev.origStartMin + delta;
+        const e = s + length;
+        return { ...prev, startMin: s, endMin: e };
+      });
+    };
+
+    const up = () => {
+      const current = dragRef.current;
+      setDrag(null);
+      if (current) commitDrag(current);
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag?.id, drag?.mode]);
+
+  const onWedgePointerDown = (ev, slot) => {
+    if (ev.button !== 0) return;
+    ev.stopPropagation();
+    ev.preventDefault();
+    try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch (_) {}
+    const info = pointerToHour(ev);
+    if (!info) return;
+    const { sMin, eMin } = slotSpan(slot);
+    const origin = snapMin(Math.round(info.hour * 60));
+    // If origin is outside the current span, shift to nearest representation
+    const originInSpan = nearestMin(origin, (sMin + eMin) / 2);
+    setDrag({
+      id: slot.id,
+      mode: 'move',
+      originMin: originInSpan,
+      startMin: sMin,
+      endMin: eMin,
+      origStartMin: sMin,
+      origEndMin: eMin,
+    });
+  };
+
+  const onHandlePointerDown = (ev, slot, which) => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch (_) {}
+    const info = pointerToHour(ev);
+    if (!info) return;
+    const { sMin, eMin } = slotSpan(slot);
+    const raw = snapMin(Math.round(info.hour * 60));
+    const near = which === 'start' ? sMin : eMin;
+    const origin = nearestMin(raw, near);
+    setDrag({
+      id: slot.id,
+      mode: which,
+      originMin: origin,
+      startMin: sMin,
+      endMin: eMin,
+      origStartMin: sMin,
+      origEndMin: eMin,
+    });
+  };
+
+  const onRingPointerDown = (ev) => {
+    const info = pointerToHour(ev);
+    if (!info) return;
+    if (info.dist < info.rInnerPx || info.dist > info.rOuterPx) return;
+    onEmptyHourClick(info.hour);
+  };
+
+  // Compute render geometry (use live drag values when active)
+  const renderGeom = slots.map(slot => {
+    const isDraggingThis = drag && drag.id === slot.id;
+    const { sMin: baseS, eMin: baseE } = slotSpan(slot);
+    const startMin = isDraggingThis ? drag.startMin : baseS;
+    const endMin = isDraggingThis ? drag.endMin : baseE;
+    const startH = startMin / 60;
+    const endH = endMin / 60;
+    const wedge = wedgeById(slot.id);
+    const isCurrent = wedge?.current && !isDraggingThis;
+    const isEditing = editingSlotId === slot.id;
+    return { slot, wedge, startMin, endMin, startH, endH, isCurrent, isEditing, isDragging: isDraggingThis };
+  });
+
   const [nxEnd, nyEnd] = polar(nowHour, rOuter - 4);
 
+  // Render wedge paths allowing overnight split (start<0 or end>24)
+  const renderWedgeShape = (startH, endH, fill, stroke, strokeW, slotId, onDown, onClick) => {
+    // Normalize so startH falls in [0, 24). Compute up to two visible segments.
+    const raw = [];
+    let s = startH, e = endH;
+    // Shift into a frame where start is in [0, 24)
+    const shift = Math.floor(s / 24);
+    s -= shift * 24;
+    e -= shift * 24;
+    // Now s in [0,24). Segment 1: [s, min(24, e)].
+    raw.push([s, Math.min(24, e)]);
+    if (e > 24) raw.push([0, e - 24]);
+    if (e < 0) raw.push([e + 24, 24]);
+
+    return raw.map((seg, i) => {
+      const path = wedgePath(seg[0], seg[1]);
+      if (!path) return null;
+      return (
+        <path
+          key={`${slotId}-seg${i}`}
+          d={path}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={strokeW}
+          onPointerDown={onDown}
+          onClick={onClick}
+          style={{ cursor: drag ? 'grabbing' : 'grab' }}
+        />
+      );
+    });
+  };
+
   return (
-    <svg width="100%" height="460" viewBox="0 0 440 440" style={{ maxWidth: 460 }}>
-      {wedges.map((w, i) => {
-        const [lx, ly] = polar((w.start + w.end) / 2, labelR);
-        const isCurrent = w.current;
+    <svg
+      ref={svgRef}
+      width="100%"
+      height="460"
+      viewBox="0 0 440 440"
+      style={{ maxWidth: 460, touchAction: 'none', userSelect: 'none' }}
+    >
+      <circle
+        cx={cx}
+        cy={cy}
+        r={rOuter}
+        fill="var(--paper)"
+        stroke="none"
+        onPointerDown={onRingPointerDown}
+        style={{ cursor: 'crosshair' }}
+      />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={rInner}
+        fill="var(--paper)"
+        stroke="none"
+      />
+
+      {renderGeom.map(({ slot, wedge, startH, endH, startMin, endMin, isCurrent, isEditing, isDragging }) => {
+        const label = slot.label || slot.slotType || 'block';
+        const stroke = strokeFor(slot, wedge, isCurrent, isEditing);
+        const strokeW = isEditing || isDragging ? 2.6 : isCurrent ? 2.2 : 1;
+        const fill = fillFor(slot, wedge);
+        const midH = (startH + endH) / 2;
+        const [lx, ly] = polar(((midH % 24) + 24) % 24, labelR);
+
+        // Handles: always place on [0, 24) frame
+        const sNorm = ((startMin % DAY_MIN) + DAY_MIN) % DAY_MIN / 60;
+        const eNorm = ((endMin % DAY_MIN) + DAY_MIN) % DAY_MIN / 60;
+        const [sxH, syH] = polar(sNorm, (rOuter + rInner) / 2);
+        const [exH, eyH] = polar(eNorm === 0 && endMin !== 0 ? 24 : eNorm, (rOuter + rInner) / 2);
+        const isOvernight = endMin > DAY_MIN;
+
         return (
-          <g key={w.id || i}>
-            <path d={wedgePath(w.start, w.end)} fill={fillFor(w.kind, isCurrent)}
-              stroke={isCurrent ? 'var(--ink)' : 'var(--rule)'}
-              strokeWidth={isCurrent ? 2.2 : 1} />
-            <text x={lx} y={ly - 2} fontFamily="Caveat" fontSize={isCurrent ? 22 : 18}
-              fill="var(--ink)" textAnchor="middle"
-              fontStyle={isCurrent ? 'italic' : 'normal'}
-              fontWeight={isCurrent ? 600 : 400}>
-              {w.label}
+          <g key={slot.id}>
+            {renderWedgeShape(
+              startH,
+              endH,
+              fill,
+              stroke,
+              strokeW,
+              slot.id,
+              (ev) => onWedgePointerDown(ev, slot),
+              (ev) => { ev.stopPropagation(); if (!isDragging) onWedgeClick(slot.id); }
+            )}
+            {isOvernight && (
+              // faint connector text
+              <text
+                x={cx}
+                y={cy + 48}
+                fontFamily="JetBrains Mono"
+                fontSize="9"
+                fill="var(--ink-mute)"
+                textAnchor="middle"
+                style={{ pointerEvents: 'none' }}
+              >
+                {label} crosses midnight
+              </text>
+            )}
+            <text
+              x={lx}
+              y={ly - 2}
+              fontFamily="Caveat"
+              fontSize={isCurrent || isEditing ? 22 : 18}
+              fill="var(--ink)"
+              textAnchor="middle"
+              fontStyle={isCurrent || isEditing ? 'italic' : 'normal'}
+              fontWeight={isCurrent || isEditing ? 600 : 400}
+              style={{ pointerEvents: 'none' }}
+            >
+              {label}
             </text>
-            {w.count ? (
-              <text x={lx} y={ly + 14} fontFamily="JetBrains Mono" fontSize="10"
-                fill="var(--ink-mute)" textAnchor="middle">
-                {w.count} task{w.count > 1 ? 's' : ''}
+            {wedge?.count ? (
+              <text
+                x={lx}
+                y={ly + 14}
+                fontFamily="JetBrains Mono"
+                fontSize="10"
+                fill="var(--ink-mute)"
+                textAnchor="middle"
+                style={{ pointerEvents: 'none' }}
+              >
+                {wedge.count} task{wedge.count > 1 ? 's' : ''}
               </text>
             ) : null}
+
+            {/* resize handles with hover ±15m nudge buttons */}
+            <HandleWithNudge
+              cx={sxH}
+              cy={syH}
+              slotId={slot.id}
+              which="start"
+              hover={hoverHandle}
+              setHover={setHoverHandle}
+              onDown={(ev) => onHandlePointerDown(ev, slot, 'start')}
+              onNudge={onNudgeEdge}
+            />
+            <HandleWithNudge
+              cx={exH}
+              cy={eyH}
+              slotId={slot.id}
+              which="end"
+              hover={hoverHandle}
+              setHover={setHoverHandle}
+              onDown={(ev) => onHandlePointerDown(ev, slot, 'end')}
+              onNudge={onNudgeEdge}
+            />
           </g>
         );
       })}
 
-      <circle cx={cx} cy={cy} r={rOuter} fill="none" stroke="var(--ink)" strokeWidth="2" />
-      <circle cx={cx} cy={cy} r={rInner} fill="var(--paper)" stroke="var(--ink)" strokeWidth="2" />
+      <circle cx={cx} cy={cy} r={rOuter} fill="none" stroke="var(--ink)" strokeWidth="2" pointerEvents="none" />
+      <circle cx={cx} cy={cy} r={rInner} fill="none" stroke="var(--ink)" strokeWidth="2" pointerEvents="none" />
       {hourTicks}
 
-      <text x={cx} y={18} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" textAnchor="middle" fontStyle="italic">12a</text>
-      <text x={cx} y={438} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" textAnchor="middle" fontStyle="italic">12p</text>
-      <text x={10} y={cy + 4} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" fontStyle="italic">6p</text>
-      <text x={420} y={cy + 4} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" fontStyle="italic">6a</text>
+      <text x={cx} y={18} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" textAnchor="middle" fontStyle="italic" pointerEvents="none">12a</text>
+      <text x={cx} y={438} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" textAnchor="middle" fontStyle="italic" pointerEvents="none">12p</text>
+      <text x={10} y={cy + 4} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" fontStyle="italic" pointerEvents="none">6p</text>
+      <text x={420} y={cy + 4} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" fontStyle="italic" pointerEvents="none">6a</text>
 
-      <line x1={cx} y1={cy} x2={nxEnd} y2={nyEnd} stroke="var(--orange)" strokeWidth="2" opacity="0.5" />
-      <circle cx={nxEnd} cy={nyEnd} r="5" fill="var(--orange)" />
+      <line x1={cx} y1={cy} x2={nxEnd} y2={nyEnd} stroke="var(--orange)" strokeWidth="2" opacity="0.5" pointerEvents="none" />
+      <circle cx={nxEnd} cy={nyEnd} r="5" fill="var(--orange)" pointerEvents="none" />
 
-      <text x={cx} y={cy - 14} fontFamily="JetBrains Mono" fontSize="10" fill="var(--ink-mute)" textAnchor="middle" letterSpacing="2">TODAY</text>
-      <text x={cx} y={cy + 10} fontFamily="Caveat" fontSize="26" fill="var(--ink)" textAnchor="middle" fontStyle="italic">
+      <text x={cx} y={cy - 14} fontFamily="JetBrains Mono" fontSize="10" fill="var(--ink-mute)" textAnchor="middle" letterSpacing="2" pointerEvents="none">TODAY</text>
+      <text x={cx} y={cy + 10} fontFamily="Caveat" fontSize="26" fill="var(--ink)" textAnchor="middle" fontStyle="italic" pointerEvents="none">
         {stats.done} of {stats.total}
       </text>
-      <text x={cx} y={cy + 28} fontFamily="JetBrains Mono" fontSize="9" fill="var(--ink-mute)" textAnchor="middle" letterSpacing="1">
+      <text x={cx} y={cy + 28} fontFamily="JetBrains Mono" fontSize="9" fill="var(--ink-mute)" textAnchor="middle" letterSpacing="1" pointerEvents="none">
         {stats.pushed} pushed
       </text>
+
+      {drag && (() => {
+        const s = ((drag.startMin % DAY_MIN) + DAY_MIN) % DAY_MIN;
+        const e = ((drag.endMin % DAY_MIN) + DAY_MIN) % DAY_MIN;
+        const crosses = drag.endMin > DAY_MIN;
+        return (
+          <g pointerEvents="none">
+            <rect x={cx - 72} y={cy + 38} width={144} height={20} rx={6} fill="var(--paper)" stroke="var(--orange)" strokeWidth="1" />
+            <text x={cx} y={cy + 52} fontFamily="JetBrains Mono" fontSize="11" fill="var(--orange)" textAnchor="middle">
+              {minToHHMM(s)}–{minToHHMM(e)}{crosses ? ' +1d' : ''}
+            </text>
+          </g>
+        );
+      })()}
     </svg>
   );
+}
+
+function HandleWithNudge({ cx, cy, slotId, which, hover, setHover, onDown, onNudge }) {
+  const isHover = hover && hover.slotId === slotId && hover.which === which;
+  const HIT_R = 36; // generous hover radius that encloses both chips
+  const enter = () => setHover({ slotId, which });
+  const leave = () => setHover(null);
+  return (
+    <g onPointerEnter={enter} onPointerLeave={leave}>
+      {/* Outer hit-area — invisible, large enough to cover the chips so the
+          hover doesn't drop when the user moves to click one. */}
+      <circle
+        cx={cx}
+        cy={cy - (isHover ? 10 : 0)}
+        r={HIT_R}
+        fill="transparent"
+        onPointerEnter={enter}
+        style={{ cursor: 'ew-resize' }}
+      />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={isHover ? 8 : 6}
+        fill={isHover ? 'var(--orange-pale)' : 'var(--paper)'}
+        stroke="var(--ink)"
+        strokeWidth="1.4"
+        style={{ cursor: 'ew-resize' }}
+        onPointerDown={onDown}
+        onPointerEnter={enter}
+      />
+      {isHover && (
+        <g onPointerEnter={enter}>
+          <NudgeChip
+            cx={cx - 20}
+            cy={cy - 20}
+            label="−15"
+            onClick={(ev) => { ev.stopPropagation(); onNudge(slotId, which, -15); }}
+          />
+          <NudgeChip
+            cx={cx + 20}
+            cy={cy - 20}
+            label="+15"
+            onClick={(ev) => { ev.stopPropagation(); onNudge(slotId, which, +15); }}
+          />
+        </g>
+      )}
+    </g>
+  );
+}
+
+function NudgeChip({ cx, cy, label, onClick }) {
+  return (
+    <g style={{ cursor: 'pointer' }} onClick={onClick} onPointerDown={(ev) => ev.stopPropagation()}>
+      <rect
+        x={cx - 14}
+        y={cy - 9}
+        width={28}
+        height={18}
+        rx={9}
+        fill="var(--paper)"
+        stroke="var(--orange)"
+        strokeWidth="1.2"
+      />
+      <text
+        x={cx}
+        y={cy + 4}
+        fontFamily="JetBrains Mono"
+        fontSize="10"
+        fill="var(--orange)"
+        textAnchor="middle"
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
+function hexWithAlpha(hex, alpha) {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function hexAlpha(hex, alpha) {
+  return hexWithAlpha(hex, alpha);
 }
