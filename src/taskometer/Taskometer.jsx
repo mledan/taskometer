@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import GaugeView from './GaugeView.jsx';
 import WheelView from './WheelView.jsx';
 import FitView from './FitView.jsx';
+import CalendarView from './CalendarView.jsx';
+import WheelsPanel from './WheelsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
 import { useTaskometerAPI } from '../services/api';
 import './taskometer.css';
@@ -10,6 +12,7 @@ const VIEW_LABELS = {
   gauge: { title: 'today', sub: 'load + pressure' },
   wheel: { title: 'wheel', sub: '24h slots' },
   fit: { title: 'fit', sub: 'week capacity' },
+  calendar: { title: 'calendar', sub: 'month · quarter · year' },
 };
 
 const DEFAULT_TWEAKS = {
@@ -34,6 +37,7 @@ export default function Taskometer() {
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [nowLabel, setNowLabel] = useState(formatNowLabel());
   const [editingTaskId, setEditingTaskId] = useState(null);
+  const [wheelsPanelOpen, setWheelsPanelOpen] = useState(false);
 
   const { state, api, derived } = useTaskometerAPI();
 
@@ -100,7 +104,7 @@ export default function Taskometer() {
       </header>
 
       <div className="tm-tabs">
-        {['gauge', 'wheel', 'fit'].map(v => (
+        {['gauge', 'wheel', 'fit', 'calendar'].map(v => (
           <button
             key={v}
             className={`tm-tab${view === v ? ' tm-active' : ''}`}
@@ -110,6 +114,13 @@ export default function Taskometer() {
           </button>
         ))}
         <div className="tm-tabs-right">
+          <button
+            className="tm-btn tm-sm"
+            onClick={() => setWheelsPanelOpen(true)}
+            title="save today as a wheel, pick a starter, apply to dates"
+          >
+            wheels
+          </button>
           <span className="tm-mono tm-md">
             {todayDone} of {todayTotal} today · {pushed} pushed
           </span>
@@ -121,7 +132,7 @@ export default function Taskometer() {
       </div>
 
       <div style={{ marginBottom: 18 }}>
-        <TaskComposer onAdd={handleAddTask} />
+        <TaskComposer onAdd={handleAddTask} taskTypes={state.taskTypes || []} />
         {!hasSlots && (
           <div className="tm-mono tm-md" style={{ marginTop: 6, color: 'var(--ink-mute)' }}>
             tip: add time blocks in the <button
@@ -154,18 +165,41 @@ export default function Taskometer() {
           upcoming={derived.upcoming}
           pushed={derived.pushed}
           slots={state.slots || []}
+          taskTypes={state.taskTypes || []}
+          dayOverrides={derived.dayOverrides}
           api={api}
           rowHandlers={rowHandlers}
           onNavigate={setView}
+          onOpenWheels={() => setWheelsPanelOpen(true)}
         />
       )}
       {view === 'fit' && (
         <FitView
           weekFit={derived.weekFit}
           backlog={derived.backlog}
+          taskTypes={state.taskTypes || []}
           api={api}
           rowHandlers={rowHandlers}
           onNavigate={setView}
+        />
+      )}
+      {view === 'calendar' && (
+        <CalendarView
+          wheels={derived.wheels}
+          slots={state.slots || []}
+          dayAssignments={derived.dayAssignments}
+          dayOverrides={derived.dayOverrides}
+          api={api}
+          onNavigate={setView}
+        />
+      )}
+
+      {wheelsPanelOpen && (
+        <WheelsPanel
+          api={api}
+          wheels={derived.wheels}
+          taskTypes={state.taskTypes || []}
+          onClose={() => setWheelsPanelOpen(false)}
         />
       )}
 
