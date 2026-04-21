@@ -420,43 +420,37 @@ export function deriveWeekFit({ tasks = [], slots = [], today = new Date() }) {
     });
   }
 
-  // Capacity: sum slot minutes across the week vs. scheduled task minutes
-  const weekSlotMinutes = slots
-    .filter(s => weekDates.includes(s.date))
-    .reduce((sum, s) => sum + (getSlotDuration(s) || 0), 0);
-  const placedMinutes = tasks
-    .filter(t =>
-      t?.scheduledTime &&
-      t.status !== 'completed' &&
-      t.status !== 'cancelled' &&
-      weekDates.includes(ymd(new Date(t.scheduledTime)))
-    )
-    .reduce((sum, t) => sum + (typeof t.duration === 'number' ? t.duration : 30), 0);
-
-  const incomingMinutes = tasks
-    .filter(t =>
-      t?.status !== 'completed' &&
-      t?.status !== 'cancelled' &&
-      !t.scheduledTime
-    )
-    .reduce((sum, t) => sum + (typeof t.duration === 'number' ? t.duration : 30), 0);
-
-  const bufferMinutes = Math.max(0, weekSlotMinutes - placedMinutes - incomingMinutes);
+  // Itinerary: every upcoming scheduled task grouped by day, in time order.
+  // Covers today through ~14 days out — long enough to catch anything the
+  // auto-scheduler pushed forward, short enough that the list stays scannable.
+  const todayKey = ymd(today);
+  const horizonDays = 14;
+  const itinerary = [];
+  for (let i = 0; i < horizonDays; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const key = ymd(d);
+    const dayTasks = tasks
+      .filter(t =>
+        t?.scheduledTime &&
+        t.status !== 'cancelled' &&
+        ymd(new Date(t.scheduledTime)) === key
+      )
+      .sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime));
+    if (dayTasks.length === 0 && i > 0) continue; // skip empty future days
+    itinerary.push({
+      date: key,
+      label: d.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase(),
+      today: key === todayKey,
+      tasks: dayTasks,
+    });
+  }
 
   return {
     rowLabels: DEFAULT_ROWS,
     dayLabels,
     placed,
-    capacity: {
-      slotted: minutesToHoursLabel(placedMinutes),
-      incoming: minutesToHoursLabel(incomingMinutes),
-      buffer: minutesToHoursLabel(bufferMinutes),
-      fits: bufferMinutes >= 0,
-      // Raw flex values for the capacity bar
-      placedMin: placedMinutes,
-      incomingMin: incomingMinutes,
-      bufferMin: bufferMinutes,
-    },
+    itinerary,
   };
 }
 

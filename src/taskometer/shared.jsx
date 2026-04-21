@@ -1,4 +1,68 @@
 import React from 'react';
+import { TASK_PRIORITIES } from '../models/Task';
+
+export function PriorityDot({ priority, size = 10 }) {
+  if (!priority || priority === 'medium') return null;
+  const info = TASK_PRIORITIES[priority];
+  if (!info) return null;
+  return (
+    <span
+      title={`${info.name} priority`}
+      aria-label={`${info.name} priority`}
+      style={{
+        display: 'inline-block',
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: info.color,
+        border: `1.5px solid ${info.color}`,
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+export function TagChip({ tag }) {
+  if (!tag) return null;
+  return (
+    <span
+      className="tm-mono tm-sm"
+      style={{
+        border: '1px solid var(--rule)',
+        color: 'var(--ink-soft)',
+        padding: '0 6px',
+        borderRadius: 4,
+        background: 'var(--paper-warm)',
+      }}
+    >
+      #{tag}
+    </span>
+  );
+}
+
+export function RepeatBadge({ recurrence }) {
+  const freq = recurrence?.frequency;
+  if (!freq || freq === 'none') return null;
+  const n = recurrence?.interval || 1;
+  const label = freq === 'daily' ? (n === 1 ? 'daily' : `every ${n}d`)
+    : freq === 'weekly' ? (n === 1 ? 'weekly' : `every ${n}w`)
+    : freq === 'monthly' ? (n === 1 ? 'monthly' : `every ${n}mo`)
+    : freq;
+  return (
+    <span
+      className="tm-mono tm-sm"
+      title="repeats"
+      style={{
+        color: 'var(--sage)',
+        border: '1px solid var(--sage)',
+        padding: '0 6px',
+        borderRadius: 4,
+      }}
+    >
+      ↻ {label}
+    </span>
+  );
+}
 
 export function Check({ checked, onToggle, size = 18 }) {
   return (
@@ -62,6 +126,9 @@ export function TaskRow({
   metaOverride,
   onEdit,
   onDelete,
+  onSeriesComplete,
+  onSeriesDelete,
+  onSeriesBump,
 }) {
   const isNow = !!task.now;
   const isPushed = task.status === 'pushed';
@@ -72,13 +139,34 @@ export function TaskRow({
     compact ? 'tm-compact' : '',
   ].filter(Boolean).join(' ');
 
-  const actions = (onEdit || onDelete) ? (
+  const inSeries = task.seriesId && (task.segmentsTotal || 0) > 1;
+
+  const actions = (onEdit || onDelete || inSeries) ? (
     <div className="tm-row-actions" onClick={(e) => e.stopPropagation()}>
       {onEdit && (
         <button onClick={() => onEdit(task.id)} title="edit">edit</button>
       )}
+      {inSeries && onSeriesComplete && (
+        <button
+          onClick={() => onSeriesComplete(task.id)}
+          title={`complete all ${task.segmentsTotal} parts of this task`}
+        >✓ all</button>
+      )}
+      {inSeries && onSeriesBump && (
+        <button
+          onClick={() => onSeriesBump(task.id, 1)}
+          title={`push the whole series 1 day later`}
+        >+1d</button>
+      )}
+      {inSeries && onSeriesDelete && (
+        <button
+          className="tm-del"
+          onClick={() => onSeriesDelete(task.id)}
+          title={`delete all ${task.segmentsTotal} parts of this task`}
+        >× all</button>
+      )}
       {onDelete && (
-        <button className="tm-del" onClick={() => onDelete(task.id)} title="delete">×</button>
+        <button className="tm-del" onClick={() => onDelete(task.id)} title="delete this segment">×</button>
       )}
     </div>
   ) : null;
@@ -91,10 +179,11 @@ export function TaskRow({
     >
       <Check checked={!!task.done} onToggle={() => onToggle && onToggle(task.id)} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className={`tm-task-title${task.done ? ' tm-done' : ''}`}>
-          {titleOverride || task.title}
+        <div className={`tm-task-title${task.done ? ' tm-done' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <PriorityDot priority={task.priority} />
+          <span>{titleOverride || task.title}</span>
         </div>
-        <div className="tm-mono tm-task-meta">
+        <div className="tm-mono tm-task-meta" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
           <span>{task.ctx}</span>
           <span>·</span>
           <span>{task.when}</span>
@@ -104,6 +193,12 @@ export function TaskRow({
               <Doodle kind="warn" size={12} color="var(--orange)" />
             </>
           ) : null}
+          {task.recurrence && task.recurrence.frequency && task.recurrence.frequency !== 'none' ? (
+            <RepeatBadge recurrence={task.recurrence} />
+          ) : null}
+          {Array.isArray(task.tags) && task.tags.length > 0
+            ? task.tags.slice(0, 3).map(t => <TagChip key={t} tag={t} />)
+            : null}
           {metaOverride ? <span>· {metaOverride}</span> : null}
         </div>
       </div>
@@ -156,6 +251,12 @@ export function adaptTask(t, idx = 0) {
     est,
     note: t.note || t.description || null,
     warn: !!t.warn,
+    priority: t.priority,
+    tags: t.tags,
+    recurrence: t.recurrence,
+    seriesId: t.metadata?.seriesId || null,
+    segmentIndex: t.metadata?.segmentIndex,
+    segmentsTotal: t.metadata?.segmentsTotal,
   };
 }
 

@@ -1,50 +1,62 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import GaugeView from './GaugeView.jsx';
 import WheelView from './WheelView.jsx';
 import FitView from './FitView.jsx';
 import CalendarView from './CalendarView.jsx';
 import WheelsPanel from './WheelsPanel.jsx';
+import RulesPanel from './RulesPanel.jsx';
+import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
 import { useTaskometerAPI } from '../services/api';
+import useTaskNotifications from '../hooks/useTaskNotifications.js';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts.js';
+import KeyboardShortcuts from '../components/KeyboardShortcuts.jsx';
 import './taskometer.css';
 
 const VIEW_LABELS = {
   gauge: { title: 'today', sub: 'load + pressure' },
   wheel: { title: 'wheel', sub: '24h slots' },
-  fit: { title: 'fit', sub: 'week capacity' },
+  fit: { title: 'itinerary', sub: 'next 14 days in order' },
   calendar: { title: 'calendar', sub: 'month · quarter · year' },
 };
 
-const DEFAULT_TWEAKS = {
+const DEFAULT_UI = {
   palette: 'warm',
   rules: 'lines',
   showCoach: true,
+  notifications: false,
 };
 
-function readStoredTweaks() {
+function readStoredUI() {
   try {
-    const raw = localStorage.getItem('tm.tweaks');
-    if (!raw) return DEFAULT_TWEAKS;
-    return { ...DEFAULT_TWEAKS, ...JSON.parse(raw) };
+    // Prefer the new key, fall back to the old "tm.tweaks" so we don't lose
+    // people who already customised the look.
+    const raw = localStorage.getItem('tm.ui') || localStorage.getItem('tm.tweaks');
+    if (!raw) return DEFAULT_UI;
+    return { ...DEFAULT_UI, ...JSON.parse(raw) };
   } catch (_) {
-    return DEFAULT_TWEAKS;
+    return DEFAULT_UI;
   }
 }
 
 export default function Taskometer() {
   const [view, setView] = useState(() => localStorage.getItem('tm.view') || 'gauge');
-  const [tweaks, setTweaks] = useState(readStoredTweaks);
-  const [tweaksOpen, setTweaksOpen] = useState(false);
+  const [ui, setUI] = useState(readStoredUI);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [nowLabel, setNowLabel] = useState(formatNowLabel());
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [wheelsPanelOpen, setWheelsPanelOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchRef = useRef(null);
 
   const { state, api, derived } = useTaskometerAPI();
 
   useEffect(() => { localStorage.setItem('tm.view', view); }, [view]);
   useEffect(() => {
-    try { localStorage.setItem('tm.tweaks', JSON.stringify(tweaks)); } catch (_) {}
-  }, [tweaks]);
+    try { localStorage.setItem('tm.ui', JSON.stringify(ui)); } catch (_) {}
+  }, [ui]);
 
   // Keep the header clock ticking every 30s
   useEffect(() => {
@@ -57,20 +69,44 @@ export default function Taskometer() {
   useEffect(() => {
     document.body.classList.add('tm-body');
     const rootApp = document.getElementById('tm-root-frame');
-    applyPalette(tweaks.palette);
+    applyPalette(ui.palette);
     if (!rootApp) return;
     rootApp.classList.remove('tm-paper');
     rootApp.style.backgroundImage = '';
-    if (tweaks.rules === 'lines') rootApp.classList.add('tm-paper');
-    else if (tweaks.rules === 'grid') {
+    if (ui.rules === 'lines') rootApp.classList.add('tm-paper');
+    else if (ui.rules === 'grid') {
       rootApp.style.backgroundImage = `
         repeating-linear-gradient(to right, transparent 0 31px, var(--rule-soft) 31px 32px),
         repeating-linear-gradient(to bottom, transparent 0 31px, var(--rule-soft) 31px 32px)
       `;
     }
-  }, [tweaks.palette, tweaks.rules]);
+  }, [ui.palette, ui.rules]);
 
-  const setTweak = (k, v) => setTweaks(prev => ({ ...prev, [k]: v }));
+  // Notifications for upcoming tasks
+  useTaskNotifications({
+    tasks: state.tasks || [],
+    enabled: !!ui.notifications,
+    lookAheadMin: 5,
+  });
+
+  // Keyboard shortcuts — routed to the actions the UI exposes
+  useKeyboardShortcuts({
+    goToDashboard: () => setView('gauge'),
+    goToPlan: () => setView('fit'),
+    goToTodos: () => setView('wheel'),
+    newTask: () => searchRef.current?.focus?.() || null,
+    search: () => { searchRef.current?.focus?.(); },
+    cancel: () => {
+      setSettingsOpen(false);
+      setRulesOpen(false);
+      setShortcutsOpen(false);
+      setWheelsPanelOpen(false);
+      setEditingTaskId(null);
+    },
+    showHelp: () => setShortcutsOpen(true),
+  });
+
+  const setUIField = (k, v) => setUI(prev => ({ ...prev, [k]: v }));
 
   const handleToggle = (id) => api.tasks.toggleComplete(id);
   const handleDelete = (id) => api.tasks.remove(id);
@@ -81,18 +117,75 @@ export default function Taskometer() {
   };
   const handleAddTask = (data) => api.tasks.add(data);
 
-  const { todayDone, todayTotal, pushed } = derived.stats;
-  const hasSlots = (state.slots?.length || 0) > 0;
-  const hasTasks = (state.tasks?.length || 0) > 0;
-  const isEmpty = !hasSlots && !hasTasks;
+  const handleSeriesComplete = (id) => api.tasks.completeSeries(id);
+  const handleSeriesDelete = (id) => {
+    const segs = api.tasks.seriesOf(id);
+    const count = segs.length;
+    if (count > 1 && !window.confirm(`delete all ${count} parts of this task?`)) return;
+    api.tasks.removeSeries(id);
+  };
+  const handleSeriesBump = (id, days) => api.tasks.bumpSeries(id, days);
 
   const rowHandlers = {
     onToggle: handleToggle,
     onDelete: handleDelete,
     onEdit: handleEdit,
     onSaveEdit: handleSaveEdit,
+    onSeriesComplete: handleSeriesComplete,
+    onSeriesDelete: handleSeriesDelete,
+    onSeriesBump: handleSeriesBump,
     editingTaskId,
   };
+
+  // Global text search: filter the state tasks + slots derived view by the
+  // current query. Empty query is a no-op pass-through. We run the search on
+  // the raw collections so views receive a pre-filtered view and everything
+  // downstream naturally reflects it.
+  const filteredState = useMemo(() => {
+    if (!search.trim()) return state;
+    const q = search.trim().toLowerCase();
+    const matchTask = (t) => {
+      const text = (t.text || t.title || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      const tags = (t.tags || []).join(' ').toLowerCase();
+      const type = (t.primaryType || t.taskType || '').toLowerCase();
+      const prio = (t.priority || '').toLowerCase();
+      return text.includes(q) || desc.includes(q) || tags.includes(q) || type.includes(q) || prio.includes(q);
+    };
+    return { ...state, tasks: (state.tasks || []).filter(matchTask) };
+  }, [state, search]);
+
+  const filteredDerived = useMemo(() => {
+    if (!search.trim()) return derived;
+    const ids = new Set((filteredState.tasks || []).map(t => t.id || t.key));
+    const keep = (t) => ids.has(t.id || t.key);
+    const todayKeep = (entry) => keep(entry.task);
+    return {
+      ...derived,
+      todayTasks: (derived.todayTasks || []).filter(todayKeep),
+      backlog: (derived.backlog || []).filter(keep),
+      upcoming: (derived.upcoming || []).filter(keep),
+      pushed: (derived.pushed || []).filter(keep),
+      currentSlot: derived.currentSlot
+        ? { ...derived.currentSlot, tasks: (derived.currentSlot.tasks || []).filter(keep) }
+        : derived.currentSlot,
+      weekFit: derived.weekFit
+        ? {
+            ...derived.weekFit,
+            placed: (derived.weekFit.placed || []).filter(p => ids.has(p.id)),
+            itinerary: (derived.weekFit.itinerary || []).map(day => ({
+              ...day,
+              tasks: (day.tasks || []).filter(keep),
+            })).filter(day => day.tasks.length > 0 || day.today),
+          }
+        : derived.weekFit,
+    };
+  }, [derived, search, filteredState.tasks]);
+
+  const { todayDone, todayTotal, pushed } = derived.stats;
+  const hasSlots = (state.slots?.length || 0) > 0;
+  const hasTasks = (state.tasks?.length || 0) > 0;
+  const isEmpty = !hasSlots && !hasTasks;
 
   return (
     <div id="tm-root-frame" className="tm-root tm-paper">
@@ -114,6 +207,23 @@ export default function Taskometer() {
           </button>
         ))}
         <div className="tm-tabs-right">
+          <input
+            ref={searchRef}
+            className="tm-composer-input"
+            placeholder="search tasks…  /"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setSearch(''); }}
+            style={{ width: 220, fontSize: 14, padding: '4px 8px' }}
+            aria-label="search"
+          />
+          <button
+            className="tm-btn tm-sm"
+            onClick={() => setRulesOpen(true)}
+            title="weekday/weekend defaults, vacation ranges, holiday rules"
+          >
+            rules
+          </button>
           <button
             className="tm-btn tm-sm"
             onClick={() => setWheelsPanelOpen(true)}
@@ -153,9 +263,9 @@ export default function Taskometer() {
           pressure={derived.pressure}
           timeline={derived.timeline}
           stats={derived.stats}
-          showCoach={tweaks.showCoach}
-          currentSlot={derived.currentSlot}
-          todayTasks={derived.todayTasks}
+          showCoach={ui.showCoach}
+          currentSlot={filteredDerived.currentSlot}
+          todayTasks={filteredDerived.todayTasks}
           rowHandlers={rowHandlers}
           onNavigate={setView}
         />
@@ -164,14 +274,15 @@ export default function Taskometer() {
         <WheelView
           wedges={derived.wedges}
           nowTask={derived.nowTask}
-          upcoming={derived.upcoming}
-          pushed={derived.pushed}
+          upcoming={filteredDerived.upcoming}
+          pushed={filteredDerived.pushed}
           slots={state.slots || []}
           taskTypes={state.taskTypes || []}
-          todayTasks={derived.todayTasks}
+          todayTasks={filteredDerived.todayTasks}
           wheels={derived.wheels}
           dayAssignments={derived.dayAssignments}
           dayOverrides={derived.dayOverrides}
+          resolveDay={derived.resolveDay}
           api={api}
           rowHandlers={rowHandlers}
           onNavigate={setView}
@@ -180,16 +291,18 @@ export default function Taskometer() {
       )}
       {view === 'fit' && (
         <FitView
-          weekFit={derived.weekFit}
-          backlog={derived.backlog}
+          weekFit={filteredDerived.weekFit}
+          backlog={filteredDerived.backlog}
           taskTypes={state.taskTypes || []}
           wheels={derived.wheels}
           dayAssignments={derived.dayAssignments}
           dayOverrides={derived.dayOverrides}
+          resolveDay={derived.resolveDay}
           api={api}
           rowHandlers={rowHandlers}
           onNavigate={setView}
           onOpenWheels={() => setWheelsPanelOpen(true)}
+          onOpenRules={() => setRulesOpen(true)}
         />
       )}
       {view === 'calendar' && (
@@ -198,9 +311,11 @@ export default function Taskometer() {
           slots={state.slots || []}
           dayAssignments={derived.dayAssignments}
           dayOverrides={derived.dayOverrides}
+          resolveDay={derived.resolveDay}
           api={api}
           onNavigate={setView}
           onOpenWheels={() => setWheelsPanelOpen(true)}
+          onOpenRules={() => setRulesOpen(true)}
         />
       )}
 
@@ -213,19 +328,36 @@ export default function Taskometer() {
         />
       )}
 
-      {!tweaksOpen && (
-        <button className="tm-tweaks-toggle" onClick={() => setTweaksOpen(true)}>
-          tweaks
+      {rulesOpen && (
+        <RulesPanel
+          api={api}
+          wheels={derived.wheels}
+          rules={state.settings?.scheduleRules || []}
+          onClose={() => setRulesOpen(false)}
+        />
+      )}
+
+      {shortcutsOpen && (
+        <KeyboardShortcuts isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      )}
+
+      {!settingsOpen && (
+        <button
+          className="tm-tweaks-toggle"
+          onClick={() => setSettingsOpen(true)}
+          title="settings, look, notifications, backup"
+        >
+          settings
         </button>
       )}
-      {tweaksOpen && (
-        <TweaksPanel
-          tweaks={tweaks}
-          setTweak={setTweak}
+      {settingsOpen && (
+        <SettingsPanel
+          ui={ui}
+          setUIField={setUIField}
           api={api}
-          derivedLoad={derived.load}
-          hasSlots={hasSlots}
-          onClose={() => setTweaksOpen(false)}
+          autoSchedule={state.settings?.autoSchedule !== false}
+          onShowShortcuts={() => setShortcutsOpen(true)}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
     </div>
@@ -238,119 +370,6 @@ function EmptyStateHint() {
       <div style={{ fontSize: 22 }}>empty slate — shape your day first</div>
       <div className="tm-mono" style={{ marginTop: 4 }}>
         add time blocks in the wheel view (morning, deep work, lunch…), then type a task above. tasks flow into the right block automatically; overflow pushes to the next available slot.
-      </div>
-    </div>
-  );
-}
-
-function TweaksPanel({ tweaks, setTweak, api, derivedLoad, hasSlots, onClose }) {
-  const fileRef = useRef(null);
-  const [status, setStatus] = useState(null);
-
-  const pick = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        await api.backup.restoreJSON(reader.result);
-        setStatus('restored from backup');
-      } catch (err) {
-        setStatus(`restore failed: ${err.message}`);
-      }
-      setTimeout(() => setStatus(null), 3000);
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
-
-  const confirmWipe = async () => {
-    if (!window.confirm('delete all tasks and time blocks? this cannot be undone.')) return;
-    await api.backup.wipe();
-    setStatus('wiped');
-    setTimeout(() => setStatus(null), 2000);
-  };
-
-  return (
-    <div className="tm-tweaks">
-      <h4 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        tweaks
-        <button
-          onClick={onClose}
-          style={{ background: 'transparent', border: 'none', fontFamily: 'Caveat', fontSize: 18, cursor: 'pointer', color: 'var(--ink-mute)' }}
-        >×</button>
-      </h4>
-
-      <div className="tm-mono tm-md" style={{ marginTop: 2 }}>
-        load: {derivedLoad}% {hasSlots ? '· live' : '· no blocks yet'}
-      </div>
-
-      <label>
-        show coach
-        <input
-          type="checkbox"
-          checked={!!tweaks.showCoach}
-          onChange={(e) => setTweak('showCoach', e.target.checked)}
-        />
-      </label>
-
-      <div>
-        <div className="tm-mono tm-md" style={{ marginTop: 6 }}>palette</div>
-        <div className="tm-seg">
-          {['warm', 'cool', 'dusk'].map(p => (
-            <button
-              key={p}
-              className={tweaks.palette === p ? 'tm-on' : ''}
-              onClick={() => setTweak('palette', p)}
-            >
-              {p === 'warm' ? 'warm cream' : p === 'cool' ? 'cool paper' : 'dusk'}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <div className="tm-mono tm-md" style={{ marginTop: 8 }}>rules</div>
-        <div className="tm-seg">
-          {['lines', 'grid', 'blank'].map(r => (
-            <button
-              key={r}
-              className={tweaks.rules === r ? 'tm-on' : ''}
-              onClick={() => setTweak('rules', r)}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed var(--rule)' }}>
-        <div className="tm-mono tm-md">backup</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-          <button
-            className="tm-btn tm-sm"
-            onClick={() => api.backup.exportICS()}
-            title="iCalendar file for Google, Apple, Outlook"
-          >
-            export .ics
-          </button>
-          <button className="tm-btn tm-sm" onClick={() => api.backup.exportJSON()}>
-            export .json
-          </button>
-          <button className="tm-btn tm-sm" onClick={() => fileRef.current?.click()}>
-            restore .json
-          </button>
-          <button className="tm-btn tm-sm tm-danger" onClick={confirmWipe}>
-            wipe
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            onChange={pick}
-            style={{ display: 'none' }}
-          />
-        </div>
-        {status && <div className="tm-mono tm-sm" style={{ marginTop: 6, color: 'var(--orange)' }}>{status}</div>}
       </div>
     </div>
   );

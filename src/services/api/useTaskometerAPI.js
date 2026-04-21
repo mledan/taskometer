@@ -11,7 +11,7 @@
 
 import { useMemo, useRef } from 'react';
 import { useAppState, useAppReducer } from '../../context/AppContext';
-import { makeTaskometerAPI } from './TaskometerAPI';
+import { makeTaskometerAPI, evaluateRules } from './TaskometerAPI';
 import {
   deriveLoad,
   deriveNextTask,
@@ -68,6 +68,22 @@ export function useTaskometerAPI() {
       wheels: settings.wheels || [],
       dayAssignments: settings.dayAssignments || {},
       dayOverrides: settings.dayOverrides || {},
+      scheduleRules: settings.scheduleRules || [],
+      /**
+       * Compose rules + pins for an arbitrary date. Views use this to
+       * render ruled days (dashed) vs. manually-pinned days (solid) without
+       * having to duplicate the resolver logic from TaskometerAPI.
+       */
+      resolveDay: (dateKey) => {
+        const pinWheel = (settings.dayAssignments || {})[dateKey] || null;
+        const pinOverride = (settings.dayOverrides || {})[dateKey] || null;
+        if (pinOverride || pinWheel) {
+          return { wheelId: pinWheel, override: pinOverride, source: 'pin' };
+        }
+        const ruled = evaluateRules(settings.scheduleRules || [], dateKey);
+        if (ruled) return { ...ruled, source: 'rule' };
+        return { wheelId: null, override: null, source: 'none' };
+      },
     };
   }, [state.tasks, state.slots, state.settings, now]);
 
