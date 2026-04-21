@@ -154,6 +154,8 @@ export default function Taskometer() {
           timeline={derived.timeline}
           stats={derived.stats}
           showCoach={tweaks.showCoach}
+          currentSlot={derived.currentSlot}
+          todayTasks={derived.todayTasks}
           rowHandlers={rowHandlers}
           onNavigate={setView}
         />

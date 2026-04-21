@@ -24,6 +24,8 @@ import {
   deriveBacklog,
   deriveWeekFit,
   deriveStats,
+  deriveCurrentSlotTasks,
+  deriveTodayTasks,
 } from './derive';
 
 export function useTaskometerAPI() {
@@ -61,6 +63,8 @@ export function useTaskometerAPI() {
       backlog: deriveBacklog({ tasks, limit: 10 }),
       weekFit: deriveWeekFit({ tasks, slots, today: date }),
       stats: deriveStats({ tasks, date }),
+      currentSlot: deriveCurrentSlotTasks({ tasks, slots, date, now }),
+      todayTasks: deriveTodayTasks({ tasks, date, now }),
       wheels: settings.wheels || [],
       dayAssignments: settings.dayAssignments || {},
       dayOverrides: settings.dayOverrides || {},

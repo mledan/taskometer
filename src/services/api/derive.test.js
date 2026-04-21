@@ -7,6 +7,8 @@ import {
   deriveWheelWedges,
   deriveBacklog,
   deriveWeekFit,
+  deriveCurrentSlotTasks,
+  deriveTodayTasks,
   ymd,
 } from './derive';
 
@@ -147,6 +149,73 @@ describe('deriveWeekFit', () => {
   test('capacity buffer is non-negative when empty', () => {
     const fit = deriveWeekFit({ tasks: [], slots: [], today: TODAY });
     expect(fit.capacity.bufferMin).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('deriveCurrentSlotTasks', () => {
+  test('returns null slot and empty tasks when no slot covers now', () => {
+    const slots = [
+      { id: 's1', date: '2026-04-20', startTime: '14:00', endTime: '15:00', label: 'calls' },
+    ];
+    const tasks = [
+      { id: 't1', scheduledTime: '2026-04-20T14:30:00', duration: 30, status: 'pending' },
+    ];
+    // TODAY is 09:00 — 14-15 slot is not active
+    const result = deriveCurrentSlotTasks({ tasks, slots, date: TODAY, now: TODAY });
+    expect(result.slot).toBeNull();
+    expect(result.tasks).toEqual([]);
+  });
+
+  test('returns tasks scheduled inside the active slot window', () => {
+    const slots = [
+      { id: 's1', date: '2026-04-20', startTime: '08:00', endTime: '12:00', label: 'deep work' },
+    ];
+    const tasks = [
+      { id: 'in', scheduledTime: '2026-04-20T10:00:00', duration: 30, status: 'pending' },
+      { id: 'late', scheduledTime: '2026-04-20T17:00:00', duration: 30, status: 'pending' },
+      { id: 'done', scheduledTime: '2026-04-20T09:00:00', duration: 30, status: 'completed' },
+    ];
+    const result = deriveCurrentSlotTasks({ tasks, slots, date: TODAY, now: TODAY });
+    expect(result.slot?.id).toBe('s1');
+    expect(result.tasks.map(t => t.id)).toEqual(['in']);
+  });
+
+  test('excludes tasks that belong to a different day', () => {
+    const slots = [
+      { id: 's1', date: '2026-04-20', startTime: '08:00', endTime: '12:00', label: 'deep work' },
+    ];
+    const tasks = [
+      { id: 'tom', scheduledTime: '2026-04-21T10:00:00', duration: 30, status: 'pending' },
+    ];
+    const result = deriveCurrentSlotTasks({ tasks, slots, date: TODAY, now: TODAY });
+    expect(result.tasks).toEqual([]);
+  });
+});
+
+describe('deriveTodayTasks', () => {
+  test('returns tasks scheduled today, sorted by time, with state tags', () => {
+    const tasks = [
+      { id: 'a', scheduledTime: '2026-04-20T15:00:00', duration: 30, status: 'pending' }, // upcoming
+      { id: 'b', scheduledTime: '2026-04-20T08:30:00', duration: 60, status: 'pending' }, // live (now is 9:00)
+      { id: 'c', scheduledTime: '2026-04-20T07:00:00', duration: 30, status: 'pending' }, // past
+      { id: 'd', scheduledTime: '2026-04-19T15:00:00', duration: 30, status: 'pending' }, // not today
+      { id: 'e', scheduledTime: '2026-04-20T06:00:00', duration: 30, status: 'completed' }, // done
+    ];
+    const result = deriveTodayTasks({ tasks, date: TODAY, now: TODAY });
+    expect(result.map(r => r.task.id)).toEqual(['e', 'c', 'b', 'a']);
+    expect(result.find(r => r.task.id === 'b').state).toBe('live');
+    expect(result.find(r => r.task.id === 'c').state).toBe('past');
+    expect(result.find(r => r.task.id === 'a').state).toBe('upcoming');
+    expect(result.find(r => r.task.id === 'e').state).toBe('done');
+  });
+
+  test('skips unscheduled and cancelled tasks', () => {
+    const tasks = [
+      { id: 'a', status: 'pending' },
+      { id: 'b', scheduledTime: '2026-04-20T10:00:00', status: 'cancelled' },
+    ];
+    const result = deriveTodayTasks({ tasks, date: TODAY, now: TODAY });
+    expect(result).toEqual([]);
   });
 });
 

@@ -9,6 +9,8 @@ export default function GaugeView({
   timeline,
   stats,
   showCoach,
+  currentSlot,
+  todayTasks = [],
   rowHandlers = {},
   onNavigate,
 }) {
@@ -54,6 +56,17 @@ export default function GaugeView({
         )}
       </div>
 
+      <CurrentSlotSection
+        currentSlot={currentSlot}
+        next={next}
+        rowHandlers={rowHandlers}
+      />
+
+      <TodayTasksSection
+        todayTasks={todayTasks}
+        rowHandlers={rowHandlers}
+      />
+
       <div className="tm-mb-lg">
         <SectionLabel right={pressureSummary(pressure)}>Pressure · last {pressure.length} days</SectionLabel>
         <div className="tm-card tm-soft" style={{ padding: '14px 16px' }}>
@@ -86,16 +99,26 @@ function buildNextLabel(next) {
   }
   if (next.scheduledTime) {
     const d = new Date(next.scheduledTime);
+    const dur = next.duration || 30;
     const diffMin = Math.round((d.getTime() - Date.now()) / 60000);
-    const windowLabel = formatWindow(d, next.duration || 30);
+    const endMs = d.getTime() + dur * 60 * 1000;
+    const isLive = d.getTime() <= Date.now() && Date.now() < endMs;
+    const windowLabel = formatWindow(d, dur);
     let meta;
-    if (diffMin < -1) meta = `in progress · ${windowLabel}`;
-    else if (diffMin <= 0) meta = `starting now · ${windowLabel}`;
-    else meta = `next · in ${diffMin} min · ${windowLabel}`;
+    if (isLive) meta = `in progress · ${windowLabel}`;
+    else if (diffMin <= 1) meta = `starting now · ${windowLabel}`;
+    else if (diffMin < 60) meta = `next · in ${diffMin} min · ${windowLabel}`;
+    else if (diffMin < 24 * 60) {
+      const hrs = Math.floor(diffMin / 60);
+      const rem = diffMin % 60;
+      meta = `later today · in ${hrs}h${rem ? ` ${rem}m` : ''} · ${windowLabel}`;
+    } else {
+      meta = `upcoming · ${windowLabel}`;
+    }
     return {
       meta: meta.toLowerCase(),
       title: next.text || next.title || 'untitled',
-      note: next.description ? next.description : `est ${next.duration || 30}m`,
+      note: next.description ? next.description : `est ${dur}m`,
     };
   }
   return {
@@ -103,6 +126,184 @@ function buildNextLabel(next) {
     title: next.text || next.title || 'untitled',
     note: `est ${next.duration || 30}m · not yet slotted`,
   };
+}
+
+function formatClock(d) {
+  const h = d.getHours();
+  const hr = ((h % 12) || 12);
+  const ampm = h < 12 ? 'a' : 'p';
+  const m = d.getMinutes();
+  return m ? `${hr}:${m < 10 ? '0' + m : m}${ampm}` : `${hr}${ampm}`;
+}
+
+function taskWindowLabel(task) {
+  if (!task?.scheduledTime) return 'unscheduled';
+  const start = new Date(task.scheduledTime);
+  if (Number.isNaN(start.getTime())) return 'unscheduled';
+  const dur = typeof task.duration === 'number' ? task.duration : 30;
+  const end = new Date(start.getTime() + dur * 60 * 1000);
+  return `${formatClock(start)}–${formatClock(end)}`;
+}
+
+function CurrentSlotSection({ currentSlot, next, rowHandlers }) {
+  const slot = currentSlot?.slot || null;
+  const tasks = currentSlot?.tasks || [];
+  const { onToggle, onDelete, onEdit } = rowHandlers || {};
+
+  if (!slot) {
+    return (
+      <div className="tm-mb-lg">
+        <SectionLabel right="no active slot">now</SectionLabel>
+        <div className="tm-card tm-dashed" style={{ padding: '12px 14px' }}>
+          <div className="tm-mono">
+            no time block covers this moment — tasks you add will be placed in the
+            next matching slot. add a block in the wheel view to shape the current hour.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const timeRange = `${slot.startTime}–${slot.endTime}`;
+  const nextId = next ? (next.id || next.key) : null;
+
+  return (
+    <div className="tm-mb-lg">
+      <SectionLabel right={`${tasks.length} in slot`}>
+        now · {slot.label} · {timeRange}
+      </SectionLabel>
+      <div className="tm-card tm-flush">
+        {tasks.length === 0 && (
+          <div style={{ padding: '12px 14px' }} className="tm-mono">
+            this slot is empty — add a {slot.slotType || slot.label} task above and
+            it will drop in here.
+          </div>
+        )}
+        {tasks.map(t => {
+          const id = t.id || t.key;
+          const isNow = id === nextId;
+          return (
+            <div
+              key={id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 14px',
+                borderBottom: '1px solid var(--rule-soft)',
+                background: isNow ? 'var(--orange-pale)' : 'transparent',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 20, lineHeight: 1.15 }}>
+                  {t.text || t.title || 'untitled'}
+                </div>
+                <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                  {taskWindowLabel(t)} · {t.primaryType || t.taskType || 'task'} · est {t.duration || 30}m
+                  {isNow ? ' · now' : ''}
+                </div>
+              </div>
+              {onToggle && (
+                <button className="tm-btn tm-sm tm-primary" onClick={() => onToggle(id)}>done</button>
+              )}
+              {onEdit && (
+                <button className="tm-btn tm-sm" onClick={() => onEdit(id)}>edit</button>
+              )}
+              {onDelete && (
+                <button className="tm-btn tm-sm tm-danger" onClick={() => onDelete(id)}>×</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TodayTasksSection({ todayTasks = [], rowHandlers }) {
+  const { onToggle, onDelete, onEdit } = rowHandlers || {};
+  if (!todayTasks.length) {
+    return (
+      <div className="tm-mb-lg">
+        <SectionLabel right="0 scheduled">today's tasks</SectionLabel>
+        <div className="tm-card tm-dashed" style={{ padding: '12px 14px' }}>
+          <div className="tm-mono">no tasks scheduled yet — add one above.</div>
+        </div>
+      </div>
+    );
+  }
+
+  const counts = todayTasks.reduce((acc, t) => {
+    acc[t.state] = (acc[t.state] || 0) + 1;
+    return acc;
+  }, {});
+  const summary = [
+    counts.live ? `${counts.live} now` : null,
+    counts.upcoming ? `${counts.upcoming} upcoming` : null,
+    counts.done ? `${counts.done} done` : null,
+    counts.past ? `${counts.past} past` : null,
+  ].filter(Boolean).join(' · ') || `${todayTasks.length} total`;
+
+  return (
+    <div className="tm-mb-lg">
+      <SectionLabel right={summary}>today's tasks</SectionLabel>
+      <div className="tm-card tm-flush">
+        {todayTasks.map(({ task, state }) => {
+          const id = task.id || task.key;
+          let tint = 'transparent';
+          if (state === 'live') tint = 'var(--orange-pale)';
+          else if (state === 'past') tint = 'var(--rule-soft)';
+          else if (state === 'done') tint = 'var(--sage-pale)';
+          return (
+            <div
+              key={id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '8px 14px',
+                borderBottom: '1px solid var(--rule-soft)',
+                background: tint,
+                opacity: state === 'done' ? 0.6 : 1,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 18,
+                    lineHeight: 1.2,
+                    textDecoration: state === 'done' ? 'line-through' : 'none',
+                  }}
+                >
+                  {task.text || task.title || 'untitled'}
+                </div>
+                <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                  {taskWindowLabel(task)} · {task.primaryType || task.taskType || 'task'}
+                  {state === 'live' ? ' · now' : ''}
+                  {state === 'upcoming' ? ' · later' : ''}
+                  {state === 'past' ? ' · past' : ''}
+                </div>
+              </div>
+              {onToggle && (
+                <button
+                  className={`tm-btn tm-sm${state === 'done' ? '' : ' tm-primary'}`}
+                  onClick={() => onToggle(id)}
+                >
+                  {state === 'done' ? 'undo' : 'done'}
+                </button>
+              )}
+              {onEdit && (
+                <button className="tm-btn tm-sm" onClick={() => onEdit(id)}>edit</button>
+              )}
+              {onDelete && (
+                <button className="tm-btn tm-sm tm-danger" onClick={() => onDelete(id)}>×</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function formatWindow(start, durationMin) {
