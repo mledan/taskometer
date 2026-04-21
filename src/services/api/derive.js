@@ -276,6 +276,94 @@ export function deriveBacklog({ tasks = [], limit = 10 }) {
     .slice(0, limit);
 }
 
+// ---------- current slot + today's scheduled tasks ----------------------
+
+/**
+ * The slot currently active (now falls inside its [start, end) window).
+ * Returns { id, label, slotType, color, startTime, endTime, startH, endH }
+ * or null when no slot is active.
+ */
+export function deriveCurrentSlot({ slots = [], date = new Date(), now = new Date() }) {
+  const dayKey = ymd(date);
+  if (!sameDay(date, now)) return null;
+  const today = slots.filter(s => s?.date === dayKey);
+  const nowHr = now.getHours() + now.getMinutes() / 60;
+  for (const s of today) {
+    const start = parseSlotStart(s);
+    const end = parseSlotEnd(s);
+    if (!start || !end) continue;
+    const startH = start.getHours() + start.getMinutes() / 60;
+    const endH = end.getHours() + end.getMinutes() / 60 + (end.getDate() !== start.getDate() ? 24 : 0);
+    if (nowHr >= startH && nowHr < endH) {
+      return {
+        id: s.id,
+        label: slotTypeLabel(s),
+        slotType: s.slotType || null,
+        color: s.color || null,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        startH,
+        endH,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * All pending tasks whose scheduledTime lands inside the active slot's
+ * window (or whose scheduledSlotId matches it). Sorted by time.
+ */
+export function deriveCurrentSlotTasks({ tasks = [], slots = [], date = new Date(), now = new Date() }) {
+  const slot = deriveCurrentSlot({ slots, date, now });
+  if (!slot) return { slot: null, tasks: [] };
+
+  const dayKey = ymd(date);
+  const matched = tasks
+    .filter(t => t?.status !== 'completed' && t?.status !== 'cancelled')
+    .filter(t => {
+      if (t.scheduledSlotId && t.scheduledSlotId === slot.id) return true;
+      if (!t.scheduledTime) return false;
+      const d = new Date(t.scheduledTime);
+      if (Number.isNaN(d.getTime())) return false;
+      if (ymd(d) !== dayKey) return false;
+      const h = d.getHours() + d.getMinutes() / 60;
+      return h >= slot.startH && h < slot.endH;
+    })
+    .sort((a, b) => {
+      const ta = a.scheduledTime ? new Date(a.scheduledTime).getTime() : Infinity;
+      const tb = b.scheduledTime ? new Date(b.scheduledTime).getTime() : Infinity;
+      return ta - tb;
+    });
+
+  return { slot, tasks: matched };
+}
+
+/**
+ * All non-completed tasks scheduled for today, sorted by scheduledTime.
+ * Each entry carries a computed `state`: 'done' | 'live' | 'past' | 'upcoming'.
+ */
+export function deriveTodayTasks({ tasks = [], date = new Date(), now = new Date() }) {
+  const dayKey = ymd(date);
+  const nowMs = now.getTime();
+  return tasks
+    .filter(t => t?.status !== 'cancelled')
+    .filter(t => t.scheduledTime && ymd(new Date(t.scheduledTime)) === dayKey)
+    .slice()
+    .sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime))
+    .map(t => {
+      const start = new Date(t.scheduledTime).getTime();
+      const dur = typeof t.duration === 'number' ? t.duration : 30;
+      const end = start + dur * 60 * 1000;
+      let state;
+      if (t.status === 'completed') state = 'done';
+      else if (start <= nowMs && nowMs < end) state = 'live';
+      else if (end <= nowMs) state = 'past';
+      else state = 'upcoming';
+      return { task: t, state, start, end, duration: dur };
+    });
+}
+
 // ---------- week fit grid -----------------------------------------------
 
 const DEFAULT_ROWS = ['deep', 'mtgs', 'admin', 'calls', 'play'];
