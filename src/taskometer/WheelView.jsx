@@ -21,6 +21,8 @@ export default function WheelView({
   slots = [],
   taskTypes = [],
   todayTasks = [],
+  wheels = [],
+  dayAssignments = {},
   dayOverrides = {},
   api,
   rowHandlers = {},
@@ -319,6 +321,26 @@ export default function WheelView({
           <span className="tm-mono tm-md" style={{ letterSpacing: '.14em', textTransform: 'uppercase' }}>
             day shape ({todaySlots.length} block{todaySlots.length === 1 ? '' : 's'})
           </span>
+          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>· wheel:</span>
+          <select
+            className="tm-composer-select"
+            value={dayAssignments[todayKey] || ''}
+            onChange={async (ev) => {
+              const next = ev.target.value;
+              if (!next) {
+                await api.days.unassign(todayKey);
+              } else {
+                await api.wheels.applyToDate(next, todayKey, { mode: 'replace' });
+              }
+            }}
+            title="apply a wheel to today"
+            style={{ fontSize: 13, padding: '3px 8px' }}
+          >
+            <option value="">{wheels.length === 0 ? '(no wheels)' : '(none)'}</option>
+            {wheels.map(w => (
+              <option key={w.id} value={w.id}>{w.name}</option>
+            ))}
+          </select>
           <button
             className="tm-btn tm-primary tm-sm"
             onClick={() => {
@@ -504,9 +526,15 @@ function todayYMD() {
 
 function toRow(t, extras = {}) {
   const dur = typeof t.duration === 'number' ? t.duration : 30;
+  const meta = t.metadata || {};
+  const inSeries = typeof meta.segmentsTotal === 'number' && meta.segmentsTotal > 1;
+  const segmentLabel = inSeries ? `${(meta.segmentIndex ?? 0) + 1} of ${meta.segmentsTotal}` : null;
+  const title = segmentLabel
+    ? `${t.text || t.title || 'untitled'} · pt ${segmentLabel}`
+    : (t.text || t.title || 'untitled');
   return {
     id: t.id || t.key,
-    title: t.text || t.title || 'untitled',
+    title,
     ctx: t.primaryType || t.taskType || 'task',
     when: t.scheduledTime ? fmtTimeRange(t.scheduledTime, dur) : 'unscheduled',
     status: extras.pushed ? 'pushed' : t.status,

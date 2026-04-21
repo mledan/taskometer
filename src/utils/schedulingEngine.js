@@ -183,7 +183,23 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
     )));
 
   if (overflowMatch) {
-    return buildResult(overflowMatch, task, 'Anchored to matching slot (overflows past end)');
+    const result = buildResult(overflowMatch, task, 'Anchored to matching slot — overflow split across days');
+    // Compute continuation segments on future days so the task is broken up
+    // rather than bleeding past its block's end on a single day.
+    const segmentPlan = planSegments(
+      task,
+      overflowMatch.slot,
+      allSlots,
+      existingTasks,
+      settings,
+      breakDuration,
+      taskType,
+      taskTags
+    );
+    result.primaryDuration = segmentPlan.primaryDuration;
+    result.segments = segmentPlan.segments;
+    result.unplacedMinutes = segmentPlan.unplacedMinutes;
+    return result;
   }
 
   // Phase 7: no framework slots worked, try ad-hoc as last resort
@@ -335,6 +351,90 @@ function findFirstAvailable(candidates, task, existingTasks, breakDuration, filt
   }
 
   return null;
+}
+
+/**
+ * Walk forward day by day, dropping task chunks into matching slots until
+ * the task's minutes are exhausted. Used when a task is too big for any one
+ * slot, so the user sees it broken up instead of bleeding past a block's end.
+ *
+ * Returns:
+ *   primaryDuration  — minutes consumed by segment 0 (the slot we anchored to)
+ *   segments         — additional segments for future days
+ *   unplacedMinutes  — leftover minutes we couldn't place within the horizon
+ */
+function planSegments(task, firstSlot, allSlots, existingTasks, settings, breakDuration, taskType, taskTags) {
+  const totalDuration = task.duration || DEFAULT_DURATION;
+  const firstSlotDur = getSlotDuration(firstSlot);
+  const primaryDuration = Math.min(firstSlotDur, totalDuration);
+
+  let remaining = totalDuration - primaryDuration;
+  if (remaining <= 0) {
+    return { primaryDuration, segments: [], unplacedMinutes: 0 };
+  }
+
+  const firstSlotStart = getSlotStartDateTime(firstSlot);
+  const expanded = ensureFutureSlots(allSlots, settings, MAX_DAYS_AHEAD);
+  const matchesType = (slot) => {
+    if (slot.slotType && slot.slotType === taskType) return true;
+    if (taskTags.length > 0 && Array.isArray(slot.allowedTags)) {
+      return slot.allowedTags.some(tag => taskTags.includes(tag));
+    }
+    return false;
+  };
+
+  // Consider slots that land after our primary slot, grouped and ordered by day.
+  const byDay = new Map();
+  for (const slot of expanded) {
+    if (slot.id === firstSlot.id) continue;
+    if (!matchesType(slot)) continue;
+    if (slot.assignedTaskId && slot.assignedTaskId !== task.id) continue;
+    const startDT = getSlotStartDateTime(slot);
+    if (startDT <= firstSlotStart) continue;
+    if (!byDay.has(slot.date)) byDay.set(slot.date, []);
+    byDay.get(slot.date).push(slot);
+  }
+
+  const orderedDays = [...byDay.keys()].sort();
+  const segments = [];
+  // Track minutes we've virtually parked so we detect conflicts against our
+  // own earlier segments too (e.g. same day, next slot also matches).
+  const virtualOccupants = [];
+
+  const combinedConflicts = [...existingTasks, ...virtualOccupants];
+
+  for (const day of orderedDays) {
+    if (remaining <= 0) break;
+    const slotsForDay = byDay.get(day).sort((a, b) => a.startTime.localeCompare(b.startTime));
+    for (const slot of slotsForDay) {
+      if (remaining <= 0) break;
+      const slotStart = getSlotStartDateTime(slot);
+      const slotDur = getSlotDuration(slot);
+      const chunk = Math.min(slotDur, remaining);
+      const candidateEnd = addMinutes(slotStart, chunk);
+      if (hasConflict(slotStart, candidateEnd, combinedConflicts, breakDuration)) continue;
+
+      segments.push({
+        scheduledTime: slotStart.toISOString(),
+        specificTime: formatHHMM(slotStart),
+        specificDay: format(slotStart, 'EEEE'),
+        date: slot.date,
+        slotId: slot.id,
+        slotColor: slot.color,
+        label: slot.label,
+        duration: chunk,
+      });
+      virtualOccupants.push({
+        scheduledTime: slotStart.toISOString(),
+        duration: chunk,
+        status: 'pending',
+      });
+      remaining -= chunk;
+      break; // one segment per day keeps the user's "spread across days" ask
+    }
+  }
+
+  return { primaryDuration, segments, unplacedMinutes: Math.max(0, remaining) };
 }
 
 /**

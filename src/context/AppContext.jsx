@@ -590,8 +590,18 @@ function appReducer(state, action) {
         });
 
         if (engineResult) {
+          const segments = Array.isArray(engineResult.segments) ? engineResult.segments : [];
+          const segmentsTotal = segments.length + 1;
+          const seriesId = segmentsTotal > 1
+            ? (newTask.id || newTask.key || `series_${timestamp}_${Math.random().toString(36).slice(2, 7)}`)
+            : null;
+          const primaryDuration = typeof engineResult.primaryDuration === 'number'
+            ? engineResult.primaryDuration
+            : newTask.duration;
+
           newTask = {
             ...newTask,
+            duration: primaryDuration,
             scheduledTime: engineResult.scheduledTime,
             scheduledFor: engineResult.scheduledTime,
             specificTime: engineResult.specificTime,
@@ -605,6 +615,13 @@ function appReducer(state, action) {
               scheduledDate: engineResult.date,
               overflowed: engineResult.overflowed || false,
               overflowDaysAhead: engineResult.overflowDaysAhead || 0,
+              ...(seriesId && {
+                seriesId,
+                segmentIndex: 0,
+                segmentsTotal,
+                originalDuration: taskData?.duration ?? newTask.duration ?? primaryDuration,
+                unplacedMinutes: engineResult.unplacedMinutes || 0,
+              }),
             },
           };
           newTasks = [...state.tasks, newTask];
@@ -616,6 +633,43 @@ function appReducer(state, action) {
                 ? { ...slot, assignedTaskId: newTask.id || newTask.key, updatedAt: timestamp }
                 : slot
             );
+          }
+
+          // Fan out the continuation segments as linked child tasks so each
+          // day the user sees the next chunk queued in its matching slot.
+          if (segments.length > 0 && seriesId) {
+            segments.forEach((seg, idx) => {
+              const child = createTask({
+                text: newTask.text,
+                primaryType: newTask.primaryType,
+                taskType: newTask.taskType,
+                tags: newTask.tags,
+                priority: newTask.priority,
+                description: newTask.description,
+                duration: seg.duration,
+                scheduledTime: seg.scheduledTime,
+                scheduledFor: seg.scheduledTime,
+                specificTime: seg.specificTime,
+                specificDay: seg.specificDay,
+                scheduledSlotId: seg.slotId || null,
+                metadata: {
+                  schedulingReason: 'Continuation segment',
+                  scheduledLabel: seg.label,
+                  scheduledDate: seg.date,
+                  seriesId,
+                  segmentIndex: idx + 1,
+                  segmentsTotal,
+                },
+              });
+              newTasks = [...newTasks, child];
+              if (seg.slotId) {
+                newSlots = newSlots.map(slot =>
+                  slot.id === seg.slotId
+                    ? { ...slot, assignedTaskId: child.id, updatedAt: timestamp }
+                    : slot
+                );
+              }
+            });
           }
         } else {
           // Fallback: legacy slot-based scheduling

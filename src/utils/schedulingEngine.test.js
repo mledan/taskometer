@@ -612,6 +612,39 @@ describe('Scenario 4: Edge cases', () => {
     expect(result.reason).toMatch(/overflow/i);
   });
 
+  it('splits an oversized task across days when matching slots exist on later days', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 1, 24, 8, 0, 0));
+
+    // Three consecutive work slots, 435m each. A 1000m task needs
+    // 435 + 435 + 130 = three segments across three days.
+    const slots = ['2026-02-24', '2026-02-25', '2026-02-26'].map(date => makeSlot({
+      id: `slot-${date}`,
+      date,
+      startTime: '09:15',
+      endTime: '16:30',
+      slotType: 'work',
+      label: 'Cold Calling',
+      flexibility: 'preferred',
+    }));
+
+    const task = makeTask({ primaryType: 'work', duration: 1000 });
+    const state = { slots, tasks: [], settings: {}, taskTypes: [] };
+
+    const result = scheduleTask(task, state);
+
+    expect(result).not.toBeNull();
+    expect(result.slotId).toBe('slot-2026-02-24');
+    expect(result.primaryDuration).toBe(435);
+    expect(Array.isArray(result.segments)).toBe(true);
+    expect(result.segments).toHaveLength(2);
+    expect(result.segments[0].slotId).toBe('slot-2026-02-25');
+    expect(result.segments[0].duration).toBe(435);
+    expect(result.segments[1].slotId).toBe('slot-2026-02-26');
+    expect(result.segments[1].duration).toBe(130);
+    expect(result.unplacedMinutes).toBe(0);
+  });
+
   it('previewTaskSchedule works identically to scheduleTask', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 1, 24, 10, 0, 0));
