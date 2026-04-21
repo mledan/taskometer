@@ -282,6 +282,7 @@ export default function Taskometer() {
           wheels={derived.wheels}
           dayAssignments={derived.dayAssignments}
           dayOverrides={derived.dayOverrides}
+          resolveDay={derived.resolveDay}
           api={api}
           rowHandlers={rowHandlers}
           onNavigate={setView}
@@ -296,10 +297,12 @@ export default function Taskometer() {
           wheels={derived.wheels}
           dayAssignments={derived.dayAssignments}
           dayOverrides={derived.dayOverrides}
+          resolveDay={derived.resolveDay}
           api={api}
           rowHandlers={rowHandlers}
           onNavigate={setView}
           onOpenWheels={() => setWheelsPanelOpen(true)}
+          onOpenRules={() => setRulesOpen(true)}
         />
       )}
       {view === 'calendar' && (
@@ -308,9 +311,11 @@ export default function Taskometer() {
           slots={state.slots || []}
           dayAssignments={derived.dayAssignments}
           dayOverrides={derived.dayOverrides}
+          resolveDay={derived.resolveDay}
           api={api}
           onNavigate={setView}
           onOpenWheels={() => setWheelsPanelOpen(true)}
+          onOpenRules={() => setRulesOpen(true)}
         />
       )}
 

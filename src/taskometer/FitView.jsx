@@ -20,10 +20,12 @@ export default function FitView({
   wheels = [],
   dayAssignments = {},
   dayOverrides = {},
+  resolveDay,
   api,
   rowHandlers = {},
   onNavigate,
   onOpenWheels,
+  onOpenRules,
 }) {
   const { onToggle, onDelete, onEdit, onSaveEdit, editingTaskId } = rowHandlers;
   const [slotComposerOpen, setSlotComposerOpen] = useState(false);
@@ -111,14 +113,23 @@ export default function FitView({
               wheel
             </div>
             {dayLabels.map((d, i) => {
-              const wheelId = dayAssignments[d.date] || '';
+              const pinnedWheelId = dayAssignments[d.date] || '';
+              const pinnedOverride = dayOverrides[d.date] || null;
+              const effective = resolveDay ? resolveDay(d.date) : {
+                wheelId: pinnedWheelId || null,
+                override: pinnedOverride,
+                source: pinnedOverride || pinnedWheelId ? 'pin' : 'none',
+              };
+              const wheelId = effective.wheelId || '';
+              const override = effective.override;
+              const fromRule = effective.source === 'rule';
               const assignedWheel = wheels.find(w => w.id === wheelId) || null;
-              const override = dayOverrides[d.date] || null;
+              const tint = assignedWheel?.color || override?.color || 'var(--rule)';
               return (
                 <div key={`wheel-${i}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 2, paddingBottom: 4 }}>
                   <select
                     className="tm-composer-select"
-                    value={wheelId}
+                    value={pinnedWheelId}
                     onChange={async (ev) => {
                       const next = ev.target.value;
                       if (!next) {
@@ -127,16 +138,20 @@ export default function FitView({
                         await api.wheels.applyToDate(next, d.date, { mode: 'replace' });
                       }
                     }}
-                    title={`wheel for ${d.label}`}
+                    title={fromRule ? `${assignedWheel?.name || override?.label || ''} (from rule — pick to pin manually)` : `wheel for ${d.label}`}
                     style={{
                       width: '100%',
                       fontSize: 12,
                       padding: '3px 6px',
-                      borderColor: assignedWheel?.color || override?.color || 'var(--rule)',
-                      color: assignedWheel?.color || override?.color || 'var(--ink)',
+                      borderStyle: fromRule && !pinnedWheelId ? 'dashed' : 'solid',
+                      borderColor: tint,
+                      color: tint,
+                      fontStyle: fromRule && !pinnedWheelId ? 'italic' : 'normal',
                     }}
                   >
-                    <option value="">{wheels.length === 0 ? '(no wheels)' : '(none)'}</option>
+                    <option value="">
+                      {fromRule && assignedWheel ? `${assignedWheel.name} · rule` : wheels.length === 0 ? '(no wheels)' : '(none)'}
+                    </option>
                     {wheels.map(w => (
                       <option key={w.id} value={w.id}>{w.name}</option>
                     ))}
@@ -156,7 +171,7 @@ export default function FitView({
                     }}
                     title="override (sick, vacation, event...)"
                   >
-                    {override ? override.label || override.type : 'override…'}
+                    {override ? (override.label || override.type) + (fromRule ? ' · rule' : '') : 'override…'}
                   </button>
                 </div>
               );
@@ -246,8 +261,11 @@ export default function FitView({
           {onOpenWheels && (
             <button className="tm-btn tm-sm" onClick={onOpenWheels} title="manage wheels">wheels</button>
           )}
+          {onOpenRules && (
+            <button className="tm-btn tm-sm" onClick={onOpenRules} title="weekday/weekend defaults, date ranges, holidays">rules</button>
+          )}
           <span className="tm-mono tm-sm" style={{ marginLeft: 'auto', color: 'var(--ink-mute)' }}>
-            pick a wheel per day · click a cell to edit/add
+            solid = pinned · dashed = from a rule · click a cell to edit/add
           </span>
         </div>
         {(slotComposerOpen || cellDraft) && (

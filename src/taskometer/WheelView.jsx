@@ -24,6 +24,7 @@ export default function WheelView({
   wheels = [],
   dayAssignments = {},
   dayOverrides = {},
+  resolveDay,
   api,
   rowHandlers = {},
   onNavigate,
@@ -298,6 +299,16 @@ export default function WheelView({
             </div>
           </div>
         )}
+        <HelixStrip
+          todayKey={todayKey}
+          todaySlots={todaySlots}
+          allSlots={slots}
+          wheels={wheels}
+          dayAssignments={dayAssignments}
+          dayOverrides={dayOverrides}
+          resolveDay={resolveDay}
+          taskTypes={taskTypes}
+        />
       </div>
 
       <div style={{ paddingTop: 8 }}>
@@ -1184,6 +1195,138 @@ function NudgeChip({ cx, cy, label, onClick }) {
       </text>
     </g>
   );
+}
+
+/**
+ * HelixStrip — makes the "wheel is actually a helix" idea visible.
+ *
+ * The 24h wheel loops on itself visually but not conceptually: the sleep
+ * block that starts at 22:00 ends at 06:00 *tomorrow*, not at 06:00 today.
+ * This strip renders the handoff: today's overnight tail, then tomorrow's
+ * first few blocks, with a small "→ tomorrow" arrow between them.
+ *
+ * Tomorrow's shape is resolved through `resolveDay` so rules are
+ * respected — a ruled tomorrow shows up even before the user paints it.
+ */
+function HelixStrip({
+  todayKey,
+  todaySlots,
+  allSlots,
+  wheels,
+  dayAssignments,
+  dayOverrides,
+  resolveDay,
+  taskTypes,
+}) {
+  const tomorrowKey = addDaysKey(todayKey, 1);
+  const tomorrowEffective = resolveDay
+    ? resolveDay(tomorrowKey)
+    : {
+        wheelId: dayAssignments[tomorrowKey] || null,
+        override: dayOverrides[tomorrowKey] || null,
+        source: dayAssignments[tomorrowKey] || dayOverrides[tomorrowKey] ? 'pin' : 'none',
+      };
+  const tomorrowWheel = wheels.find(w => w.id === tomorrowEffective.wheelId) || null;
+  const tomorrowOverride = tomorrowEffective.override;
+  const fromRule = tomorrowEffective.source === 'rule';
+
+  // Real slots already scheduled for tomorrow
+  const existingTomorrow = (allSlots || [])
+    .filter(s => s.date === tomorrowKey)
+    .slice()
+    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+  // If tomorrow's slots haven't been materialised but a wheel is resolved
+  // (pinned or ruled), preview the wheel's own blocks so the strip still
+  // shows something useful.
+  const previewBlocks = existingTomorrow.length > 0
+    ? existingTomorrow.map(s => ({
+        startTime: s.startTime,
+        endTime: s.endTime,
+        label: s.label || s.slotType || 'block',
+        color: s.color || null,
+        slotType: s.slotType || null,
+      }))
+    : (tomorrowWheel?.blocks || []).slice().sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+  const overnight = todaySlots.find(s => isOvernightSlot(s));
+
+  const noTomorrow = !tomorrowWheel && !tomorrowOverride && previewBlocks.length === 0;
+
+  return (
+    <div
+      className="tm-card tm-flush"
+      style={{
+        marginTop: 10,
+        padding: '10px 12px',
+        borderTop: '1px dashed var(--rule)',
+      }}
+      title="today's wheel hands off to tomorrow — the day is a helix, not a loop"
+    >
+      <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+        → tomorrow ({tomorrowKey})
+      </div>
+      {overnight && (
+        <div className="tm-mono tm-sm" style={{ marginBottom: 4 }}>
+          <span style={{ color: overnight.color || 'var(--ink)' }}>
+            {overnight.label || overnight.slotType || 'block'}
+          </span>{' '}
+          crosses midnight — ends <strong>{overnight.endTime}</strong> tomorrow
+        </div>
+      )}
+      {tomorrowOverride && (
+        <div className="tm-mono tm-sm" style={{ color: tomorrowOverride.color }}>
+          tomorrow is set to <strong>{tomorrowOverride.label || tomorrowOverride.type}</strong>
+          {fromRule ? ' (from rule)' : ''}
+        </div>
+      )}
+      {tomorrowWheel && (
+        <div className="tm-mono tm-sm" style={{ color: tomorrowWheel.color }}>
+          wheel: <strong>{tomorrowWheel.name}</strong>{fromRule ? ' (from rule)' : ''}
+        </div>
+      )}
+      {previewBlocks.length > 0 ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+          {previewBlocks.slice(0, 6).map((b, i) => {
+            const color = b.color || resolveTypeColor(taskTypes, b.slotType) || '#94A3B8';
+            return (
+              <span
+                key={i}
+                className="tm-mono tm-sm"
+                style={{
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  background: hexWithAlpha(color, 0.18),
+                  border: `1px ${fromRule && existingTomorrow.length === 0 ? 'dashed' : 'solid'} ${color}`,
+                  color: 'var(--ink)',
+                }}
+              >
+                {b.startTime}–{b.endTime} {b.label || ''}
+              </span>
+            );
+          })}
+          {previewBlocks.length > 6 && (
+            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+              +{previewBlocks.length - 6} more
+            </span>
+          )}
+        </div>
+      ) : noTomorrow ? (
+        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+          nothing planned yet — pin a wheel to tomorrow or add a rule so it flows through automatically.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function addDaysKey(dateKey, delta) {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + delta);
+  const mm = date.getMonth() + 1;
+  const dd = date.getDate();
+  return `${date.getFullYear()}-${mm < 10 ? '0' + mm : mm}-${dd < 10 ? '0' + dd : dd}`;
 }
 
 function hexWithAlpha(hex, alpha) {

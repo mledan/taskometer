@@ -59,8 +59,14 @@ export default function RulesPanel({ api, wheels = [], rules = [], onClose }) {
           <button className="tm-btn tm-sm" onClick={() => setDraftKind('days')}>
             + days-of-week wheel
           </button>
+          <button className="tm-btn tm-sm" onClick={() => setDraftKind('dateWheel')}>
+            + specific date wheel
+          </button>
+          <button className="tm-btn tm-sm" onClick={() => setDraftKind('rangeWheel')}>
+            + date range wheel
+          </button>
           <button className="tm-btn tm-sm" onClick={() => setDraftKind('range')}>
-            + date range (vacation, event)
+            + date range override (vacation, event)
           </button>
           <button className="tm-btn tm-sm" onClick={() => setDraftKind('yearly')}>
             + yearly (holiday)
@@ -75,6 +81,12 @@ export default function RulesPanel({ api, wheels = [], rules = [], onClose }) {
         )}
         {draftKind === 'days' && (
           <DaysOfWeekDraft wheels={wheels} onAdd={addDraft} onCancel={() => setDraftKind(null)} />
+        )}
+        {draftKind === 'dateWheel' && (
+          <DateWheelDraft wheels={wheels} onAdd={addDraft} onCancel={() => setDraftKind(null)} />
+        )}
+        {draftKind === 'rangeWheel' && (
+          <RangeWheelDraft wheels={wheels} onAdd={addDraft} onCancel={() => setDraftKind(null)} />
         )}
         {draftKind === 'range' && (
           <RangeOverrideDraft onAdd={addDraft} onCancel={() => setDraftKind(null)} />
@@ -237,6 +249,78 @@ function todayYMD() {
   const d = new Date();
   const m = d.getMonth() + 1, day = d.getDate();
   return `${d.getFullYear()}-${m < 10 ? '0' + m : m}-${day < 10 ? '0' + day : day}`;
+}
+
+function DateWheelDraft({ wheels, onAdd, onCancel }) {
+  const [date, setDate] = useState(todayYMD());
+  const [wheelId, setWheelId] = useState(null);
+  const [name, setName] = useState('');
+  const save = () => {
+    if (!wheelId) return;
+    const w = wheels.find(x => x.id === wheelId);
+    onAdd({
+      name: name.trim() || `${w?.name || 'wheel'} on ${date}`,
+      priority: 40, // specific date beats dow defaults
+      when: { date },
+      action: { applyWheel: wheelId },
+    });
+  };
+  return (
+    <DraftFrame title="specific date → wheel" onSave={save} onCancel={onCancel} canSave={!!wheelId}>
+      <input
+        className="tm-composer-input"
+        placeholder="rule name (optional)"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        style={{ minWidth: 180 }}
+      />
+      <input type="date" className="tm-composer-num" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} />
+      <span className="tm-mono tm-sm">→</span>
+      <WheelSelect value={wheelId} onChange={setWheelId} wheels={wheels} />
+    </DraftFrame>
+  );
+}
+
+function RangeWheelDraft({ wheels, onAdd, onCancel }) {
+  const [start, setStart] = useState(todayYMD());
+  const [end, setEnd] = useState(todayYMD());
+  const [wheelId, setWheelId] = useState(null);
+  const [name, setName] = useState('');
+  const [scope, setScope] = useState('all'); // all | weekdays | weekends
+  const save = () => {
+    if (!wheelId) return;
+    const w = wheels.find(x => x.id === wheelId);
+    const when = { range: [start, end] };
+    if (scope === 'weekdays') when.dow = [1, 2, 3, 4, 5];
+    if (scope === 'weekends') when.dow = [0, 6];
+    onAdd({
+      name: name.trim() || `${w?.name || 'wheel'} ${start}→${end}${scope !== 'all' ? ' (' + scope + ')' : ''}`,
+      priority: 45, // range + dow beats dow defaults
+      when,
+      action: { applyWheel: wheelId },
+    });
+  };
+  return (
+    <DraftFrame title="date range → wheel" onSave={save} onCancel={onCancel} canSave={!!wheelId}>
+      <input
+        className="tm-composer-input"
+        placeholder="rule name (e.g. 'sprint week')"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        style={{ minWidth: 180 }}
+      />
+      <input type="date" className="tm-composer-num" value={start} onChange={(e) => setStart(e.target.value)} style={{ width: 150 }} />
+      <span className="tm-mono">–</span>
+      <input type="date" className="tm-composer-num" value={end} onChange={(e) => setEnd(e.target.value)} min={start} style={{ width: 150 }} />
+      <div className="tm-seg">
+        {['all', 'weekdays', 'weekends'].map(s => (
+          <button key={s} className={scope === s ? 'tm-on' : ''} onClick={() => setScope(s)}>{s}</button>
+        ))}
+      </div>
+      <span className="tm-mono tm-sm">→</span>
+      <WheelSelect value={wheelId} onChange={setWheelId} wheels={wheels} />
+    </DraftFrame>
+  );
 }
 
 function RangeOverrideDraft({ onAdd, onCancel }) {

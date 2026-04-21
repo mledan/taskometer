@@ -13,9 +13,11 @@ export default function CalendarView({
   slots = [],
   dayAssignments = {},
   dayOverrides = {},
+  resolveDay,
   api,
   onNavigate,
   onOpenWheels,
+  onOpenRules,
 }) {
   const today = new Date();
   const [anchor, setAnchor] = useState({ year: today.getFullYear(), month: today.getMonth() });
@@ -179,6 +181,7 @@ export default function CalendarView({
             wheels={wheels}
             dayAssignments={dayAssignments}
             dayOverrides={dayOverrides}
+            resolveDay={resolveDay}
             slotsByDate={slotsByDate}
             scope={scope}
             onDayClick={onDayClick}
@@ -190,6 +193,10 @@ export default function CalendarView({
 
       <div className="tm-mono tm-sm" style={{ marginTop: 10, color: 'var(--ink-mute)' }}>
         click a day for actions · set "paint with" to a wheel, then drag across days to bulk-paint
+        <span style={{ marginLeft: 8 }}>
+          · <span style={{ display: 'inline-block', width: 10, height: 10, border: '1.5px solid var(--ink-mute)', borderRadius: 2, verticalAlign: 'middle' }} /> pinned ·
+          <span style={{ display: 'inline-block', width: 10, height: 10, border: '1.5px dashed var(--ink-mute)', borderRadius: 2, verticalAlign: 'middle', marginLeft: 4 }} /> from a rule
+        </span>
       </div>
 
       <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -197,6 +204,9 @@ export default function CalendarView({
         <button className="tm-btn tm-sm" onClick={() => onNavigate('fit')}>week view</button>
         {onOpenWheels && (
           <button className="tm-btn tm-sm" onClick={onOpenWheels} title="manage wheels">wheels</button>
+        )}
+        {onOpenRules && (
+          <button className="tm-btn tm-sm" onClick={onOpenRules} title="rules for weekdays, weekends, vacation, holidays">rules</button>
         )}
       </div>
 
@@ -215,7 +225,7 @@ export default function CalendarView({
 }
 
 function MonthGrid({
-  year, month, todayKey, wheels, dayAssignments, dayOverrides, slotsByDate,
+  year, month, todayKey, wheels, dayAssignments, dayOverrides, resolveDay, slotsByDate,
   scope, onDayClick, onDayPointerDown, onDayPointerEnter,
 }) {
   const first = startOfMonth(year, month);
@@ -230,41 +240,45 @@ function MonthGrid({
   }
   for (let d = 1; d <= numDays; d++) {
     const dateKey = `${year}-${pad(month + 1)}-${pad(d)}`;
-    const assignedId = dayAssignments[dateKey];
-    const wheel = wheels.find(w => w.id === assignedId) || null;
-    const override = dayOverrides[dateKey] || null;
+    const pinnedWheelId = dayAssignments[dateKey];
+    const pinnedOverride = dayOverrides[dateKey] || null;
+    const effective = resolveDay ? resolveDay(dateKey) : {
+      wheelId: pinnedWheelId || null,
+      override: pinnedOverride,
+      source: pinnedOverride || pinnedWheelId ? 'pin' : 'none',
+    };
+    const wheel = wheels.find(w => w.id === effective.wheelId) || null;
+    const override = effective.override;
+    const fromRule = effective.source === 'rule';
     const slotCount = slotsByDate[dateKey] || 0;
     const isToday = dateKey === todayKey;
-    const bg = override
-      ? override.color
-      : wheel
-        ? wheel.color
-        : null;
+    const bg = override ? override.color : wheel ? wheel.color : null;
 
     cells.push(
       <div
         key={dateKey}
-        className={`tm-cal-cell tm-cal-${cellSize}${isToday ? ' tm-cal-today' : ''}`}
+        className={`tm-cal-cell tm-cal-${cellSize}${isToday ? ' tm-cal-today' : ''}${fromRule ? ' tm-cal-ruled' : ''}`}
         onClick={(ev) => onDayClick(dateKey, ev)}
         onPointerDown={(ev) => onDayPointerDown(dateKey, ev)}
         onPointerEnter={() => onDayPointerEnter(dateKey)}
         style={{
-          background: bg ? hexA(bg, 0.22) : 'var(--paper)',
+          background: bg ? hexA(bg, fromRule ? 0.12 : 0.22) : 'var(--paper)',
           borderColor: bg || 'var(--rule)',
+          borderStyle: fromRule ? 'dashed' : 'solid',
         }}
-        title={`${dateKey}${wheel ? ' · ' + wheel.name : ''}${override ? ' · ' + (override.label || override.type) : ''}`}
+        title={`${dateKey}${wheel ? ' · ' + wheel.name : ''}${override ? ' · ' + (override.label || override.type) : ''}${fromRule ? ' · from rule' : ''}`}
       >
         <div className="tm-cal-day-num">{d}</div>
         {cellSize === 'full' && (
           <div className="tm-cal-day-body">
             {wheel && (
-              <div className="tm-mono tm-sm tm-cal-tag" style={{ color: wheel.color }}>
-                {wheel.name}
+              <div className="tm-mono tm-sm tm-cal-tag" style={{ color: wheel.color, fontStyle: fromRule ? 'italic' : 'normal' }}>
+                {wheel.name}{fromRule ? ' ·rule' : ''}
               </div>
             )}
             {override && (
-              <div className="tm-mono tm-sm tm-cal-tag" style={{ color: override.color, fontWeight: 600 }}>
-                {override.label || override.type}
+              <div className="tm-mono tm-sm tm-cal-tag" style={{ color: override.color, fontWeight: 600, fontStyle: fromRule ? 'italic' : 'normal' }}>
+                {override.label || override.type}{fromRule ? ' ·rule' : ''}
               </div>
             )}
             {!wheel && !override && slotCount > 0 && (
@@ -277,7 +291,10 @@ function MonthGrid({
         {cellSize === 'mini' && (wheel || override) && (
           <div
             className="tm-cal-mini-dot"
-            style={{ background: (override || wheel).color || 'var(--ink-mute)' }}
+            style={{
+              background: (override || wheel).color || 'var(--ink-mute)',
+              opacity: fromRule ? 0.55 : 1,
+            }}
           />
         )}
       </div>
