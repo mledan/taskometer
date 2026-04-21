@@ -100,19 +100,21 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
 
   const allSlots = ensureFutureSlots(existingSlots, settings, MAX_DAYS_AHEAD);
 
-  const candidates = allSlots
+  // Slots still in the future (by end time). Includes slots too short for
+  // the task — those are used by the overflow phase at the bottom.
+  const liveSlots = allSlots
     .filter(slot => {
       const slotStart = getSlotStartDateTime(slot);
       const slotEnd = addMinutes(slotStart, getSlotDuration(slot));
-      if (slotEnd <= now) return false;
-      if (getSlotDuration(slot) < taskDuration) return false;
-      return true;
+      return slotEnd > now;
     })
     .sort((a, b) => {
       const dateCompare = a.date.localeCompare(b.date);
       if (dateCompare !== 0) return dateCompare;
       return a.startTime.localeCompare(b.startTime);
     });
+
+  const candidates = liveSlots.filter(slot => getSlotDuration(slot) >= taskDuration);
 
   // Phase 1: exact type+tag match
   const exactMatch = findFirstAvailable(candidates, task, existingTasks, breakDuration, (slot) => {
@@ -168,7 +170,39 @@ function scheduleWithFramework(task, existingSlots, existingTasks, settings, tas
     return buildResult(anyMatch, task, 'Best available slot');
   }
 
-  // Phase 6: no framework slots worked, try ad-hoc as last resort
+  // Phase 6: overflow — no slot is large enough to fit the task, but if one
+  // matches by type/tag we'd rather anchor the task to its start (and let it
+  // visually spill past the end) than drop it into an unrelated ad-hoc
+  // window. Keeps the user's "this task lives in that block" mental model.
+  const overflowMatch =
+    findOverflow(liveSlots, task, existingTasks, breakDuration, (slot) => (
+      slot.slotType && slot.slotType === taskType
+    )) ||
+    (taskTags.length > 0 && findOverflow(liveSlots, task, existingTasks, breakDuration, (slot) => (
+      Array.isArray(slot.allowedTags) && slot.allowedTags.some(tag => taskTags.includes(tag))
+    )));
+
+  if (overflowMatch) {
+    const result = buildResult(overflowMatch, task, 'Anchored to matching slot — overflow split across days');
+    // Compute continuation segments on future days so the task is broken up
+    // rather than bleeding past its block's end on a single day.
+    const segmentPlan = planSegments(
+      task,
+      overflowMatch.slot,
+      allSlots,
+      existingTasks,
+      settings,
+      breakDuration,
+      taskType,
+      taskTags
+    );
+    result.primaryDuration = segmentPlan.primaryDuration;
+    result.segments = segmentPlan.segments;
+    result.unplacedMinutes = segmentPlan.unplacedMinutes;
+    return result;
+  }
+
+  // Phase 7: no framework slots worked, try ad-hoc as last resort
   return scheduleWithoutFramework(task, existingTasks, taskTypes, breakDuration);
 }
 
@@ -313,6 +347,114 @@ function findFirstAvailable(candidates, task, existingTasks, breakDuration, filt
       }
 
       candidateStart = addMinutes(candidateStart, SNAP_MINUTES);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Walk forward day by day, dropping task chunks into matching slots until
+ * the task's minutes are exhausted. Used when a task is too big for any one
+ * slot, so the user sees it broken up instead of bleeding past a block's end.
+ *
+ * Returns:
+ *   primaryDuration  — minutes consumed by segment 0 (the slot we anchored to)
+ *   segments         — additional segments for future days
+ *   unplacedMinutes  — leftover minutes we couldn't place within the horizon
+ */
+function planSegments(task, firstSlot, allSlots, existingTasks, settings, breakDuration, taskType, taskTags) {
+  const totalDuration = task.duration || DEFAULT_DURATION;
+  const firstSlotDur = getSlotDuration(firstSlot);
+  const primaryDuration = Math.min(firstSlotDur, totalDuration);
+
+  let remaining = totalDuration - primaryDuration;
+  if (remaining <= 0) {
+    return { primaryDuration, segments: [], unplacedMinutes: 0 };
+  }
+
+  const firstSlotStart = getSlotStartDateTime(firstSlot);
+  const expanded = ensureFutureSlots(allSlots, settings, MAX_DAYS_AHEAD);
+  const matchesType = (slot) => {
+    if (slot.slotType && slot.slotType === taskType) return true;
+    if (taskTags.length > 0 && Array.isArray(slot.allowedTags)) {
+      return slot.allowedTags.some(tag => taskTags.includes(tag));
+    }
+    return false;
+  };
+
+  // Consider slots that land after our primary slot, grouped and ordered by day.
+  const byDay = new Map();
+  for (const slot of expanded) {
+    if (slot.id === firstSlot.id) continue;
+    if (!matchesType(slot)) continue;
+    if (slot.assignedTaskId && slot.assignedTaskId !== task.id) continue;
+    const startDT = getSlotStartDateTime(slot);
+    if (startDT <= firstSlotStart) continue;
+    if (!byDay.has(slot.date)) byDay.set(slot.date, []);
+    byDay.get(slot.date).push(slot);
+  }
+
+  const orderedDays = [...byDay.keys()].sort();
+  const segments = [];
+  // Track minutes we've virtually parked so we detect conflicts against our
+  // own earlier segments too (e.g. same day, next slot also matches).
+  const virtualOccupants = [];
+
+  const combinedConflicts = [...existingTasks, ...virtualOccupants];
+
+  for (const day of orderedDays) {
+    if (remaining <= 0) break;
+    const slotsForDay = byDay.get(day).sort((a, b) => a.startTime.localeCompare(b.startTime));
+    for (const slot of slotsForDay) {
+      if (remaining <= 0) break;
+      const slotStart = getSlotStartDateTime(slot);
+      const slotDur = getSlotDuration(slot);
+      const chunk = Math.min(slotDur, remaining);
+      const candidateEnd = addMinutes(slotStart, chunk);
+      if (hasConflict(slotStart, candidateEnd, combinedConflicts, breakDuration)) continue;
+
+      segments.push({
+        scheduledTime: slotStart.toISOString(),
+        specificTime: formatHHMM(slotStart),
+        specificDay: format(slotStart, 'EEEE'),
+        date: slot.date,
+        slotId: slot.id,
+        slotColor: slot.color,
+        label: slot.label,
+        duration: chunk,
+      });
+      virtualOccupants.push({
+        scheduledTime: slotStart.toISOString(),
+        duration: chunk,
+        status: 'pending',
+      });
+      remaining -= chunk;
+      break; // one segment per day keeps the user's "spread across days" ask
+    }
+  }
+
+  return { primaryDuration, segments, unplacedMinutes: Math.max(0, remaining) };
+}
+
+/**
+ * Anchor a task to the start of the first type/tag-matching slot, regardless
+ * of whether the task fits. Used as a fallback so oversized tasks still line
+ * up with the slot the user meant them to occupy.
+ */
+function findOverflow(slots, task, existingTasks, breakDuration, filterFn) {
+  const taskDuration = task.duration || DEFAULT_DURATION;
+
+  for (const slot of slots) {
+    if (!filterFn(slot)) continue;
+    if (slot.assignedTaskId && slot.assignedTaskId !== task.id) continue;
+
+    // Oversized task: anchor to slot start so the task visually lives in
+    // the block the user picked, even when the slot is already in progress.
+    const candidateStart = getSlotStartDateTime(slot);
+    const candidateEnd = addMinutes(candidateStart, taskDuration);
+    if (!hasConflict(candidateStart, candidateEnd, existingTasks, breakDuration)) {
+      return { slot, startTime: candidateStart, overflow: true };
     }
   }
 

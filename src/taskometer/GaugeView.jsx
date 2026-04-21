@@ -81,9 +81,10 @@ export default function GaugeView({
         <DayTimeline slots={timeline} />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 32, alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 32, alignItems: 'baseline', flexWrap: 'wrap' }}>
         <button className="tm-btn tm-ghost tm-sm" onClick={() => onNavigate('wheel')}>day wheel →</button>
         <button className="tm-btn tm-ghost tm-sm" onClick={() => onNavigate('fit')}>week fit →</button>
+        <button className="tm-btn tm-ghost tm-sm" onClick={() => onNavigate('calendar')}>month →</button>
       </div>
     </div>
   );

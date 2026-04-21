@@ -168,6 +168,9 @@ export default function Taskometer() {
           pushed={derived.pushed}
           slots={state.slots || []}
           taskTypes={state.taskTypes || []}
+          todayTasks={derived.todayTasks}
+          wheels={derived.wheels}
+          dayAssignments={derived.dayAssignments}
           dayOverrides={derived.dayOverrides}
           api={api}
           rowHandlers={rowHandlers}
@@ -180,9 +183,13 @@ export default function Taskometer() {
           weekFit={derived.weekFit}
           backlog={derived.backlog}
           taskTypes={state.taskTypes || []}
+          wheels={derived.wheels}
+          dayAssignments={derived.dayAssignments}
+          dayOverrides={derived.dayOverrides}
           api={api}
           rowHandlers={rowHandlers}
           onNavigate={setView}
+          onOpenWheels={() => setWheelsPanelOpen(true)}
         />
       )}
       {view === 'calendar' && (
@@ -193,6 +200,7 @@ export default function Taskometer() {
           dayOverrides={derived.dayOverrides}
           api={api}
           onNavigate={setView}
+          onOpenWheels={() => setWheelsPanelOpen(true)}
         />
       )}
 

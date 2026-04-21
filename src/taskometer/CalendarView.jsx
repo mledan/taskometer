@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { OVERRIDE_TYPES } from '../services/api/TaskometerAPI';
+import DayMenu, { buildDayMenuHandlers } from './DayMenu.jsx';
 
 function pad(n) { return n < 10 ? `0${n}` : `${n}`; }
 function ymd(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
@@ -15,6 +15,7 @@ export default function CalendarView({
   dayOverrides = {},
   api,
   onNavigate,
+  onOpenWheels,
 }) {
   const today = new Date();
   const [anchor, setAnchor] = useState({ year: today.getFullYear(), month: today.getMonth() });
@@ -68,40 +69,7 @@ export default function CalendarView({
 
   const closeDayMenu = () => setDayMenu(null);
 
-  const handleAssign = async (wheelId) => {
-    if (!dayMenu) return;
-    await api.wheels.applyToDate(wheelId, dayMenu.date, { mode: 'replace' });
-    closeDayMenu();
-  };
-
-  const handleClearAssignment = async () => {
-    if (!dayMenu) return;
-    await api.days.unassign(dayMenu.date);
-    closeDayMenu();
-  };
-
-  const handleOverride = async (type) => {
-    if (!dayMenu) return;
-    const preset = OVERRIDE_TYPES.find(o => o.id === type);
-    const shouldClear = preset?.clearsSlots;
-    let note = null;
-    if (type === 'event' || type === 'custom') {
-      note = window.prompt(`label for ${preset?.label || type}:`, preset?.label || '') || null;
-    }
-    await api.days.setOverride(dayMenu.date, {
-      type,
-      label: note || preset?.label || type,
-      color: preset?.color,
-      clearSlots: shouldClear,
-    });
-    closeDayMenu();
-  };
-
-  const handleClearOverride = async () => {
-    if (!dayMenu) return;
-    await api.days.clearOverride(dayMenu.date);
-    closeDayMenu();
-  };
+  const dayMenuHandlers = buildDayMenuHandlers({ api, menu: dayMenu, close: closeDayMenu });
 
   // Drag-paint: hold a wheel, hover over days to assign
   const onDayPointerDown = async (dateKey, ev) => {
@@ -193,6 +161,9 @@ export default function CalendarView({
       <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button className="tm-btn tm-sm" onClick={() => onNavigate('wheel')}>back to wheel</button>
         <button className="tm-btn tm-sm" onClick={() => onNavigate('fit')}>week view</button>
+        {onOpenWheels && (
+          <button className="tm-btn tm-sm" onClick={onOpenWheels} title="manage wheels">wheels</button>
+        )}
       </div>
 
       {dayMenu && (
@@ -200,10 +171,7 @@ export default function CalendarView({
           menu={dayMenu}
           wheels={wheels}
           onClose={closeDayMenu}
-          onAssign={handleAssign}
-          onClearAssignment={handleClearAssignment}
-          onOverride={handleOverride}
-          onClearOverride={handleClearOverride}
+          {...dayMenuHandlers}
           assignedWheelId={dayAssignments[dayMenu.date] || null}
           override={dayOverrides[dayMenu.date] || null}
         />
@@ -292,77 +260,6 @@ function MonthGrid({
           <div key={i} className="tm-cal-wk tm-mono tm-sm">{w}</div>
         ))}
         {cells}
-      </div>
-    </div>
-  );
-}
-
-function DayMenu({
-  menu, wheels, onClose, onAssign, onClearAssignment, onOverride, onClearOverride,
-  assignedWheelId, override,
-}) {
-  // Close on outside click / escape
-  React.useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const maxLeft = window.innerWidth - 280;
-  const left = Math.min(menu.x, Math.max(8, maxLeft));
-  const top = menu.y;
-
-  return (
-    <div
-      className="tm-popover-backdrop"
-      onMouseDown={onClose}
-      role="dialog"
-      aria-label="day actions"
-    >
-      <div
-        className="tm-popover"
-        onMouseDown={(e) => e.stopPropagation()}
-        style={{ left, top }}
-      >
-        <div className="tm-mono tm-md" style={{ fontWeight: 600, marginBottom: 6 }}>{menu.date}</div>
-
-        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginBottom: 4 }}>assign wheel</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-          {wheels.length === 0 && (
-            <span className="tm-mono tm-sm">no wheels yet — create one from the wheel tab</span>
-          )}
-          {wheels.map(w => (
-            <button
-              key={w.id}
-              className={`tm-btn tm-sm${assignedWheelId === w.id ? ' tm-primary' : ''}`}
-              onClick={() => onAssign(w.id)}
-              style={assignedWheelId !== w.id ? { borderColor: w.color, color: w.color } : undefined}
-            >
-              {w.name}
-            </button>
-          ))}
-          {assignedWheelId && (
-            <button className="tm-btn tm-sm tm-ghost" onClick={onClearAssignment}>clear</button>
-          )}
-        </div>
-
-        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginBottom: 4 }}>override</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          {OVERRIDE_TYPES.map(o => (
-            <button
-              key={o.id}
-              className={`tm-btn tm-sm${override?.type === o.id ? ' tm-primary' : ''}`}
-              onClick={() => onOverride(o.id)}
-              style={override?.type !== o.id ? { borderColor: o.color, color: o.color } : undefined}
-              title={o.clearsSlots ? 'clears that day\'s slots' : ''}
-            >
-              {o.label.toLowerCase()}
-            </button>
-          ))}
-          {override && (
-            <button className="tm-btn tm-sm tm-ghost" onClick={onClearOverride}>clear</button>
-          )}
-        </div>
       </div>
     </div>
   );

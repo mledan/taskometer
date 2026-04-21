@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, SectionLabel } from './shared.jsx';
 import { SlotComposer, TaskRowEditor } from './Composers.jsx';
+import DayMenu, { buildDayMenuHandlers } from './DayMenu.jsx';
 
 // Default time hint per row type, used when the user clicks an empty
 // week-cell to pre-populate the slot composer.
@@ -16,14 +17,31 @@ export default function FitView({
   weekFit,
   backlog,
   taskTypes = [],
+  wheels = [],
+  dayAssignments = {},
+  dayOverrides = {},
   api,
   rowHandlers = {},
   onNavigate,
+  onOpenWheels,
 }) {
   const { onToggle, onDelete, onEdit, onSaveEdit, editingTaskId } = rowHandlers;
   const [slotComposerOpen, setSlotComposerOpen] = useState(false);
   const [cellDraft, setCellDraft] = useState(null);
+  const [dayMenu, setDayMenu] = useState(null);
   const { rowLabels, dayLabels, placed, capacity } = weekFit;
+
+  const closeDayMenu = () => setDayMenu(null);
+  const dayMenuHandlers = buildDayMenuHandlers({ api, menu: dayMenu, close: closeDayMenu });
+
+  const openDayMenu = (dateKey, ev) => {
+    const rect = ev.currentTarget.getBoundingClientRect();
+    setDayMenu({
+      date: dateKey,
+      x: rect.left + window.scrollX,
+      y: rect.bottom + window.scrollY + 4,
+    });
+  };
 
   const fitsText = capacity.fits ? 'everything fits.' : 'overflowing.';
   const fitsColor = capacity.fits ? 'var(--sage)' : 'var(--orange)';
@@ -93,6 +111,60 @@ export default function FitView({
         <div>
           <SectionLabel right="colored cells = auto-routed tasks">This week</SectionLabel>
           <div style={{ display: 'grid', gridTemplateColumns: '58px repeat(5, 1fr)', gap: 4 }}>
+            <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', alignSelf: 'end', paddingBottom: 6 }}>
+              wheel
+            </div>
+            {dayLabels.map((d, i) => {
+              const wheelId = dayAssignments[d.date] || '';
+              const assignedWheel = wheels.find(w => w.id === wheelId) || null;
+              const override = dayOverrides[d.date] || null;
+              return (
+                <div key={`wheel-${i}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 2, paddingBottom: 4 }}>
+                  <select
+                    className="tm-composer-select"
+                    value={wheelId}
+                    onChange={async (ev) => {
+                      const next = ev.target.value;
+                      if (!next) {
+                        await api.days.unassign(d.date);
+                      } else {
+                        await api.wheels.applyToDate(next, d.date, { mode: 'replace' });
+                      }
+                    }}
+                    title={`wheel for ${d.label}`}
+                    style={{
+                      width: '100%',
+                      fontSize: 12,
+                      padding: '3px 6px',
+                      borderColor: assignedWheel?.color || override?.color || 'var(--rule)',
+                      color: assignedWheel?.color || override?.color || 'var(--ink)',
+                    }}
+                  >
+                    <option value="">{wheels.length === 0 ? '(no wheels)' : '(none)'}</option>
+                    {wheels.map(w => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="tm-mono tm-sm"
+                    onClick={(ev) => openDayMenu(d.date, ev)}
+                    style={{
+                      fontSize: 10,
+                      background: 'transparent',
+                      border: '1px dashed var(--rule)',
+                      borderRadius: 4,
+                      padding: '1px 4px',
+                      color: 'var(--ink-mute)',
+                      cursor: 'pointer',
+                    }}
+                    title="override (sick, vacation, event...)"
+                  >
+                    {override ? override.label || override.type : 'override…'}
+                  </button>
+                </div>
+              );
+            })}
             <div />
             {dayLabels.map((d, i) => (
               <div key={i} className="tm-mono tm-md" style={{ textAlign: 'center', color: d.today ? 'var(--orange)' : 'var(--ink-mute)', paddingBottom: 4 }}>
@@ -175,8 +247,11 @@ export default function FitView({
           <button className="tm-btn tm-sm" onClick={() => onNavigate('wheel')}>day shape</button>
           <button className="tm-btn tm-sm" onClick={() => onNavigate('calendar')}>month / year</button>
           <button className="tm-btn tm-sm" onClick={() => onNavigate('gauge')}>back to today</button>
+          {onOpenWheels && (
+            <button className="tm-btn tm-sm" onClick={onOpenWheels} title="manage wheels">wheels</button>
+          )}
           <span className="tm-mono tm-sm" style={{ marginLeft: 'auto', color: 'var(--ink-mute)' }}>
-            click a cell to edit a task or add a block
+            pick a wheel per day · click a cell to edit/add
           </span>
         </div>
         {(slotComposerOpen || cellDraft) && (
@@ -194,6 +269,17 @@ export default function FitView({
           </div>
         )}
       </div>
+
+      {dayMenu && (
+        <DayMenu
+          menu={dayMenu}
+          wheels={wheels}
+          onClose={closeDayMenu}
+          {...dayMenuHandlers}
+          assignedWheelId={dayAssignments[dayMenu.date] || null}
+          override={dayOverrides[dayMenu.date] || null}
+        />
+      )}
     </div>
   );
 }
