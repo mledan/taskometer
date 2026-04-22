@@ -13,12 +13,15 @@ export default function GaugeView({
   todayTasks = [],
   rowHandlers = {},
   onNavigate,
+  hasContent = true,
 }) {
   const { onToggle, onDelete, onEdit, onSaveEdit, editingTaskId } = rowHandlers;
   const angle = 180 + Math.min(120, Math.max(0, load)) / 120 * 180;
   const nextLabel = buildNextLabel(next);
   const nextId = next ? (next.id || next.key) : null;
   const editingNext = nextId && editingTaskId === nextId;
+
+  if (!hasContent) return null;
 
   return (
     <div className="tm-fade-up">

@@ -185,7 +185,8 @@ export default function Taskometer() {
   const { todayDone, todayTotal, pushed } = derived.stats;
   const hasSlots = (state.slots?.length || 0) > 0;
   const hasTasks = (state.tasks?.length || 0) > 0;
-  const isEmpty = !hasSlots && !hasTasks;
+  const onboardingStep = !hasSlots ? 1 : !hasTasks ? 2 : 3;
+  const onboarding = onboardingStep < 3;
 
   return (
     <div id="tm-root-frame" className="tm-root tm-paper">
@@ -207,33 +208,41 @@ export default function Taskometer() {
           </button>
         ))}
         <div className="tm-tabs-right">
-          <input
-            ref={searchRef}
-            className="tm-composer-input"
-            placeholder="search tasks…  /"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') setSearch(''); }}
-            style={{ width: 220, fontSize: 14, padding: '4px 8px' }}
-            aria-label="search"
-          />
-          <button
-            className="tm-btn tm-sm"
-            onClick={() => setRulesOpen(true)}
-            title="weekday/weekend defaults, vacation ranges, holiday rules"
-          >
-            rules
-          </button>
-          <button
-            className="tm-btn tm-sm"
-            onClick={() => setWheelsPanelOpen(true)}
-            title="save today as a wheel, pick a starter, apply to dates"
-          >
-            wheels
-          </button>
-          <span className="tm-mono tm-md">
-            {todayDone} of {todayTotal} today · {pushed} pushed
-          </span>
+          {hasTasks && (
+            <input
+              ref={searchRef}
+              className="tm-composer-input"
+              placeholder="search tasks…  /"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') setSearch(''); }}
+              style={{ width: 220, fontSize: 14, padding: '4px 8px' }}
+              aria-label="search"
+            />
+          )}
+          {hasSlots && (
+            <>
+              <button
+                className="tm-btn tm-sm"
+                onClick={() => setRulesOpen(true)}
+                title="weekday/weekend defaults, vacation ranges, holiday rules"
+              >
+                rules
+              </button>
+              <button
+                className="tm-btn tm-sm"
+                onClick={() => setWheelsPanelOpen(true)}
+                title="save today as a wheel, pick a starter, apply to dates"
+              >
+                wheels
+              </button>
+            </>
+          )}
+          {hasTasks && (
+            <span className="tm-mono tm-md">
+              {todayDone} of {todayTotal} today · {pushed} pushed
+            </span>
+          )}
         </div>
       </div>
 
@@ -241,20 +250,18 @@ export default function Taskometer() {
         {VIEW_LABELS[view].title} <span className="tm-sub">— {VIEW_LABELS[view].sub}</span>
       </div>
 
-      <div style={{ marginBottom: 18 }}>
-        <TaskComposer onAdd={handleAddTask} taskTypes={state.taskTypes || []} />
-        {!hasSlots && (
-          <div className="tm-mono tm-md" style={{ marginTop: 6, color: 'var(--ink-mute)' }}>
-            tip: add time blocks in the <button
-              type="button"
-              onClick={() => setView('wheel')}
-              style={{ background: 'none', border: 'none', color: 'var(--orange)', cursor: 'pointer', padding: 0, textDecoration: 'underline', font: 'inherit' }}
-            >wheel view</button> so new tasks auto-route into them.
-          </div>
-        )}
-      </div>
+      {onboarding && (
+        <WelcomeSteps
+          step={onboardingStep}
+          onGoToWheel={() => setView('wheel')}
+        />
+      )}
 
-      {isEmpty && <EmptyStateHint />}
+      {hasSlots && (
+        <div style={{ marginBottom: 18 }}>
+          <TaskComposer onAdd={handleAddTask} taskTypes={state.taskTypes || []} autoFocus={onboardingStep === 2} />
+        </div>
+      )}
 
       {view === 'gauge' && (
         <GaugeView
@@ -268,6 +275,7 @@ export default function Taskometer() {
           todayTasks={filteredDerived.todayTasks}
           rowHandlers={rowHandlers}
           onNavigate={setView}
+          hasContent={hasSlots || hasTasks}
         />
       )}
       {view === 'wheel' && (
@@ -364,13 +372,84 @@ export default function Taskometer() {
   );
 }
 
-function EmptyStateHint() {
+function WelcomeSteps({ step, onGoToWheel }) {
+  const steps = [
+    {
+      n: 1,
+      title: 'shape your day',
+      body: 'add time blocks (morning, deep work, lunch…) so tasks know where to land.',
+      cta: 'open day wheel →',
+      onClick: onGoToWheel,
+    },
+    {
+      n: 2,
+      title: 'add your first task',
+      body: 'type what you need to do in the bar below — it drops into the next matching block automatically.',
+    },
+    {
+      n: 3,
+      title: 'watch your load',
+      body: "the gauge shows how full today is, and the pressure bars track your week.",
+    },
+  ];
+
   return (
-    <div className="tm-card tm-dashed" style={{ padding: '16px 20px', marginBottom: 18 }}>
-      <div style={{ fontSize: 22 }}>empty slate — shape your day first</div>
-      <div className="tm-mono" style={{ marginTop: 4 }}>
-        add time blocks in the wheel view (morning, deep work, lunch…), then type a task above. tasks flow into the right block automatically; overflow pushes to the next available slot.
+    <div className="tm-card tm-dashed" style={{ padding: '18px 22px', marginBottom: 18 }}>
+      <div style={{ fontSize: 24, marginBottom: 2 }}>welcome — let's set up your day in three steps</div>
+      <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginBottom: 14 }}>
+        step {step} of 3
       </div>
+      <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {steps.map(s => {
+          const done = s.n < step;
+          const active = s.n === step;
+          const dim = s.n > step;
+          return (
+            <li
+              key={s.n}
+              style={{
+                display: 'flex',
+                gap: 14,
+                alignItems: 'flex-start',
+                opacity: dim ? 0.45 : 1,
+              }}
+            >
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  border: `1.5px solid ${active ? 'var(--orange)' : 'var(--ink)'}`,
+                  background: done ? 'var(--ink)' : active ? 'var(--orange-pale)' : 'var(--paper)',
+                  color: done ? 'var(--paper)' : active ? 'var(--orange)' : 'var(--ink)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: "'Caveat', cursive",
+                  fontSize: 18,
+                  lineHeight: 1,
+                }}
+              >
+                {done ? '✓' : s.n}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 20, lineHeight: 1.15 }}>{s.title}</div>
+                <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginTop: 2 }}>{s.body}</div>
+                {active && s.cta && s.onClick && (
+                  <button
+                    className="tm-btn tm-primary tm-sm"
+                    onClick={s.onClick}
+                    style={{ marginTop: 8 }}
+                  >
+                    {s.cta}
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
