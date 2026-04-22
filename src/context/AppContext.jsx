@@ -24,6 +24,7 @@ import { findOptimalTimeSlot, batchScheduleTasks } from '../utils/intelligentSch
 import { batchMatchTasksToSlots } from '../utils/slotMatcher';
 import { getActiveSchedule as getLegacyActiveSchedule } from '../utils/scheduleTemplates';
 import { scheduleTask as engineScheduleTask, scheduleMultipleTasks as engineScheduleMultiple, applyEventOverride } from '../utils/schedulingEngine';
+import { log as telemetryLog, snapshotState } from '../services/telemetry';
 
 // ============================================
 // CONTEXT CREATION
@@ -1799,23 +1800,24 @@ export function AppStateProvider({ children }) {
           ? savedState.taskTypes
           : DEFAULT_TASK_TYPES;
 
-        dispatch({
-          type: ACTION_TYPES.INIT_STATE,
-          payload: {
-            tasks,
-            slots: savedState.slots || [],
-            tags: savedState.tags?.length > 0 ? savedState.tags : DEFAULT_TAGS,
-            taskTypes,
-            schedules: savedState.schedules || [],
-            palaces: savedState.palaces || [],
-            activeScheduleId: savedState.activeScheduleId,
-            activeSchedule: await db.getActiveSchedule(),
-            settings: { ...initialState.settings, ...(savedState.settings || {}) },
-            date: getInitialDate()
-          }
-        });
+        const payload = {
+          tasks,
+          slots: savedState.slots || [],
+          tags: savedState.tags?.length > 0 ? savedState.tags : DEFAULT_TAGS,
+          taskTypes,
+          schedules: savedState.schedules || [],
+          palaces: savedState.palaces || [],
+          activeScheduleId: savedState.activeScheduleId,
+          activeSchedule: await db.getActiveSchedule(),
+          settings: { ...initialState.settings, ...(savedState.settings || {}) },
+          date: getInitialDate()
+        };
+
+        dispatch({ type: ACTION_TYPES.INIT_STATE, payload });
+        telemetryLog('app:boot', snapshotState({ ...payload, isInitialized: true }));
       } catch (error) {
         console.error('[AppContext] Initialization error:', error);
+        telemetryLog('app:boot:error', { message: error?.message });
         dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error.message });
       }
     }

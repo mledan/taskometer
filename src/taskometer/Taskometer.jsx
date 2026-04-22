@@ -8,9 +8,11 @@ import RulesPanel from './RulesPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
 import { useTaskometerAPI } from '../services/api';
+import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import useTaskNotifications from '../hooks/useTaskNotifications.js';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts.js';
 import KeyboardShortcuts from '../components/KeyboardShortcuts.jsx';
+import { log as telemetryLog, snapshotState } from '../services/telemetry.js';
 import './taskometer.css';
 
 const VIEW_LABELS = {
@@ -53,7 +55,20 @@ export default function Taskometer() {
 
   const { state, api, derived } = useTaskometerAPI();
 
-  useEffect(() => { localStorage.setItem('tm.view', view); }, [view]);
+  useEffect(() => {
+    localStorage.setItem('tm.view', view);
+    telemetryLog('ui:view', { view });
+  }, [view]);
+
+  // Log a one-shot snapshot when the state finishes hydrating so the
+  // very first console frame tells us what the user landed on.
+  const loggedReadyRef = useRef(false);
+  useEffect(() => {
+    if (loggedReadyRef.current) return;
+    if (state.isLoading || !state.isInitialized) return;
+    loggedReadyRef.current = true;
+    telemetryLog('app:ready', { view, ...snapshotState(state) });
+  }, [state, view]);
   useEffect(() => {
     try { localStorage.setItem('tm.ui', JSON.stringify(ui)); } catch (_) {}
   }, [ui]);
@@ -106,16 +121,59 @@ export default function Taskometer() {
     showHelp: () => setShortcutsOpen(true),
   });
 
-  const setUIField = (k, v) => setUI(prev => ({ ...prev, [k]: v }));
+  const setUIField = (k, v) => {
+    telemetryLog('ui:set', { [k]: v });
+    setUI(prev => ({ ...prev, [k]: v }));
+  };
 
-  const handleToggle = (id) => api.tasks.toggleComplete(id);
-  const handleDelete = (id) => api.tasks.remove(id);
-  const handleEdit = (id) => setEditingTaskId(prev => (prev === id ? null : id));
+  const handleToggle = (id) => {
+    telemetryLog('task:toggle', { id });
+    return api.tasks.toggleComplete(id);
+  };
+  const handleDelete = (id) => {
+    telemetryLog('task:delete', { id });
+    return api.tasks.remove(id);
+  };
+  const handleEdit = (id) => {
+    telemetryLog('task:edit-open', { id });
+    setEditingTaskId(prev => (prev === id ? null : id));
+  };
   const handleSaveEdit = (id, updates) => {
+    telemetryLog('task:edit-save', { id, keys: Object.keys(updates || {}) });
     api.tasks.update(id, updates);
     setEditingTaskId(null);
   };
-  const handleAddTask = (data) => api.tasks.add(data);
+  const handleAddTask = (data) => {
+    telemetryLog('task:add', {
+      text: (data?.text || '').slice(0, 40),
+      type: data?.primaryType,
+      duration: data?.duration,
+      priority: data?.priority,
+      repeats: data?.recurrence?.frequency !== 'none',
+    });
+    return api.tasks.add(data);
+  };
+
+  const handleQuickStart = async (template) => {
+    if (!template) {
+      telemetryLog('quickstart:custom');
+      setView('wheel');
+      return;
+    }
+    telemetryLog('quickstart:pick', { name: template.name, blocks: template.blocks.length });
+    try {
+      const created = await api.wheels.add({
+        name: template.name,
+        color: template.color,
+        blocks: template.blocks,
+      });
+      const today = formatYMD(new Date());
+      await api.wheels.applyToDate(created.id, today);
+      telemetryLog('quickstart:applied', { wheelId: created.id, date: today });
+    } catch (err) {
+      telemetryLog('quickstart:error', { message: err?.message });
+    }
+  };
 
   const handleSeriesComplete = (id) => api.tasks.completeSeries(id);
   const handleSeriesDelete = (id) => {
@@ -185,8 +243,8 @@ export default function Taskometer() {
   const { todayDone, todayTotal, pushed } = derived.stats;
   const hasSlots = (state.slots?.length || 0) > 0;
   const hasTasks = (state.tasks?.length || 0) > 0;
-  const onboardingStep = !hasSlots ? 1 : !hasTasks ? 2 : 3;
-  const onboarding = onboardingStep < 3;
+  const hasWheels = (state.settings?.wheels?.length || 0) > 0;
+  const showQuickStart = !hasSlots && !hasWheels;
 
   return (
     <div id="tm-root-frame" className="tm-root tm-paper">
@@ -250,16 +308,11 @@ export default function Taskometer() {
         {VIEW_LABELS[view].title} <span className="tm-sub">— {VIEW_LABELS[view].sub}</span>
       </div>
 
-      {onboarding && (
-        <WelcomeSteps
-          step={onboardingStep}
-          onGoToWheel={() => setView('wheel')}
-        />
-      )}
+      {showQuickStart && <QuickStart onPick={handleQuickStart} />}
 
       {hasSlots && (
         <div style={{ marginBottom: 18 }}>
-          <TaskComposer onAdd={handleAddTask} taskTypes={state.taskTypes || []} autoFocus={onboardingStep === 2} />
+          <TaskComposer onAdd={handleAddTask} taskTypes={state.taskTypes || []} autoFocus={!hasTasks} />
         </div>
       )}
 
@@ -372,86 +425,36 @@ export default function Taskometer() {
   );
 }
 
-function WelcomeSteps({ step, onGoToWheel }) {
-  const steps = [
-    {
-      n: 1,
-      title: 'shape your day',
-      body: 'add time blocks (morning, deep work, lunch…) so tasks know where to land.',
-      cta: 'open day wheel →',
-      onClick: onGoToWheel,
-    },
-    {
-      n: 2,
-      title: 'add your first task',
-      body: 'type what you need to do in the bar below — it drops into the next matching block automatically.',
-    },
-    {
-      n: 3,
-      title: 'watch your load',
-      body: "the gauge shows how full today is, and the pressure bars track your week.",
-    },
-  ];
-
+function QuickStart({ onPick }) {
   return (
     <div className="tm-card tm-dashed" style={{ padding: '18px 22px', marginBottom: 18 }}>
-      <div style={{ fontSize: 24, marginBottom: 2 }}>welcome — let's set up your day in three steps</div>
+      <div style={{ fontSize: 24, marginBottom: 2 }}>pick a day to start with</div>
       <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginBottom: 14 }}>
-        step {step} of 3
+        one click drops a set of time blocks onto today. you can edit, reshape, or save it as your own from the wheel view.
       </div>
-      <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {steps.map(s => {
-          const done = s.n < step;
-          const active = s.n === step;
-          const dim = s.n > step;
-          return (
-            <li
-              key={s.n}
-              style={{
-                display: 'flex',
-                gap: 14,
-                alignItems: 'flex-start',
-                opacity: dim ? 0.45 : 1,
-              }}
-            >
-              <div
-                style={{
-                  flexShrink: 0,
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  border: `1.5px solid ${active ? 'var(--orange)' : 'var(--ink)'}`,
-                  background: done ? 'var(--ink)' : active ? 'var(--orange-pale)' : 'var(--paper)',
-                  color: done ? 'var(--paper)' : active ? 'var(--orange)' : 'var(--ink)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: "'Caveat', cursive",
-                  fontSize: 18,
-                  lineHeight: 1,
-                }}
-              >
-                {done ? '✓' : s.n}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 20, lineHeight: 1.15 }}>{s.title}</div>
-                <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginTop: 2 }}>{s.body}</div>
-                {active && s.cta && s.onClick && (
-                  <button
-                    className="tm-btn tm-primary tm-sm"
-                    onClick={s.onClick}
-                    style={{ marginTop: 8 }}
-                  >
-                    {s.cta}
-                  </button>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {STARTER_WHEELS.map(s => (
+          <button
+            key={s.id}
+            className="tm-btn tm-primary"
+            onClick={() => onPick(s)}
+            title={s.blocks.map(b => `${b.startTime}–${b.endTime} ${b.label}`).join(' · ')}
+          >
+            {s.name}
+          </button>
+        ))}
+        <button className="tm-btn tm-ghost" onClick={() => onPick(null)}>
+          build my own →
+        </button>
+      </div>
     </div>
   );
+}
+
+function formatYMD(date) {
+  const m = date.getMonth() + 1;
+  const day = date.getDate();
+  return `${date.getFullYear()}-${m < 10 ? '0' + m : m}-${day < 10 ? '0' + day : day}`;
 }
 
 function applyPalette(palette) {

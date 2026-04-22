@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TASK_PRIORITIES } from '../models/Task';
+import { log as telemetryLog } from '../services/telemetry.js';
 
 const FALLBACK_TYPES = [
   { id: 'deep', name: 'deep', color: '#D4663A', icon: '🔥' },
@@ -66,7 +67,7 @@ export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [] }) {
   const [duration, setDuration] = useState(30);
   const [type, setType] = useState(types[0]?.id || 'deep');
   const [priority, setPriority] = useState('medium');
-  const [showMore, setShowMore] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [recurrence, setRecurrence] = useState({ frequency: 'none', interval: 1 });
   const inputRef = useRef(null);
 
@@ -78,9 +79,18 @@ export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [] }) {
     if (!types.find(t => t.id === type)) setType(types[0]?.id || 'deep');
   }, [types, type]);
 
+  const detailsDirty =
+    duration !== 30 ||
+    priority !== 'medium' ||
+    type !== (types[0]?.id || 'deep') ||
+    recurrence.frequency !== 'none';
+
   const submit = () => {
     const t = text.trim();
-    if (!t) return;
+    if (!t) {
+      telemetryLog('composer:task:rejected', { reason: 'empty' });
+      return;
+    }
     onAdd({
       text: t,
       primaryType: type,
@@ -92,7 +102,7 @@ export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [] }) {
       status: 'pending',
     });
     setText('');
-    setShowMore(false);
+    setShowDetails(false);
     setRecurrence({ frequency: 'none', interval: 1 });
   };
 
@@ -107,34 +117,17 @@ export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [] }) {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
         />
-        <select
-          className="tm-composer-select"
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          title="task type"
-        >
-          {types.map(t => (
-            <option key={t.id} value={t.id}>{t.name || t.id}</option>
-          ))}
-        </select>
-        <input
-          className="tm-composer-num"
-          type="number"
-          min="5"
-          max="480"
-          step="5"
-          value={duration}
-          onChange={(e) => setDuration(e.target.value)}
-          title="minutes"
-        />
-        <span className="tm-mono tm-md">m</span>
         <button
           type="button"
-          className={`tm-btn tm-sm${showMore ? ' tm-primary' : ''}`}
-          onClick={() => setShowMore(v => !v)}
-          title="priority / repeat"
+          className={`tm-btn tm-sm tm-ghost${showDetails ? ' tm-primary' : ''}`}
+          onClick={() => {
+            const next = !showDetails;
+            setShowDetails(next);
+            telemetryLog('composer:task:details', { open: next });
+          }}
+          title="type · duration · priority · repeat"
         >
-          {showMore ? 'less' : 'more'}
+          {showDetails ? 'hide details' : detailsDirty ? 'details ●' : 'details'}
         </button>
         <button
           className="tm-btn tm-primary tm-sm"
@@ -144,9 +137,32 @@ export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [] }) {
           add
         </button>
       </div>
-      {showMore && (
+      {showDetails && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', paddingLeft: 2 }}>
-          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>priority</span>
+          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>type</span>
+          <select
+            className="tm-composer-select"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            title="task type"
+          >
+            {types.map(t => (
+              <option key={t.id} value={t.id}>{t.name || t.id}</option>
+            ))}
+          </select>
+          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 8 }}>duration</span>
+          <input
+            className="tm-composer-num"
+            type="number"
+            min="5"
+            max="480"
+            step="5"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            title="minutes"
+          />
+          <span className="tm-mono tm-md">m</span>
+          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 8 }}>priority</span>
           <PrioritySegment value={priority} onChange={setPriority} />
           <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 8 }}>repeat</span>
           <RecurrencePicker value={recurrence} onChange={setRecurrence} />
@@ -297,11 +313,27 @@ export function SlotComposer({
 
   const save = () => {
     const trimmed = label.trim();
-    if (!trimmed) return;
-    if (spanMin < 15) return;
+    if (!trimmed) {
+      telemetryLog('composer:slot:rejected', { reason: 'empty-label' });
+      return;
+    }
+    if (spanMin < 15) {
+      telemetryLog('composer:slot:rejected', { reason: 'too-short', spanMin });
+      return;
+    }
     const finalEnd = mode === 'duration' ? computedEnd : endTime;
-    if (startTime === finalEnd) return;
+    if (startTime === finalEnd) {
+      telemetryLog('composer:slot:rejected', { reason: 'zero-span' });
+      return;
+    }
     const matched = types.find(t => t.id === slotType);
+    telemetryLog('composer:slot:save', {
+      date,
+      startTime,
+      endTime: finalEnd,
+      slotType,
+      editing: !!initial?.id,
+    });
     onSave({
       date,
       startTime,
