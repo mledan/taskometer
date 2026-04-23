@@ -311,6 +311,74 @@ export function deriveCurrentSlot({ slots = [], date = new Date(), now = new Dat
 }
 
 /**
+ * The next slot today that starts after `now`. If there is a current slot,
+ * prefers the slot that starts at or after the current slot's end so the
+ * caller can show an "up next" band beside the active one.
+ */
+export function deriveNextSlot({ slots = [], date = new Date(), now = new Date() }) {
+  const dayKey = ymd(date);
+  if (!sameDay(date, now)) return null;
+  const today = slots.filter(s => s?.date === dayKey);
+  const current = deriveCurrentSlot({ slots, date, now });
+  const nowHr = now.getHours() + now.getMinutes() / 60;
+  const cutoff = current ? current.endH : nowHr;
+
+  let best = null;
+  for (const s of today) {
+    const start = parseSlotStart(s);
+    const end = parseSlotEnd(s);
+    if (!start || !end) continue;
+    const startH = start.getHours() + start.getMinutes() / 60;
+    if (startH < cutoff) continue;
+    if (current && s.id === current.id) continue;
+    const endH = end.getHours() + end.getMinutes() / 60 + (end.getDate() !== start.getDate() ? 24 : 0);
+    if (!best || startH < best.startH) {
+      best = {
+        id: s.id,
+        label: slotTypeLabel(s),
+        slotType: s.slotType || null,
+        color: s.color || null,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        startH,
+        endH,
+      };
+    }
+  }
+  return best;
+}
+
+/**
+ * The next slot and the pending tasks parked in it. Mirrors
+ * `deriveCurrentSlotTasks` so the slot view can render a matching "up next"
+ * panel.
+ */
+export function deriveNextSlotTasks({ tasks = [], slots = [], date = new Date(), now = new Date() }) {
+  const slot = deriveNextSlot({ slots, date, now });
+  if (!slot) return { slot: null, tasks: [] };
+
+  const dayKey = ymd(date);
+  const matched = tasks
+    .filter(t => t?.status !== 'completed' && t?.status !== 'cancelled')
+    .filter(t => {
+      if (t.scheduledSlotId && t.scheduledSlotId === slot.id) return true;
+      if (!t.scheduledTime) return false;
+      const d = new Date(t.scheduledTime);
+      if (Number.isNaN(d.getTime())) return false;
+      if (ymd(d) !== dayKey) return false;
+      const h = d.getHours() + d.getMinutes() / 60;
+      return h >= slot.startH && h < slot.endH;
+    })
+    .sort((a, b) => {
+      const ta = a.scheduledTime ? new Date(a.scheduledTime).getTime() : Infinity;
+      const tb = b.scheduledTime ? new Date(b.scheduledTime).getTime() : Infinity;
+      return ta - tb;
+    });
+
+  return { slot, tasks: matched };
+}
+
+/**
  * All pending tasks whose scheduledTime lands inside the active slot's
  * window (or whose scheduledSlotId matches it). Sorted by time.
  */

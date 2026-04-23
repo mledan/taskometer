@@ -201,6 +201,9 @@ export default function Taskometer() {
       currentSlot: derived.currentSlot
         ? { ...derived.currentSlot, tasks: (derived.currentSlot.tasks || []).filter(keep) }
         : derived.currentSlot,
+      nextSlot: derived.nextSlot
+        ? { ...derived.nextSlot, tasks: (derived.nextSlot.tasks || []).filter(keep) }
+        : derived.nextSlot,
     };
   }, [derived, search, filteredState.tasks]);
 
@@ -333,7 +336,10 @@ export default function Taskometer() {
       {scale === 'slot' && (
         <SlotView
           currentSlot={filteredDerived.currentSlot}
+          nextSlot={filteredDerived.nextSlot}
           next={derived.next}
+          slots={state.slots || []}
+          api={api}
           rowHandlers={rowHandlers}
         />
       )}
@@ -445,48 +451,105 @@ function QuickStart({ onPick, wheels }) {
   );
 }
 
-function SlotView({ currentSlot, next, rowHandlers }) {
-  const { onToggle, onDelete, onEdit } = rowHandlers || {};
+function SlotView({ currentSlot, nextSlot, next, slots = [], api, rowHandlers }) {
   const slot = currentSlot?.slot || null;
   const tasks = currentSlot?.tasks || [];
+  const upNext = nextSlot?.slot || null;
+  const upNextTasks = nextSlot?.tasks || [];
 
-  if (!slot) {
-    return (
-      <div className="tm-card tm-dashed" style={{ padding: '18px 22px' }}>
-        <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginBottom: 6 }}>now</div>
-        <div style={{ fontSize: 22 }}>no time block covers this moment</div>
-        <div className="tm-mono tm-md" style={{ marginTop: 6, color: 'var(--ink-mute)' }}>
-          {next
-            ? `next up — ${next.text || 'untitled'}`
-            : 'add a block from the day view and tasks will land here.'}
+  // Today's other slots become move targets. Dedupe by slotType + startTime so
+  // the dropdown shows one entry per destination even when several days share
+  // the same slot.
+  const todayKey = formatYMD(new Date());
+  const moveTargets = useMemo(() => {
+    const list = (slots || []).filter(s => s?.date === todayKey);
+    return list.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+  }, [slots, todayKey]);
+
+  const moveHandlers = {
+    toSlot: (taskId, slotId) => {
+      telemetryLog('task:move-slot', { id: taskId, slotId });
+      api?.tasks?.moveToSlot?.(taskId, slotId);
+    },
+    toTomorrow: (task) => {
+      const taskId = task.id || task.key;
+      telemetryLog('task:push-tomorrow', { id: taskId });
+      const base = task.scheduledTime ? new Date(task.scheduledTime) : new Date();
+      if (Number.isNaN(base.getTime())) return;
+      const bumped = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+      api?.tasks?.reschedule?.(taskId, bumped.toISOString(), null);
+    },
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {slot ? (
+        <SlotPanel
+          heading="now"
+          slot={slot}
+          tasks={tasks}
+          emptyHint="nothing in this slot yet — add a task above and it'll drop in here."
+          moveTargets={moveTargets}
+          moveHandlers={moveHandlers}
+          rowHandlers={rowHandlers}
+        />
+      ) : (
+        <div className="tm-card tm-dashed" style={{ padding: '18px 22px' }}>
+          <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginBottom: 6 }}>now</div>
+          <div style={{ fontSize: 22 }}>no time block covers this moment</div>
+          <div className="tm-mono tm-md" style={{ marginTop: 6, color: 'var(--ink-mute)' }}>
+            {next
+              ? `next up — ${next.text || 'untitled'}`
+              : 'add a block from the day view and tasks will land here.'}
+          </div>
         </div>
-      </div>
-    );
-  }
+      )}
 
+      {upNext && (
+        <SlotPanel
+          heading="up next"
+          slot={upNext}
+          tasks={upNextTasks}
+          muted
+          emptyHint="nothing parked here yet."
+          moveTargets={moveTargets}
+          moveHandlers={moveHandlers}
+          rowHandlers={rowHandlers}
+        />
+      )}
+    </div>
+  );
+}
+
+function SlotPanel({ heading, slot, tasks, emptyHint, muted, moveTargets, moveHandlers, rowHandlers }) {
+  const { onToggle, onDelete, onEdit } = rowHandlers || {};
   return (
     <div
       className="tm-card"
       style={{
         padding: '18px 22px',
         borderTop: `6px solid ${slot.color || 'var(--ink)'}`,
+        opacity: muted ? 0.92 : 1,
       }}
     >
-      <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)' }}>now</div>
-      <div style={{ fontSize: 28, marginTop: 2 }}>{slot.label || slot.slotType || 'block'}</div>
+      <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)' }}>{heading}</div>
+      <div style={{ fontSize: muted ? 22 : 28, marginTop: 2 }}>
+        {slot.label || slot.slotType || 'block'}
+      </div>
       <div className="tm-mono tm-md" style={{ marginTop: 4 }}>
         {slot.startTime}–{slot.endTime}
       </div>
 
       {tasks.length === 0 ? (
         <div className="tm-mono tm-md" style={{ marginTop: 14, color: 'var(--ink-mute)' }}>
-          nothing in this slot yet — add a task above and it'll drop in here.
+          {emptyHint}
         </div>
       ) : (
         <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column' }}>
           {tasks.map(t => {
             const id = t.id || t.key;
             const done = t.status === 'completed';
+            const otherSlots = (moveTargets || []).filter(s => s.id !== slot.id);
             return (
               <div
                 key={id}
@@ -497,6 +560,7 @@ function SlotView({ currentSlot, next, rowHandlers }) {
                   padding: '10px 0',
                   borderBottom: '1px solid var(--rule-soft)',
                   opacity: done ? 0.6 : 1,
+                  flexWrap: 'wrap',
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -512,6 +576,33 @@ function SlotView({ currentSlot, next, rowHandlers }) {
                     est {t.duration || 30}m · {t.primaryType || t.taskType || 'task'}
                   </div>
                 </div>
+                {otherSlots.length > 0 && (
+                  <select
+                    className="tm-composer-select"
+                    value=""
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (!v) return;
+                      moveHandlers.toSlot(id, v);
+                      e.target.value = '';
+                    }}
+                    title="move to another slot today"
+                  >
+                    <option value="">move to…</option>
+                    {otherSlots.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {(s.label || s.slotType || 'block')} · {s.startTime}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <button
+                  className="tm-btn tm-sm"
+                  onClick={() => moveHandlers.toTomorrow(t)}
+                  title="push to tomorrow (same time)"
+                >
+                  tmrw →
+                </button>
                 <button
                   className={`tm-btn tm-sm${done ? '' : ' tm-primary'}`}
                   onClick={() => onToggle?.(id)}

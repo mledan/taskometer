@@ -25,6 +25,7 @@ import {
   deriveWeekFit,
   deriveStats,
   deriveCurrentSlotTasks,
+  deriveNextSlotTasks,
   deriveTodayTasks,
 } from './derive';
 
@@ -64,6 +65,7 @@ export function useTaskometerAPI() {
       weekFit: deriveWeekFit({ tasks, slots, today: date }),
       stats: deriveStats({ tasks, date }),
       currentSlot: deriveCurrentSlotTasks({ tasks, slots, date, now }),
+      nextSlot: deriveNextSlotTasks({ tasks, slots, date, now }),
       todayTasks: deriveTodayTasks({ tasks, date, now }),
       wheels: settings.wheels || [],
       dayAssignments: settings.dayAssignments || {},
