@@ -29,6 +29,7 @@ export default function WheelView({
   rowHandlers = {},
   onNavigate,
   onOpenWheels,
+  selectedDate,
 }) {
   const {
     onToggle, onDelete, onEdit, onSaveEdit, editingTaskId,
@@ -43,15 +44,28 @@ export default function WheelView({
   const now = new Date();
   const nowHour = now.getHours() + now.getMinutes() / 60;
 
-  // Use live-derived wedges only for .current/.count annotations.
-  const currentWedge = wedges.find(w => w.current);
-  const currentLabel = currentWedge
-    ? `now · ${currentWedge.label} · ${fmtHr(currentWedge.start)}–${fmtHr(currentWedge.end % 24)}`
-    : `now · ${fmtHr(nowHour)}`;
+  // The view can look at any date, but "now" annotations (red sweep,
+  // current-wedge highlight, now-task card) only make sense when we're
+  // actually viewing today. viewKey is whatever day the user is looking
+  // at; realTodayKey is real today for the comparison.
+  const viewDate = selectedDate instanceof Date ? selectedDate : new Date();
+  const viewKey = ymd(viewDate);
+  const realTodayKey = ymd(now);
+  const isToday = viewKey === realTodayKey;
 
-  const nowTaskRow = nowTask ? toRow(nowTask, { now: true }) : null;
-  const upcomingRows = (upcoming || []).map(t => toRow(t));
-  const pushedRows = (pushed || []).map(t => toRow(t, { pushed: true }));
+  // Use live-derived wedges only for .current/.count annotations. When we're
+  // on another day the upstream "wedges" prop is still today-shaped, so
+  // skip those annotations and let the drawn slots stand alone.
+  const currentWedge = isToday ? wedges.find(w => w.current) : null;
+  const currentLabel = isToday
+    ? (currentWedge
+        ? `now · ${currentWedge.label} · ${fmtHr(currentWedge.start)}–${fmtHr(currentWedge.end % 24)}`
+        : `now · ${fmtHr(nowHour)}`)
+    : viewDate.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }).toLowerCase();
+
+  const nowTaskRow = isToday && nowTask ? toRow(nowTask, { now: true }) : null;
+  const upcomingRows = isToday ? (upcoming || []).map(t => toRow(t)) : [];
+  const pushedRows = isToday ? (pushed || []).map(t => toRow(t, { pushed: true })) : [];
 
   const rowProps = () => ({
     onToggle, onEdit, onDelete,
@@ -77,14 +91,21 @@ export default function WheelView({
     return <TaskRow key={id} task={t} {...rowProps()} />;
   };
 
-  const todayKey = todayYMD();
-  const todayOverride = dayOverrides[todayKey] || null;
-  const todaySlots = slots
-    .filter(s => s?.date === todayKey)
+  const viewOverride = dayOverrides[viewKey] || null;
+  const viewSlots = slots
+    .filter(s => s?.date === viewKey)
     .slice()
     .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
-  const tasksBySlotId = groupTasksBySlot(todayTasks, todaySlots);
+  // todayTasks is derived against real-today upstream; only meaningful
+  // when the user is viewing today. On other days we render slots bare.
+  const tasksBySlotId = isToday ? groupTasksBySlot(todayTasks, viewSlots) : new Map();
+
+  // The `wedges` prop is today-shaped (built by the derivation upstream
+  // from now + today's slots). When we're viewing another day we
+  // re-synthesise wedges from viewSlots so the SVG shows that day's
+  // shape, not today's.
+  const effectiveWedges = isToday ? wedges : wedgesFromSlots(viewSlots);
 
   const toggleExpanded = useCallback((slotId) => {
     setExpandedSlotIds(prev => {
@@ -96,7 +117,7 @@ export default function WheelView({
   }, []);
 
   const editingSlot = editingSlotId
-    ? todaySlots.find(s => s.id === editingSlotId)
+    ? viewSlots.find(s => s.id === editingSlotId)
     : null;
 
   const handleWedgeCommit = useCallback(async (id, { startMin, endMinUnwrapped }) => {
@@ -135,29 +156,29 @@ export default function WheelView({
     const startMin = snapMin(Math.round(hourFloat * 60));
     const endMin = Math.min(DAY_MIN, startMin + DEFAULT_LEN_MIN);
     setDraftSlot({
-      date: todayKey,
+      date: viewKey,
       startTime: minToHHMM(startMin),
       endTime: minToHHMM(endMin % DAY_MIN),
       label: '',
     });
     setEditingSlotId(null);
     setComposerOpen(true);
-  }, [todayKey]);
+  }, [viewKey]);
 
   const handleAddFromButton = useCallback(() => {
     // find first free gap of >= DEFAULT_LEN_MIN, else propose 09:00-10:00
-    const gap = findFirstFreeGap(todaySlots, DEFAULT_LEN_MIN);
+    const gap = findFirstFreeGap(viewSlots, DEFAULT_LEN_MIN);
     const startMin = gap ? gap.startMin : 9 * 60;
     const endMin = gap ? gap.endMin : 10 * 60;
     setDraftSlot({
-      date: todayKey,
+      date: viewKey,
       startTime: minToHHMM(startMin),
       endTime: minToHHMM(endMin % DAY_MIN),
       label: '',
     });
     setEditingSlotId(null);
     setComposerOpen(true);
-  }, [todaySlots, todayKey]);
+  }, [viewSlots, viewKey]);
 
   const closeComposer = () => {
     setComposerOpen(false);
@@ -194,13 +215,13 @@ export default function WheelView({
     const eMin = eRaw <= sMin ? eRaw + DAY_MIN : eRaw;
     // candidate: a slot whose startTime == editingSlot.endTime (adjacent after)
     // or whose endTime == editingSlot.startTime (adjacent before)
-    const after = todaySlots.find(s => {
+    const after = viewSlots.find(s => {
       if (s.id === editingSlot.id) return false;
       const ss = hhmmToMin(s.startTime);
       return ss === eMin % DAY_MIN;
     });
     if (after) return { neighbor: after, direction: 'after' };
-    const before = todaySlots.find(s => {
+    const before = viewSlots.find(s => {
       if (s.id === editingSlot.id) return false;
       const se = hhmmToMin(s.endTime);
       return se === sMin;
@@ -222,7 +243,7 @@ export default function WheelView({
   };
 
   const handleNudgeEdge = useCallback(async (slotId, which, deltaMin) => {
-    const slot = todaySlots.find(s => s.id === slotId);
+    const slot = viewSlots.find(s => s.id === slotId);
     if (!slot) return;
     const sMin = hhmmToMin(slot.startTime);
     const eRaw = hhmmToMin(slot.endTime);
@@ -234,20 +255,20 @@ export default function WheelView({
       const newEnd = Math.max(sMin + MIN_LEN_MIN, Math.min(sMin + DAY_MIN, eMin + deltaMin));
       await api.slots.update(slotId, { endTime: minToHHMM(newEnd % DAY_MIN) });
     }
-  }, [todaySlots, api]);
+  }, [viewSlots, api]);
 
   const mergeTarget = findMergeTarget();
 
   return (
     <div className="tm-fade-up tm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 28, alignItems: 'start' }}>
-      {todayOverride && (
+      {viewOverride && (
         <div
           style={{
             gridColumn: '1 / -1',
             padding: '10px 14px',
             borderRadius: 10,
-            border: `1.5px solid ${todayOverride.color || 'var(--ink-mute)'}`,
-            background: hexAlpha(todayOverride.color || '#94A3B8', 0.18),
+            border: `1.5px solid ${viewOverride.color || 'var(--ink-mute)'}`,
+            background: hexAlpha(viewOverride.color || '#94A3B8', 0.18),
             display: 'flex',
             alignItems: 'center',
             gap: 10,
@@ -259,20 +280,20 @@ export default function WheelView({
             style={{
               letterSpacing: '.14em',
               textTransform: 'uppercase',
-              color: todayOverride.color || 'var(--ink-mute)',
+              color: viewOverride.color || 'var(--ink-mute)',
               fontWeight: 700,
             }}
           >
-            today · {todayOverride.type}
+            today · {viewOverride.type}
           </span>
-          <span className="tm-caveat" style={{ fontSize: 22 }}>{todayOverride.label || todayOverride.type}</span>
-          {todayOverride.note && (
-            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{todayOverride.note}</span>
+          <span className="tm-caveat" style={{ fontSize: 22 }}>{viewOverride.label || viewOverride.type}</span>
+          {viewOverride.note && (
+            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{viewOverride.note}</span>
           )}
           <button
             className="tm-btn tm-sm"
             style={{ marginLeft: 'auto' }}
-            onClick={() => api.days.clearOverride(todayKey)}
+            onClick={() => api.days.clearOverride(viewKey)}
           >
             clear override
           </button>
@@ -280,8 +301,8 @@ export default function WheelView({
       )}
       <div style={{ position: 'relative' }}>
         <WheelSvg
-          wedges={wedges}
-          slots={todaySlots}
+          wedges={effectiveWedges}
+          slots={viewSlots}
           taskTypes={taskTypes}
           nowHour={nowHour}
           stats={computeStats(nowTask, upcoming, pushed)}
@@ -291,7 +312,7 @@ export default function WheelView({
           onNudgeEdge={handleNudgeEdge}
           editingSlotId={editingSlotId}
         />
-        {todaySlots.length === 0 && (
+        {viewSlots.length === 0 && (
           <div className="tm-wheel-empty">
             <div className="tm-caveat" style={{ fontSize: 24, marginBottom: 4 }}>tap the ring to drop a block</div>
             <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)' }}>
@@ -300,8 +321,8 @@ export default function WheelView({
           </div>
         )}
         <HelixStrip
-          todayKey={todayKey}
-          todaySlots={todaySlots}
+          viewKey={viewKey}
+          viewSlots={viewSlots}
           allSlots={slots}
           wheels={wheels}
           dayAssignments={dayAssignments}
@@ -336,18 +357,18 @@ export default function WheelView({
       <div style={{ gridColumn: '1 / -1', marginTop: 18, paddingTop: 14, borderTop: '1px dashed var(--rule)' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="tm-mono tm-md" style={{ letterSpacing: '.14em', textTransform: 'uppercase' }}>
-            day shape ({todaySlots.length} block{todaySlots.length === 1 ? '' : 's'})
+            day shape ({viewSlots.length} block{viewSlots.length === 1 ? '' : 's'})
           </span>
           <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>· wheel:</span>
           <select
             className="tm-composer-select"
-            value={dayAssignments[todayKey] || ''}
+            value={dayAssignments[viewKey] || ''}
             onChange={async (ev) => {
               const next = ev.target.value;
               if (!next) {
-                await api.days.unassign(todayKey);
+                await api.days.unassign(viewKey);
               } else {
-                await api.wheels.applyToDate(next, todayKey, { mode: 'replace' });
+                await api.wheels.applyToDate(next, viewKey, { mode: 'replace' });
               }
             }}
             title="apply a wheel to today"
@@ -425,9 +446,9 @@ export default function WheelView({
           </div>
         )}
 
-        {todaySlots.length > 0 && (
+        {viewSlots.length > 0 && (
           <div className="tm-slot-list">
-            {todaySlots.map(s => {
+            {viewSlots.map(s => {
               const color = s.color || resolveTypeColor(taskTypes, s.slotType);
               const overnight = isOvernightSlot(s);
               const slotTasks = tasksBySlotId.get(s.id) || [];
@@ -534,6 +555,37 @@ export default function WheelView({
 // Helpers
 // -------------------------------------------------------------------------
 
+function ymd(d) {
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${d.getFullYear()}-${m < 10 ? '0' + m : m}-${day < 10 ? '0' + day : day}`;
+}
+
+// Shape-compatible with deriveWheelWedges but without task counts or the
+// `current` flag — used when the wheel is showing a day other than today
+// so the SVG reflects that day's blocks rather than today's.
+function wedgesFromSlots(slots) {
+  return slots
+    .slice()
+    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
+    .map((s) => {
+      const [sh, sm] = (s.startTime || '00:00').split(':').map(Number);
+      const [eh, em] = (s.endTime || '00:00').split(':').map(Number);
+      const startH = (sh || 0) + (sm || 0) / 60;
+      let endH = (eh || 0) + (em || 0) / 60;
+      if (endH <= startH) endH += 24;
+      return {
+        id: s.id,
+        label: s.label || s.slotType || 'block',
+        start: startH,
+        end: Math.min(24, endH),
+        kind: undefined,
+        count: undefined,
+        current: false,
+      };
+    });
+}
+
 function todayYMD() {
   const d = new Date();
   const m = d.getMonth() + 1;
@@ -630,11 +682,11 @@ function slotSpan(slot) {
  * the slot window. Each task lands in at most one slot (first match wins)
  * so clicking a category gives an unambiguous list.
  */
-function groupTasksBySlot(todayTasks = [], todaySlots = []) {
+function groupTasksBySlot(todayTasks = [], viewSlots = []) {
   const map = new Map();
-  todaySlots.forEach(s => map.set(s.id, []));
+  viewSlots.forEach(s => map.set(s.id, []));
 
-  const spans = todaySlots.map(s => ({ slot: s, ...slotSpan(s) }));
+  const spans = viewSlots.map(s => ({ slot: s, ...slotSpan(s) }));
 
   for (const entry of todayTasks) {
     const task = entry.task;
@@ -1209,8 +1261,8 @@ function NudgeChip({ cx, cy, label, onClick }) {
  * respected — a ruled tomorrow shows up even before the user paints it.
  */
 function HelixStrip({
-  todayKey,
-  todaySlots,
+  viewKey,
+  viewSlots,
   allSlots,
   wheels,
   dayAssignments,
@@ -1218,7 +1270,7 @@ function HelixStrip({
   resolveDay,
   taskTypes,
 }) {
-  const tomorrowKey = addDaysKey(todayKey, 1);
+  const tomorrowKey = addDaysKey(viewKey, 1);
   const tomorrowEffective = resolveDay
     ? resolveDay(tomorrowKey)
     : {
@@ -1249,7 +1301,7 @@ function HelixStrip({
       }))
     : (tomorrowWheel?.blocks || []).slice().sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
-  const overnight = todaySlots.find(s => isOvernightSlot(s));
+  const overnight = viewSlots.find(s => isOvernightSlot(s));
 
   const noTomorrow = !tomorrowWheel && !tomorrowOverride && previewBlocks.length === 0;
 

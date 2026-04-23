@@ -331,6 +331,7 @@ export default function Taskometer() {
 
       {scale === 'day' && (
         <WheelView
+          selectedDate={selectedDate}
           wedges={derived.wedges}
           nowTask={derived.nowTask}
           upcoming={filteredDerived.upcoming}
