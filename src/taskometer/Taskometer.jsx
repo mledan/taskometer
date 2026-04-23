@@ -204,6 +204,10 @@ export default function Taskometer() {
       nextSlot: derived.nextSlot
         ? { ...derived.nextSlot, tasks: (derived.nextSlot.tasks || []).filter(keep) }
         : derived.nextSlot,
+      laterSlots: (derived.laterSlots || []).map(entry => ({
+        ...entry,
+        tasks: (entry.tasks || []).filter(keep),
+      })),
     };
   }, [derived, search, filteredState.tasks]);
 
@@ -337,6 +341,7 @@ export default function Taskometer() {
         <SlotView
           currentSlot={filteredDerived.currentSlot}
           nextSlot={filteredDerived.nextSlot}
+          laterSlots={filteredDerived.laterSlots}
           next={derived.next}
           slots={state.slots || []}
           api={api}
@@ -451,7 +456,7 @@ function QuickStart({ onPick, wheels }) {
   );
 }
 
-function SlotView({ currentSlot, nextSlot, next, slots = [], api, rowHandlers }) {
+function SlotView({ currentSlot, nextSlot, laterSlots = [], next, slots = [], api, rowHandlers }) {
   const slot = currentSlot?.slot || null;
   const tasks = currentSlot?.tasks || [];
   const upNext = nextSlot?.slot || null;
@@ -517,6 +522,118 @@ function SlotView({ currentSlot, nextSlot, next, slots = [], api, rowHandlers })
           rowHandlers={rowHandlers}
         />
       )}
+
+      {laterSlots.length > 0 && (
+        <LaterPanel
+          entries={laterSlots}
+          moveTargets={moveTargets}
+          moveHandlers={moveHandlers}
+          rowHandlers={rowHandlers}
+        />
+      )}
+    </div>
+  );
+}
+
+function LaterPanel({ entries, moveTargets, moveHandlers, rowHandlers }) {
+  const { onToggle, onDelete, onEdit } = rowHandlers || {};
+  return (
+    <div className="tm-card tm-dashed" style={{ padding: '16px 22px' }}>
+      <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginBottom: 10 }}>
+        later today
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {entries.map(({ slot, tasks }) => {
+          const otherSlots = (moveTargets || []).filter(s => s.id !== slot.id);
+          return (
+            <div
+              key={slot.id}
+              style={{
+                borderLeft: `3px solid ${slot.color || 'var(--rule)'}`,
+                paddingLeft: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 18 }}>{slot.label || slot.slotType || 'block'}</div>
+                <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                  {slot.startTime}–{slot.endTime}
+                </div>
+                <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                  · {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+                </div>
+              </div>
+              {tasks.length === 0 ? (
+                <div className="tm-mono tm-sm" style={{ marginTop: 4, color: 'var(--ink-mute)' }}>
+                  empty
+                </div>
+              ) : (
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column' }}>
+                  {tasks.map(t => {
+                    const id = t.id || t.key;
+                    const done = t.status === 'completed';
+                    return (
+                      <div
+                        key={id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '6px 0',
+                          borderBottom: '1px dashed var(--rule-soft)',
+                          opacity: done ? 0.6 : 1,
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0, fontSize: 15 }}>
+                          {t.text || t.title || 'untitled'}
+                          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 8 }}>
+                            est {t.duration || 30}m
+                          </span>
+                        </div>
+                        {otherSlots.length > 0 && (
+                          <select
+                            className="tm-composer-select"
+                            value=""
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (!v) return;
+                              moveHandlers.toSlot(id, v);
+                              e.target.value = '';
+                            }}
+                            title="move to another slot today"
+                          >
+                            <option value="">move to…</option>
+                            {otherSlots.map(s => (
+                              <option key={s.id} value={s.id}>
+                                {(s.label || s.slotType || 'block')} · {s.startTime}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <button
+                          className="tm-btn tm-sm"
+                          onClick={() => moveHandlers.toTomorrow(t)}
+                          title="push to tomorrow (same time)"
+                        >
+                          tmrw →
+                        </button>
+                        <button
+                          className={`tm-btn tm-sm${done ? '' : ' tm-primary'}`}
+                          onClick={() => onToggle?.(id)}
+                        >
+                          {done ? 'undo' : 'done'}
+                        </button>
+                        <button className="tm-btn tm-sm" onClick={() => onEdit?.(id)}>edit</button>
+                        <button className="tm-btn tm-sm tm-danger" onClick={() => onDelete?.(id)}>×</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

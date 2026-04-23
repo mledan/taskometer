@@ -379,6 +379,60 @@ export function deriveNextSlotTasks({ tasks = [], slots = [], date = new Date(),
 }
 
 /**
+ * All remaining slots today after the "up next" slot, each paired with its
+ * pending tasks. Sorted chronologically. Empty when nothing is left beyond
+ * the up-next band.
+ */
+export function deriveLaterSlots({ tasks = [], slots = [], date = new Date(), now = new Date() }) {
+  const dayKey = ymd(date);
+  if (!sameDay(date, now)) return [];
+  const current = deriveCurrentSlot({ slots, date, now });
+  const next = deriveNextSlot({ slots, date, now });
+  const skipIds = new Set([current?.id, next?.id].filter(Boolean));
+  const cutoff = next ? next.endH : (current ? current.endH : (now.getHours() + now.getMinutes() / 60));
+
+  const entries = [];
+  const today = slots.filter(s => s?.date === dayKey);
+  for (const s of today) {
+    if (skipIds.has(s.id)) continue;
+    const start = parseSlotStart(s);
+    const end = parseSlotEnd(s);
+    if (!start || !end) continue;
+    const startH = start.getHours() + start.getMinutes() / 60;
+    if (startH < cutoff) continue;
+    const endH = end.getHours() + end.getMinutes() / 60 + (end.getDate() !== start.getDate() ? 24 : 0);
+    const slotView = {
+      id: s.id,
+      label: slotTypeLabel(s),
+      slotType: s.slotType || null,
+      color: s.color || null,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      startH,
+      endH,
+    };
+    const matched = tasks
+      .filter(t => t?.status !== 'completed' && t?.status !== 'cancelled')
+      .filter(t => {
+        if (t.scheduledSlotId && t.scheduledSlotId === s.id) return true;
+        if (!t.scheduledTime) return false;
+        const d = new Date(t.scheduledTime);
+        if (Number.isNaN(d.getTime())) return false;
+        if (ymd(d) !== dayKey) return false;
+        const h = d.getHours() + d.getMinutes() / 60;
+        return h >= startH && h < endH;
+      })
+      .sort((a, b) => {
+        const ta = a.scheduledTime ? new Date(a.scheduledTime).getTime() : Infinity;
+        const tb = b.scheduledTime ? new Date(b.scheduledTime).getTime() : Infinity;
+        return ta - tb;
+      });
+    entries.push({ slot: slotView, tasks: matched });
+  }
+  return entries.sort((a, b) => a.slot.startH - b.slot.startH);
+}
+
+/**
  * All pending tasks whose scheduledTime lands inside the active slot's
  * window (or whose scheduledSlotId matches it). Sorted by time.
  */

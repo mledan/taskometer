@@ -9,6 +9,7 @@ import {
   deriveWeekFit,
   deriveCurrentSlotTasks,
   deriveNextSlotTasks,
+  deriveLaterSlots,
   deriveTodayTasks,
   ymd,
 } from './derive';
@@ -264,6 +265,46 @@ describe('deriveNextSlotTasks', () => {
     ];
     const { tasks: nextTasks } = deriveNextSlotTasks({ tasks, slots, date: TODAY, now: TODAY });
     expect(nextTasks.map(t => t.id)).toEqual(['pinned']);
+  });
+});
+
+describe('deriveLaterSlots', () => {
+  const slots = [
+    { id: 'past', date: '2026-04-20', startTime: '07:00', endTime: '08:00', label: 'wake' },
+    { id: 'live', date: '2026-04-20', startTime: '08:30', endTime: '09:30', label: 'deep' },
+    { id: 'soon', date: '2026-04-20', startTime: '10:00', endTime: '11:00', label: 'admin' },
+    { id: 'after', date: '2026-04-20', startTime: '13:00', endTime: '14:00', label: 'calls' },
+    { id: 'evening', date: '2026-04-20', startTime: '18:00', endTime: '19:00', label: 'wind' },
+  ];
+
+  test('returns slots after the up-next band with their tasks, in order', () => {
+    const tasks = [
+      { id: 'a', scheduledTime: '2026-04-20T13:15:00', duration: 30, status: 'pending' },
+      { id: 'b', scheduledTime: '2026-04-20T18:30:00', duration: 15, status: 'pending' },
+      { id: 'c', scheduledTime: '2026-04-20T10:15:00', duration: 30, status: 'pending' }, // in 'soon' — excluded
+    ];
+    const result = deriveLaterSlots({ tasks, slots, date: TODAY, now: TODAY });
+    expect(result.map(e => e.slot.id)).toEqual(['after', 'evening']);
+    expect(result[0].tasks.map(t => t.id)).toEqual(['a']);
+    expect(result[1].tasks.map(t => t.id)).toEqual(['b']);
+  });
+
+  test('returns [] when nothing follows the up-next slot', () => {
+    const trimmed = [
+      { id: 'live', date: '2026-04-20', startTime: '08:30', endTime: '09:30', label: 'deep' },
+      { id: 'soon', date: '2026-04-20', startTime: '10:00', endTime: '11:00', label: 'admin' },
+    ];
+    expect(deriveLaterSlots({ tasks: [], slots: trimmed, date: TODAY, now: TODAY })).toEqual([]);
+  });
+
+  test('skips completed/cancelled tasks', () => {
+    const tasks = [
+      { id: 'a', scheduledTime: '2026-04-20T13:15:00', status: 'completed' },
+      { id: 'b', scheduledTime: '2026-04-20T13:20:00', status: 'pending' },
+    ];
+    const result = deriveLaterSlots({ tasks, slots, date: TODAY, now: TODAY });
+    const afterEntry = result.find(e => e.slot.id === 'after');
+    expect(afterEntry.tasks.map(t => t.id)).toEqual(['b']);
   });
 });
 
