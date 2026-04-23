@@ -899,7 +899,7 @@ function findFirstFreeGap(slots, lengthMin) {
 // needed), and clamp the drag itself if we run out of room. All values are on
 // a linear minute axis — overnight wraps are handled by re-projecting each
 // other slot onto the representation nearest the drag's original center.
-function resolvePushCascade({ dragS, dragE, origDragS, origDragE, others }) {
+export function resolvePushCascade({ dragS, dragE, origDragS, origDragE, others }) {
   const origCenter = (origDragS + origDragE) / 2;
   const items = others.map(o => {
     const len = o.eMin - o.sMin;
@@ -960,7 +960,7 @@ function resolvePushCascade({ dragS, dragE, origDragS, origDragE, others }) {
   return { dragS, dragE, overrides };
 }
 
-function WheelSvg({
+export function WheelSvg({
   wedges,
   slots,
   taskTypes,
@@ -1033,9 +1033,14 @@ function WheelSvg({
     const svg = svgRef.current;
     if (!svg) return null;
     const rect = svg.getBoundingClientRect();
-    const scale = rect.width / 440;
-    const sx = rect.left + (cx / 440) * rect.width;
-    const sy = rect.top + (cy / 440) * rect.height;
+    // viewBox is 640×640 rendered with the default `xMidYMid meet`, so the
+    // viewBox is scaled uniformly and centered within the display rect.
+    const VB = 640;
+    const scale = Math.min(rect.width, rect.height) / VB;
+    const vbW = VB * scale;
+    const vbH = VB * scale;
+    const sx = rect.left + (rect.width - vbW) / 2 + cx * scale;
+    const sy = rect.top + (rect.height - vbH) / 2 + cy * scale;
     const dx = ev.clientX - sx;
     const dy = ev.clientY - sy;
     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1371,6 +1376,7 @@ function WheelSvg({
               setHover={setHoverHandle}
               onDown={(ev) => onHandlePointerDown(ev, slot, 'start')}
               onNudge={onNudgeEdge}
+              cursor={arcCursor(sNorm)}
             />
             <HandleWithNudge
               cx={exH}
@@ -1381,6 +1387,7 @@ function WheelSvg({
               setHover={setHoverHandle}
               onDown={(ev) => onHandlePointerDown(ev, slot, 'end')}
               onNudge={onNudgeEdge}
+              cursor={arcCursor(eNorm)}
             />
           </g>
         );
@@ -1423,7 +1430,24 @@ function WheelSvg({
   );
 }
 
-function HandleWithNudge({ cx, cy, slotId, which, hover, setHover, onDown, onNudge }) {
+// Pick the CSS cursor whose axis is tangent to the wheel at the given hour,
+// so the resize arrow follows the arc instead of always pointing east-west.
+function arcCursor(h) {
+  const deg = (((h % 24) + 24) % 24) * 15; // clockwise from 12 o'clock
+  const sector = Math.round(deg / 45) % 8;
+  return [
+    'ew-resize',   // N       (tangent E–W)
+    'nesw-resize', // NE      (tangent NE–SW)
+    'ns-resize',   // E       (tangent N–S)
+    'nwse-resize', // SE      (tangent NW–SE)
+    'ew-resize',   // S
+    'nesw-resize', // SW
+    'ns-resize',   // W
+    'nwse-resize', // NW
+  ][sector];
+}
+
+function HandleWithNudge({ cx, cy, slotId, which, hover, setHover, onDown, onNudge, cursor = 'ew-resize' }) {
   const isHover = hover && hover.slotId === slotId && hover.which === which;
   const HIT_R = 36; // generous hover radius that encloses both chips
   const enter = () => setHover({ slotId, which });
@@ -1438,7 +1462,7 @@ function HandleWithNudge({ cx, cy, slotId, which, hover, setHover, onDown, onNud
         r={HIT_R}
         fill="transparent"
         onPointerEnter={enter}
-        style={{ cursor: 'ew-resize' }}
+        style={{ cursor }}
       />
       <circle
         cx={cx}
@@ -1447,7 +1471,7 @@ function HandleWithNudge({ cx, cy, slotId, which, hover, setHover, onDown, onNud
         fill={isHover ? 'var(--orange-pale)' : 'var(--paper)'}
         stroke="var(--ink)"
         strokeWidth="1.4"
-        style={{ cursor: 'ew-resize' }}
+        style={{ cursor }}
         onPointerDown={onDown}
         onPointerEnter={enter}
       />
