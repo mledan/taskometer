@@ -894,6 +894,72 @@ function findFirstFreeGap(slots, lengthMin) {
 // Interactive wheel SVG
 // -------------------------------------------------------------------------
 
+// When a dragged slot's span [dragS, dragE] encroaches on other slots on the
+// wheel, push those slots out of the way (cascading to further neighbors as
+// needed), and clamp the drag itself if we run out of room. All values are on
+// a linear minute axis — overnight wraps are handled by re-projecting each
+// other slot onto the representation nearest the drag's original center.
+function resolvePushCascade({ dragS, dragE, origDragS, origDragE, others }) {
+  const origCenter = (origDragS + origDragE) / 2;
+  const items = others.map(o => {
+    const len = o.eMin - o.sMin;
+    let bestS = o.sMin;
+    let bestDist = Infinity;
+    for (const shift of [-DAY_MIN, 0, DAY_MIN]) {
+      const s = o.sMin + shift;
+      const mid = s + len / 2;
+      const d = Math.abs(mid - origCenter);
+      if (d < bestDist) { bestDist = d; bestS = s; }
+    }
+    return { id: o.id, s: bestS, e: bestS + len, origS: bestS, origE: bestS + len };
+  });
+
+  const rights = items.filter(it => (it.s + it.e) / 2 >= origCenter).sort((a, b) => a.s - b.s);
+  const lefts  = items.filter(it => (it.s + it.e) / 2 <  origCenter).sort((a, b) => b.e - a.e);
+
+  // The cascade can't push a slot past the far side of a 24h window centered
+  // on the drag origin — doing so would wrap back onto the dragged slot.
+  const windowLeft  = origCenter - DAY_MIN / 2;
+  const windowRight = origCenter + DAY_MIN / 2;
+  const totalRightLen = rights.reduce((sum, it) => sum + (it.e - it.s), 0);
+  const totalLeftLen  = lefts.reduce((sum, it) => sum + (it.e - it.s), 0);
+  const maxDragE = windowRight - totalRightLen;
+  const minDragS = windowLeft + totalLeftLen;
+  if (dragE > maxDragE) dragE = maxDragE;
+  if (dragS < minDragS) dragS = minDragS;
+  if (dragE - dragS < MIN_LEN_MIN) {
+    // Not enough room even after clamping; bail out with no overrides.
+    return { dragS, dragE, overrides: new Map() };
+  }
+
+  let limitR = dragE;
+  for (const it of rights) {
+    if (it.s < limitR) {
+      const shift = limitR - it.s;
+      it.s += shift;
+      it.e += shift;
+    }
+    limitR = it.e;
+  }
+  let limitL = dragS;
+  for (const it of lefts) {
+    if (it.e > limitL) {
+      const shift = limitL - it.e;
+      it.s += shift;
+      it.e += shift;
+    }
+    limitL = it.s;
+  }
+
+  const overrides = new Map();
+  for (const it of [...rights, ...lefts]) {
+    if (it.s !== it.origS || it.e !== it.origE) {
+      overrides.set(it.id, { startMin: it.s, endMin: it.e });
+    }
+  }
+  return { dragS, dragE, overrides };
+}
+
 function WheelSvg({
   wedges,
   slots,
@@ -995,14 +1061,47 @@ function WheelSvg({
 
   const commitDrag = useCallback(async (d) => {
     if (!d) return;
-    await onWedgeCommit(d.id, {
-      startMin: ((d.startMin % DAY_MIN) + DAY_MIN) % DAY_MIN,
-      endMinUnwrapped: d.endMin,
-    });
+    const commits = [
+      onWedgeCommit(d.id, {
+        startMin: ((d.startMin % DAY_MIN) + DAY_MIN) % DAY_MIN,
+        endMinUnwrapped: d.endMin,
+      }),
+    ];
+    if (d.overrides) {
+      for (const [id, ov] of d.overrides) {
+        commits.push(onWedgeCommit(id, {
+          startMin: ((ov.startMin % DAY_MIN) + DAY_MIN) % DAY_MIN,
+          endMinUnwrapped: ov.endMin,
+        }));
+      }
+    }
+    await Promise.all(commits);
   }, [onWedgeCommit]);
+
+  // Snapshot peer slots once per drag so cascading pushes measure against the
+  // original positions, not their currently-displaced overrides.
+  const peerSlotsRef = useRef([]);
+  useEffect(() => {
+    if (!drag) return;
+    peerSlotsRef.current = slots
+      .filter(s => s.id !== drag.id)
+      .map(s => ({ id: s.id, ...slotSpan(s) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag?.id]);
 
   useEffect(() => {
     if (!drag) return undefined;
+
+    const applyPush = (prev, rawS, rawE) => {
+      const { dragS, dragE, overrides } = resolvePushCascade({
+        dragS: rawS,
+        dragE: rawE,
+        origDragS: prev.origStartMin,
+        origDragE: prev.origEndMin,
+        others: peerSlotsRef.current,
+      });
+      return { ...prev, startMin: dragS, endMin: dragE, overrides };
+    };
 
     const move = (ev) => {
       const info = pointerToHour(ev);
@@ -1015,14 +1114,14 @@ function WheelSvg({
           const maxStart = prev.endMin - MIN_LEN_MIN;
           const minStart = prev.endMin - DAY_MIN + MIN_LEN_MIN;
           const s = clamp(snapped, minStart, maxStart);
-          return { ...prev, startMin: s };
+          return applyPush(prev, s, prev.endMin);
         }
         if (prev.mode === 'end') {
           const snapped = nearestMin(rawMin, prev.origEndMin);
           const minEnd = prev.startMin + MIN_LEN_MIN;
           const maxEnd = prev.startMin + DAY_MIN;
           const e = clamp(snapped, minEnd, maxEnd);
-          return { ...prev, endMin: e };
+          return applyPush(prev, prev.startMin, e);
         }
         // move: shift by delta; wrap origin too so wedge can cross midnight
         const snapped = nearestMin(rawMin, prev.originMin);
@@ -1030,7 +1129,7 @@ function WheelSvg({
         const length = prev.origEndMin - prev.origStartMin;
         const s = prev.origStartMin + delta;
         const e = s + length;
-        return { ...prev, startMin: s, endMin: e };
+        return applyPush(prev, s, e);
       });
     };
 
@@ -1101,18 +1200,30 @@ function WheelSvg({
     onEmptyHourClick(info.hour);
   };
 
-  // Compute render geometry (use live drag values when active)
+  // Compute render geometry (use live drag values when active, including
+  // overrides applied to neighboring slots the drag is pushing).
   const renderGeom = slots.map(slot => {
     const isDraggingThis = drag && drag.id === slot.id;
+    const override = drag && !isDraggingThis ? drag.overrides?.get(slot.id) : null;
     const { sMin: baseS, eMin: baseE } = slotSpan(slot);
-    const startMin = isDraggingThis ? drag.startMin : baseS;
-    const endMin = isDraggingThis ? drag.endMin : baseE;
+    const startMin = isDraggingThis ? drag.startMin : override ? override.startMin : baseS;
+    const endMin = isDraggingThis ? drag.endMin : override ? override.endMin : baseE;
     const startH = startMin / 60;
     const endH = endMin / 60;
     const wedge = wedgeById(slot.id);
     const isCurrent = wedge?.current && !isDraggingThis;
     const isEditing = editingSlotId === slot.id;
-    return { slot, wedge, startMin, endMin, startH, endH, isCurrent, isEditing, isDragging: isDraggingThis };
+    return {
+      slot,
+      wedge,
+      startMin,
+      endMin,
+      startH,
+      endH,
+      isCurrent,
+      isEditing,
+      isDragging: isDraggingThis || !!override,
+    };
   });
 
   const [nxEnd, nyEnd] = polar(nowHour, rOuter - 4);
