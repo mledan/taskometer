@@ -18,10 +18,17 @@ export default function CalendarView({
   onNavigate,
   onOpenWheels,
   onOpenRules,
+  scope: controlledScope,
 }) {
   const today = new Date();
   const [anchor, setAnchor] = useState({ year: today.getFullYear(), month: today.getMonth() });
-  const [scope, setScope] = useState('month'); // 'month' | 'quarter' | 'year'
+  const [internalScope, setInternalScope] = useState('month'); // 'month' | 'quarter' | 'year'
+  const scope = controlledScope || internalScope;
+  const scopeControlled = !!controlledScope;
+  const setScope = (s) => {
+    if (scopeControlled) return; // parent owns scope
+    setInternalScope(s);
+  };
   const [dayMenu, setDayMenu] = useState(null); // {date, x, y}
   const [paintWheel, setPaintWheel] = useState(null); // wheelId for drag-paint
   const [isPainting, setIsPainting] = useState(false);
@@ -124,15 +131,17 @@ export default function CalendarView({
           className="tm-btn tm-sm"
           onClick={() => setAnchor({ year: today.getFullYear(), month: today.getMonth() })}
         >today</button>
-        <div className="tm-seg" style={{ marginLeft: 10 }}>
-          {['month', 'quarter', 'year'].map(s => (
-            <button
-              key={s}
-              className={scope === s ? 'tm-on' : ''}
-              onClick={() => setScope(s)}
-            >{s}</button>
-          ))}
-        </div>
+        {!scopeControlled && (
+          <div className="tm-seg" style={{ marginLeft: 10 }}>
+            {['month', 'quarter', 'year'].map(s => (
+              <button
+                key={s}
+                className={scope === s ? 'tm-on' : ''}
+                onClick={() => setScope(s)}
+              >{s}</button>
+            ))}
+          </div>
+        )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
             paint with:
