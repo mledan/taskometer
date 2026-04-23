@@ -8,6 +8,7 @@ import {
   deriveBacklog,
   deriveWeekFit,
   deriveCurrentSlotTasks,
+  deriveNextSlotTasks,
   deriveTodayTasks,
   ymd,
 } from './derive';
@@ -222,6 +223,47 @@ describe('deriveTodayTasks', () => {
     ];
     const result = deriveTodayTasks({ tasks, date: TODAY, now: TODAY });
     expect(result).toEqual([]);
+  });
+});
+
+describe('deriveNextSlotTasks', () => {
+  const slots = [
+    { id: 'past', date: '2026-04-20', startTime: '07:00', endTime: '08:00', label: 'wake' },
+    { id: 'live', date: '2026-04-20', startTime: '08:30', endTime: '09:30', label: 'deep' },
+    { id: 'soon', date: '2026-04-20', startTime: '10:00', endTime: '11:00', label: 'admin' },
+    { id: 'later', date: '2026-04-20', startTime: '14:00', endTime: '15:00', label: 'calls' },
+  ];
+
+  test('returns the slot that follows the current one with its pending tasks', () => {
+    const tasks = [
+      { id: 'a', scheduledTime: '2026-04-20T08:45:00', duration: 30, status: 'pending' }, // in live
+      { id: 'b', scheduledTime: '2026-04-20T10:15:00', duration: 30, status: 'pending' }, // in soon
+      { id: 'c', scheduledTime: '2026-04-20T10:45:00', duration: 15, status: 'completed' }, // done
+      { id: 'd', scheduledTime: '2026-04-20T14:30:00', duration: 30, status: 'pending' }, // in later
+    ];
+    const { slot, tasks: nextTasks } = deriveNextSlotTasks({ tasks, slots, date: TODAY, now: TODAY });
+    expect(slot?.id).toBe('soon');
+    expect(nextTasks.map(t => t.id)).toEqual(['b']);
+  });
+
+  test('falls back to the first upcoming slot when no slot is current', () => {
+    const quietDay = new Date('2026-04-20T09:45:00');
+    const { slot } = deriveNextSlotTasks({ tasks: [], slots, date: quietDay, now: quietDay });
+    expect(slot?.id).toBe('soon');
+  });
+
+  test('returns null slot when nothing is left today', () => {
+    const evening = new Date('2026-04-20T20:00:00');
+    const result = deriveNextSlotTasks({ tasks: [], slots, date: evening, now: evening });
+    expect(result).toEqual({ slot: null, tasks: [] });
+  });
+
+  test('matches tasks by scheduledSlotId even outside the time window', () => {
+    const tasks = [
+      { id: 'pinned', scheduledSlotId: 'soon', scheduledTime: '2026-04-20T06:00:00', status: 'pending' },
+    ];
+    const { tasks: nextTasks } = deriveNextSlotTasks({ tasks, slots, date: TODAY, now: TODAY });
+    expect(nextTasks.map(t => t.id)).toEqual(['pinned']);
   });
 });
 
