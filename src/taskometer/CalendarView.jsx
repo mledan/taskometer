@@ -192,6 +192,7 @@ export default function CalendarView({
             dayAssignments={dayAssignments}
             dayOverrides={dayOverrides}
             resolveDay={resolveDay}
+            slots={slots}
             slotsByDate={slotsByDate}
             scope={scope}
             onDayClick={onDayClick}
@@ -235,7 +236,7 @@ export default function CalendarView({
 }
 
 function MonthGrid({
-  year, month, todayKey, wheels, dayAssignments, dayOverrides, resolveDay, slotsByDate,
+  year, month, todayKey, wheels, dayAssignments, dayOverrides, resolveDay, slots = [], slotsByDate,
   scope, onDayClick, onDayPointerDown, onDayPointerEnter,
 }) {
   const first = startOfMonth(year, month);

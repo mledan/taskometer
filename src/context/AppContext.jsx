@@ -632,10 +632,14 @@ function appReducer(state, action) {
           };
           newTasks = [...state.tasks, newTask];
 
-          // If the engine matched a slot, update slot assignment
+          // If the engine matched a slot, mark the slot's assigned task only
+          // when the slot is still empty. Multiple tasks can share a slot;
+          // each task carries its own scheduledSlotId, so we just keep the
+          // slot's assignedTaskId as a first-occupant marker for code that
+          // still reads it (e.g. event-override displacement).
           if (engineResult.slotId) {
             newSlots = state.slots.map(slot =>
-              slot.id === engineResult.slotId
+              slot.id === engineResult.slotId && !slot.assignedTaskId
                 ? { ...slot, assignedTaskId: newTask.id || newTask.key, updatedAt: timestamp }
                 : slot
             );
@@ -670,7 +674,7 @@ function appReducer(state, action) {
               newTasks = [...newTasks, child];
               if (seg.slotId) {
                 newSlots = newSlots.map(slot =>
-                  slot.id === seg.slotId
+                  slot.id === seg.slotId && !slot.assignedTaskId
                     ? { ...slot, assignedTaskId: child.id, updatedAt: timestamp }
                     : slot
                 );

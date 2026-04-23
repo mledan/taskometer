@@ -423,20 +423,37 @@ export default function WheelView({
         />
       )}
 
-      {expandedSlotIds.size > 0 && (
-        <ExpandedWedgePanel
-          slots={viewSlots.filter(s => expandedSlotIds.has(s.id))}
-          tasksBySlotId={tasksBySlotId}
-          taskTypes={taskTypes}
-          renderTaskEntry={renderTaskEntry}
-          onCollapse={(id) => toggleExpanded(id)}
-          onEditSlot={(id) => {
-            setEditingSlotId(id);
-            setComposerOpen(false);
-            setDraftSlot(null);
-          }}
-        />
-      )}
+      {(() => {
+        // Always surface task details: every slot that has tasks is shown,
+        // plus any empty slot the user manually expanded (so they can still
+        // drill into a block to add the first task).
+        const shownIds = new Set();
+        const panelSlots = [];
+        for (const s of viewSlots) {
+          const hasTasks = (tasksBySlotId.get?.(s.id) || []).length > 0;
+          if (hasTasks || expandedSlotIds.has(s.id)) {
+            if (!shownIds.has(s.id)) {
+              shownIds.add(s.id);
+              panelSlots.push(s);
+            }
+          }
+        }
+        if (panelSlots.length === 0) return null;
+        return (
+          <ExpandedWedgePanel
+            slots={panelSlots}
+            tasksBySlotId={tasksBySlotId}
+            taskTypes={taskTypes}
+            renderTaskEntry={renderTaskEntry}
+            onCollapse={(id) => toggleExpanded(id)}
+            onEditSlot={(id) => {
+              setEditingSlotId(id);
+              setComposerOpen(false);
+              setDraftSlot(null);
+            }}
+          />
+        );
+      })()}
 
       {typeMgrOpen && (
         <SlotTypeManager

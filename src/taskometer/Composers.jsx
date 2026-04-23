@@ -67,7 +67,7 @@ export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [] }) {
   const [duration, setDuration] = useState(30);
   const [type, setType] = useState(types[0]?.id || 'deep');
   const [priority, setPriority] = useState('medium');
-  const [showDetails, setShowDetails] = useState(false);
+  const [showDetails, setShowDetails] = useState(true);
   const [recurrence, setRecurrence] = useState({ frequency: 'none', interval: 1 });
   const inputRef = useRef(null);
 
@@ -102,7 +102,6 @@ export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [] }) {
       status: 'pending',
     });
     setText('');
-    setShowDetails(false);
     setRecurrence({ frequency: 'none', interval: 1 });
   };
 

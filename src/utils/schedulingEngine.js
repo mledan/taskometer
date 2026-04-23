@@ -327,7 +327,6 @@ function findFirstAvailable(candidates, task, existingTasks, breakDuration, filt
 
   for (const slot of candidates) {
     if (!filterFn(slot)) continue;
-    if (slot.assignedTaskId && slot.assignedTaskId !== task.id) continue;
 
     const slotStart = getSlotStartDateTime(slot);
     const slotEnd = addMinutes(slotStart, getSlotDuration(slot));
@@ -388,7 +387,6 @@ function planSegments(task, firstSlot, allSlots, existingTasks, settings, breakD
   for (const slot of expanded) {
     if (slot.id === firstSlot.id) continue;
     if (!matchesType(slot)) continue;
-    if (slot.assignedTaskId && slot.assignedTaskId !== task.id) continue;
     const startDT = getSlotStartDateTime(slot);
     if (startDT <= firstSlotStart) continue;
     if (!byDay.has(slot.date)) byDay.set(slot.date, []);
@@ -447,7 +445,6 @@ function findOverflow(slots, task, existingTasks, breakDuration, filterFn) {
 
   for (const slot of slots) {
     if (!filterFn(slot)) continue;
-    if (slot.assignedTaskId && slot.assignedTaskId !== task.id) continue;
 
     // Oversized task: anchor to slot start so the task visually lives in
     // the block the user picked, even when the slot is already in progress.
