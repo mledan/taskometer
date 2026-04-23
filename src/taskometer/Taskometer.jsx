@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import WheelView from './WheelView.jsx';
+import WheelView, { MiniWheel } from './WheelView.jsx';
 import CalendarView from './CalendarView.jsx';
 import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
@@ -225,30 +225,25 @@ export default function Taskometer() {
 
   return (
     <div id="tm-root-frame" className="tm-root tm-paper">
-      <header className="tm-hdr">
-        <div className="tm-logo">taskometer</div>
-        <div className="tm-hdr-meta">
-          <span className="tm-mono tm-md">{formatDateLabel(selectedDate)}</span>
-          {hasTasks && (
-            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 14 }}>
-              {todayDone}/{todayTotal} today · {pushed} pushed
-            </span>
-          )}
-        </div>
-      </header>
-
-      <div
+      <header
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
+          gap: 14,
           flexWrap: 'wrap',
           marginBottom: 14,
           paddingBottom: 10,
           borderBottom: '1px solid var(--rule-soft)',
         }}
       >
-        <div className="tm-seg">
+        <div
+          className="tm-logo"
+          style={{ fontFamily: 'Caveat', fontSize: 30, lineHeight: 1, color: 'var(--ink)' }}
+        >
+          taskometer
+        </div>
+
+        <div className="tm-seg" style={{ marginLeft: 4 }}>
           {SCALES.map(s => (
             <button
               key={s}
@@ -263,9 +258,22 @@ export default function Taskometer() {
         {!dateNavHidden && (
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <button className="tm-btn tm-sm" onClick={() => shiftDate(-1)} aria-label="previous">‹</button>
-            <button className="tm-btn tm-sm" onClick={resetDate}>today</button>
+            <span
+              className="tm-mono tm-md"
+              style={{ minWidth: 120, textAlign: 'center', color: 'var(--ink)' }}
+              title={formatYMD(selectedDate)}
+            >
+              {formatDateLabel(selectedDate)}
+            </span>
             <button className="tm-btn tm-sm" onClick={() => shiftDate(1)} aria-label="next">›</button>
+            <button className="tm-btn tm-sm" onClick={resetDate} title="jump to today">today</button>
           </div>
+        )}
+
+        {hasTasks && (
+          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+            {todayDone}/{todayTotal} today · {pushed} pushed
+          </span>
         )}
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -293,16 +301,17 @@ export default function Taskometer() {
             onClick={() => { telemetryLog('backup:export-ics'); api.backup.exportICS(); }}
             title="export as iCalendar (.ics) for Google/Apple/Outlook import"
           >
-            export .ics
+            ⤓ ics
           </button>
           <button
             className="tm-btn tm-sm"
             onClick={() => setSettingsOpen(true)}
+            title="settings, notifications, backup, wipe"
           >
-            settings
+            ⚙
           </button>
         </div>
-      </div>
+      </header>
 
       {showQuickStart && (
         <QuickStart
@@ -535,23 +544,25 @@ function WeekView({ selectedDate, slots, tasks, wheels = [], dayAssignments = {}
   const todayKey = formatYMD(new Date());
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, minmax(110px, 1fr))',
+        gap: 12,
+      }}
+    >
       {days.map(d => {
         const key = formatYMD(d);
-        const label = d.toLocaleDateString('en', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-        });
         const wheel = wheelsById[dayAssignments[key]] || null;
         const override = dayOverrides[key] || null;
-        const slotCount = slots.filter(s => s.date === key).length;
+        const daySlots = slots.filter(s => s.date === key);
         const taskCount = tasks.filter(t => {
           const st = t.scheduledTime ? new Date(t.scheduledTime) : null;
           return st && formatYMD(st) === key;
         }).length;
         const isToday = key === todayKey;
-        const stripe = wheel?.color || override?.color || 'var(--rule)';
+        const wkLabel = d.toLocaleDateString('en', { weekday: 'short' }).toLowerCase();
+        const dayNum = d.getDate();
         return (
           <button
             key={key}
@@ -560,32 +571,28 @@ function WeekView({ selectedDate, slots, tasks, wheels = [], dayAssignments = {}
             style={{
               all: 'unset',
               cursor: 'pointer',
-              display: 'block',
-              padding: '12px 16px',
-              borderLeft: `6px solid ${stripe}`,
-              border: '1px solid var(--rule-soft)',
-              borderLeftWidth: 6,
-              borderRadius: 4,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+              padding: '12px 10px',
+              border: `1px ${isToday ? 'solid var(--orange)' : 'dashed var(--rule)'}`,
+              borderRadius: 8,
               background: isToday ? 'var(--paper-warm)' : 'var(--paper)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: 20 }}>
-                {label}{isToday ? ' · today' : ''}
-              </div>
-              <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-                {wheel
-                  ? wheel.name
-                  : override
-                    ? `override — ${override.label || override.type}`
-                    : '(unscheduled)'}
-              </div>
-              <div
-                className="tm-mono tm-sm"
-                style={{ marginLeft: 'auto', color: 'var(--ink-mute)' }}
-              >
-                {slotCount} blocks · {taskCount} tasks
-              </div>
+            <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', letterSpacing: '.10em', textTransform: 'uppercase' }}>
+              {wkLabel}
+            </div>
+            <div style={{ fontFamily: 'Caveat', fontSize: 22, lineHeight: 1, color: isToday ? 'var(--orange)' : 'var(--ink)' }}>
+              {dayNum}
+            </div>
+            <MiniWheel slots={daySlots} size={96} thickness={11} highlight={isToday} />
+            <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', textAlign: 'center', lineHeight: 1.2 }}>
+              {wheel ? wheel.name : override ? override.label || override.type : '—'}
+            </div>
+            <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+              {daySlots.length}b · {taskCount}t
             </div>
           </button>
         );

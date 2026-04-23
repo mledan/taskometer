@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import DayMenu, { buildDayMenuHandlers } from './DayMenu.jsx';
+import { MiniWheel } from './WheelView.jsx';
 
 function pad(n) { return n < 10 ? `0${n}` : `${n}`; }
 function ymd(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
@@ -279,14 +280,40 @@ function MonthGrid({
       >
         <div className="tm-cal-day-num">{d}</div>
         {cellSize === 'full' && (
-          <div className="tm-cal-day-body">
+          <div
+            className="tm-cal-day-body"
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
+          >
+            <MiniWheel
+              slots={(slots || []).filter(s => s.date === dateKey)}
+              size={48}
+              thickness={6}
+              highlight={isToday}
+            />
             {wheel && (
-              <div className="tm-mono tm-sm tm-cal-tag" style={{ color: wheel.color, fontStyle: fromRule ? 'italic' : 'normal' }}>
+              <div
+                className="tm-mono tm-sm tm-cal-tag"
+                style={{
+                  color: wheel.color,
+                  fontStyle: fromRule ? 'italic' : 'normal',
+                  textAlign: 'center',
+                  lineHeight: 1.1,
+                }}
+              >
                 {wheel.name}{fromRule ? ' ·rule' : ''}
               </div>
             )}
             {override && (
-              <div className="tm-mono tm-sm tm-cal-tag" style={{ color: override.color, fontWeight: 600, fontStyle: fromRule ? 'italic' : 'normal' }}>
+              <div
+                className="tm-mono tm-sm tm-cal-tag"
+                style={{
+                  color: override.color,
+                  fontWeight: 600,
+                  fontStyle: fromRule ? 'italic' : 'normal',
+                  textAlign: 'center',
+                  lineHeight: 1.1,
+                }}
+              >
                 {override.label || override.type}{fromRule ? ' ·rule' : ''}
               </div>
             )}
@@ -297,13 +324,12 @@ function MonthGrid({
             )}
           </div>
         )}
-        {cellSize === 'mini' && (wheel || override) && (
-          <div
-            className="tm-cal-mini-dot"
-            style={{
-              background: (override || wheel).color || 'var(--ink-mute)',
-              opacity: fromRule ? 0.55 : 1,
-            }}
+        {cellSize === 'mini' && (
+          <MiniWheel
+            slots={(slots || []).filter(s => s.date === dateKey)}
+            size={28}
+            thickness={4}
+            highlight={isToday}
           />
         )}
       </div>
