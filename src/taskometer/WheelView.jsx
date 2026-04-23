@@ -29,6 +29,7 @@ export default function WheelView({
   rowHandlers = {},
   onNavigate,
   onOpenWheels,
+  selectedDate,
 }) {
   const {
     onToggle, onDelete, onEdit, onSaveEdit, editingTaskId,
@@ -43,15 +44,28 @@ export default function WheelView({
   const now = new Date();
   const nowHour = now.getHours() + now.getMinutes() / 60;
 
-  // Use live-derived wedges only for .current/.count annotations.
-  const currentWedge = wedges.find(w => w.current);
-  const currentLabel = currentWedge
-    ? `now · ${currentWedge.label} · ${fmtHr(currentWedge.start)}–${fmtHr(currentWedge.end % 24)}`
-    : `now · ${fmtHr(nowHour)}`;
+  // The view can look at any date, but "now" annotations (red sweep,
+  // current-wedge highlight, now-task card) only make sense when we're
+  // actually viewing today. viewKey is whatever day the user is looking
+  // at; realTodayKey is real today for the comparison.
+  const viewDate = selectedDate instanceof Date ? selectedDate : new Date();
+  const viewKey = ymd(viewDate);
+  const realTodayKey = ymd(now);
+  const isToday = viewKey === realTodayKey;
 
-  const nowTaskRow = nowTask ? toRow(nowTask, { now: true }) : null;
-  const upcomingRows = (upcoming || []).map(t => toRow(t));
-  const pushedRows = (pushed || []).map(t => toRow(t, { pushed: true }));
+  // Use live-derived wedges only for .current/.count annotations. When we're
+  // on another day the upstream "wedges" prop is still today-shaped, so
+  // skip those annotations and let the drawn slots stand alone.
+  const currentWedge = isToday ? wedges.find(w => w.current) : null;
+  const currentLabel = isToday
+    ? (currentWedge
+        ? `now · ${currentWedge.label} · ${fmtHr(currentWedge.start)}–${fmtHr(currentWedge.end % 24)}`
+        : `now · ${fmtHr(nowHour)}`)
+    : viewDate.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }).toLowerCase();
+
+  const nowTaskRow = isToday && nowTask ? toRow(nowTask, { now: true }) : null;
+  const upcomingRows = isToday ? (upcoming || []).map(t => toRow(t)) : [];
+  const pushedRows = isToday ? (pushed || []).map(t => toRow(t, { pushed: true })) : [];
 
   const rowProps = () => ({
     onToggle, onEdit, onDelete,
@@ -77,14 +91,21 @@ export default function WheelView({
     return <TaskRow key={id} task={t} {...rowProps()} />;
   };
 
-  const todayKey = todayYMD();
-  const todayOverride = dayOverrides[todayKey] || null;
-  const todaySlots = slots
-    .filter(s => s?.date === todayKey)
+  const viewOverride = dayOverrides[viewKey] || null;
+  const viewSlots = slots
+    .filter(s => s?.date === viewKey)
     .slice()
     .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
-  const tasksBySlotId = groupTasksBySlot(todayTasks, todaySlots);
+  // todayTasks is derived against real-today upstream; only meaningful
+  // when the user is viewing today. On other days we render slots bare.
+  const tasksBySlotId = isToday ? groupTasksBySlot(todayTasks, viewSlots) : new Map();
+
+  // The `wedges` prop is today-shaped (built by the derivation upstream
+  // from now + today's slots). When we're viewing another day we
+  // re-synthesise wedges from viewSlots so the SVG shows that day's
+  // shape, not today's.
+  const effectiveWedges = isToday ? wedges : wedgesFromSlots(viewSlots);
 
   const toggleExpanded = useCallback((slotId) => {
     setExpandedSlotIds(prev => {
@@ -96,7 +117,7 @@ export default function WheelView({
   }, []);
 
   const editingSlot = editingSlotId
-    ? todaySlots.find(s => s.id === editingSlotId)
+    ? viewSlots.find(s => s.id === editingSlotId)
     : null;
 
   const handleWedgeCommit = useCallback(async (id, { startMin, endMinUnwrapped }) => {
@@ -135,29 +156,29 @@ export default function WheelView({
     const startMin = snapMin(Math.round(hourFloat * 60));
     const endMin = Math.min(DAY_MIN, startMin + DEFAULT_LEN_MIN);
     setDraftSlot({
-      date: todayKey,
+      date: viewKey,
       startTime: minToHHMM(startMin),
       endTime: minToHHMM(endMin % DAY_MIN),
       label: '',
     });
     setEditingSlotId(null);
     setComposerOpen(true);
-  }, [todayKey]);
+  }, [viewKey]);
 
   const handleAddFromButton = useCallback(() => {
     // find first free gap of >= DEFAULT_LEN_MIN, else propose 09:00-10:00
-    const gap = findFirstFreeGap(todaySlots, DEFAULT_LEN_MIN);
+    const gap = findFirstFreeGap(viewSlots, DEFAULT_LEN_MIN);
     const startMin = gap ? gap.startMin : 9 * 60;
     const endMin = gap ? gap.endMin : 10 * 60;
     setDraftSlot({
-      date: todayKey,
+      date: viewKey,
       startTime: minToHHMM(startMin),
       endTime: minToHHMM(endMin % DAY_MIN),
       label: '',
     });
     setEditingSlotId(null);
     setComposerOpen(true);
-  }, [todaySlots, todayKey]);
+  }, [viewSlots, viewKey]);
 
   const closeComposer = () => {
     setComposerOpen(false);
@@ -194,13 +215,13 @@ export default function WheelView({
     const eMin = eRaw <= sMin ? eRaw + DAY_MIN : eRaw;
     // candidate: a slot whose startTime == editingSlot.endTime (adjacent after)
     // or whose endTime == editingSlot.startTime (adjacent before)
-    const after = todaySlots.find(s => {
+    const after = viewSlots.find(s => {
       if (s.id === editingSlot.id) return false;
       const ss = hhmmToMin(s.startTime);
       return ss === eMin % DAY_MIN;
     });
     if (after) return { neighbor: after, direction: 'after' };
-    const before = todaySlots.find(s => {
+    const before = viewSlots.find(s => {
       if (s.id === editingSlot.id) return false;
       const se = hhmmToMin(s.endTime);
       return se === sMin;
@@ -222,7 +243,7 @@ export default function WheelView({
   };
 
   const handleNudgeEdge = useCallback(async (slotId, which, deltaMin) => {
-    const slot = todaySlots.find(s => s.id === slotId);
+    const slot = viewSlots.find(s => s.id === slotId);
     if (!slot) return;
     const sMin = hhmmToMin(slot.startTime);
     const eRaw = hhmmToMin(slot.endTime);
@@ -234,20 +255,19 @@ export default function WheelView({
       const newEnd = Math.max(sMin + MIN_LEN_MIN, Math.min(sMin + DAY_MIN, eMin + deltaMin));
       await api.slots.update(slotId, { endTime: minToHHMM(newEnd % DAY_MIN) });
     }
-  }, [todaySlots, api]);
+  }, [viewSlots, api]);
 
   const mergeTarget = findMergeTarget();
 
   return (
-    <div className="tm-fade-up tm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 28, alignItems: 'start' }}>
-      {todayOverride && (
+    <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {viewOverride && (
         <div
           style={{
-            gridColumn: '1 / -1',
             padding: '10px 14px',
             borderRadius: 10,
-            border: `1.5px solid ${todayOverride.color || 'var(--ink-mute)'}`,
-            background: hexAlpha(todayOverride.color || '#94A3B8', 0.18),
+            border: `1.5px solid ${viewOverride.color || 'var(--ink-mute)'}`,
+            background: hexAlpha(viewOverride.color || '#94A3B8', 0.18),
             display: 'flex',
             alignItems: 'center',
             gap: 10,
@@ -259,31 +279,33 @@ export default function WheelView({
             style={{
               letterSpacing: '.14em',
               textTransform: 'uppercase',
-              color: todayOverride.color || 'var(--ink-mute)',
+              color: viewOverride.color || 'var(--ink-mute)',
               fontWeight: 700,
             }}
           >
-            today · {todayOverride.type}
+            {isToday ? 'today' : viewKey} · {viewOverride.type}
           </span>
-          <span className="tm-caveat" style={{ fontSize: 22 }}>{todayOverride.label || todayOverride.type}</span>
-          {todayOverride.note && (
-            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{todayOverride.note}</span>
+          <span className="tm-caveat" style={{ fontSize: 22 }}>{viewOverride.label || viewOverride.type}</span>
+          {viewOverride.note && (
+            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{viewOverride.note}</span>
           )}
           <button
             className="tm-btn tm-sm"
             style={{ marginLeft: 'auto' }}
-            onClick={() => api.days.clearOverride(todayKey)}
+            onClick={() => api.days.clearOverride(viewKey)}
           >
             clear override
           </button>
         </div>
       )}
-      <div style={{ position: 'relative' }}>
+
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
         <WheelSvg
-          wedges={wedges}
-          slots={todaySlots}
+          wedges={effectiveWedges}
+          slots={viewSlots}
           taskTypes={taskTypes}
-          nowHour={nowHour}
+          nowHour={isToday ? nowHour : -1}
+          tasksBySlotId={tasksBySlotId}
           stats={computeStats(nowTask, upcoming, pushed)}
           onWedgeCommit={handleWedgeCommit}
           onWedgeClick={handleWedgeClick}
@@ -291,7 +313,7 @@ export default function WheelView({
           onNudgeEdge={handleNudgeEdge}
           editingSlotId={editingSlotId}
         />
-        {todaySlots.length === 0 && (
+        {viewSlots.length === 0 && (
           <div className="tm-wheel-empty">
             <div className="tm-caveat" style={{ fontSize: 24, marginBottom: 4 }}>tap the ring to drop a block</div>
             <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)' }}>
@@ -299,225 +321,122 @@ export default function WheelView({
             </div>
           </div>
         )}
-        <HelixStrip
-          todayKey={todayKey}
-          todaySlots={todaySlots}
-          allSlots={slots}
-          wheels={wheels}
-          dayAssignments={dayAssignments}
-          dayOverrides={dayOverrides}
-          resolveDay={resolveDay}
-          taskTypes={taskTypes}
-        />
       </div>
 
-      <div style={{ paddingTop: 8 }}>
-        <div className="tm-mono tm-md" style={{ color: 'var(--orange)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 6 }}>
-          {currentLabel.toLowerCase()}
-        </div>
-        <div className="tm-card tm-flush" style={{ marginBottom: 20 }}>
-          {nowTaskRow && renderTaskEntry(nowTaskRow, [nowTask])}
-          {upcomingRows.map(t => renderTaskEntry(t, upcoming))}
-          {!nowTaskRow && upcomingRows.length === 0 && (
-            <div style={{ padding: '14px 16px' }} className="tm-mono">nothing scheduled right now</div>
-          )}
-        </div>
-
-        <div className="tm-mono tm-md" style={{ letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 4 }}>
-          pushed to tomorrow
-        </div>
-        <div className="tm-card tm-dashed tm-flush" style={{ background: 'rgba(242,196,166,0.18)', borderColor: 'var(--ink-mute)' }}>
-          {pushedRows.length > 0
-            ? pushedRows.map(t => renderTaskEntry(t, pushed))
-            : <div style={{ padding: '12px 14px' }} className="tm-mono">nothing pushed yet</div>}
-        </div>
-      </div>
-
-      <div style={{ gridColumn: '1 / -1', marginTop: 18, paddingTop: 14, borderTop: '1px dashed var(--rule)' }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span className="tm-mono tm-md" style={{ letterSpacing: '.14em', textTransform: 'uppercase' }}>
-            day shape ({todaySlots.length} block{todaySlots.length === 1 ? '' : 's'})
-          </span>
-          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>· wheel:</span>
-          <select
-            className="tm-composer-select"
-            value={dayAssignments[todayKey] || ''}
-            onChange={async (ev) => {
-              const next = ev.target.value;
-              if (!next) {
-                await api.days.unassign(todayKey);
-              } else {
-                await api.wheels.applyToDate(next, todayKey, { mode: 'replace' });
-              }
-            }}
-            title="apply a wheel to today"
-            style={{ fontSize: 13, padding: '3px 8px' }}
-          >
-            <option value="">{wheels.length === 0 ? '(no wheels)' : '(none)'}</option>
-            {wheels.map(w => (
-              <option key={w.id} value={w.id}>{w.name}</option>
-            ))}
-          </select>
+      <div
+        style={{
+          display: 'flex',
+          gap: 10,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          paddingTop: 10,
+          borderTop: '1px dashed var(--rule)',
+        }}
+      >
+        <span
+          className="tm-mono tm-sm"
+          style={{ color: 'var(--ink-mute)', letterSpacing: '.10em', textTransform: 'uppercase' }}
+        >
+          {viewSlots.length} block{viewSlots.length === 1 ? '' : 's'}
+          {isToday ? '' : ` · ${viewDate.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase()}`}
+        </span>
+        <select
+          className="tm-composer-select"
+          value={dayAssignments[viewKey] || ''}
+          onChange={async (ev) => {
+            const next = ev.target.value;
+            if (!next) await api.days.unassign(viewKey);
+            else await api.wheels.applyToDate(next, viewKey, { mode: 'replace' });
+          }}
+          title="apply a wheel to this day"
+          style={{ fontSize: 13, padding: '3px 8px' }}
+        >
+          <option value="">apply wheel…</option>
+          {wheels.map(w => (
+            <option key={w.id} value={w.id}>{w.name}</option>
+          ))}
+        </select>
+        <button
+          className="tm-btn tm-primary tm-sm"
+          onClick={() => {
+            if (composerOpen || editingSlot) closeComposer();
+            else handleAddFromButton();
+          }}
+        >
+          {(composerOpen || editingSlot) ? 'close' : '+ time block'}
+        </button>
+        <button className="tm-btn tm-sm" onClick={() => setTypeMgrOpen(true)}>types</button>
+        {onOpenWheels && (
           <button
-            className="tm-btn tm-primary tm-sm"
-            onClick={() => {
-              if (composerOpen || editingSlot) closeComposer();
-              else handleAddFromButton();
-            }}
+            className="tm-btn tm-sm"
+            onClick={onOpenWheels}
+            title="save this day as a wheel, or pick from the library"
           >
-            {(composerOpen || editingSlot) ? 'close' : '+ time block'}
+            save day
           </button>
-          <button className="tm-btn tm-sm" onClick={() => setTypeMgrOpen(true)}>types</button>
-          {onOpenWheels && (
-            <button className="tm-btn tm-sm" onClick={onOpenWheels} title="save this day as a wheel, or apply one">
-              wheels
-            </button>
-          )}
-          <button className="tm-btn tm-sm" onClick={() => onNavigate('fit')}>week view</button>
-          <button className="tm-btn tm-sm" onClick={() => onNavigate('calendar')}>calendar</button>
-          <span className="tm-mono tm-sm" style={{ marginLeft: 'auto', color: 'var(--ink-mute)' }}>
-            click wedge or row to reveal tasks · drag wedge to move · hover handle for ±15m · click empty ring to add
-          </span>
-        </div>
-
-        {(composerOpen || editingSlot) && (
-          <div style={{ marginTop: 10 }}>
-            <SlotComposer
-              initial={editingSlot || draftSlot || undefined}
-              taskTypes={taskTypes}
-              onOpenTypeManager={() => setTypeMgrOpen(true)}
-              onSave={async (data) => {
-                if (editingSlot) {
-                  await api.slots.update(editingSlot.id, data);
-                  setEditingSlotId(null);
-                } else {
-                  await api.slots.add(data);
-                  setComposerOpen(false);
-                  setDraftSlot(null);
-                }
-              }}
-              onCancel={closeComposer}
-              onDelete={editingSlot ? async () => {
-                await api.slots.remove(editingSlot.id);
-                setEditingSlotId(null);
-              } : undefined}
-              extraActions={editingSlot ? (
-                <>
-                  <button
-                    className="tm-btn tm-sm"
-                    onClick={handleSplit}
-                    title="split this block in half"
-                  >
-                    split
-                  </button>
-                  {mergeTarget && (
-                    <button
-                      className="tm-btn tm-sm"
-                      onClick={handleMerge}
-                      title={`merge with the adjacent block (${mergeTarget.direction})`}
-                    >
-                      merge {mergeTarget.direction === 'before' ? '←' : '→'}
-                    </button>
-                  )}
-                </>
-              ) : null}
-            />
-          </div>
         )}
-
-        {todaySlots.length > 0 && (
-          <div className="tm-slot-list">
-            {todaySlots.map(s => {
-              const color = s.color || resolveTypeColor(taskTypes, s.slotType);
-              const overnight = isOvernightSlot(s);
-              const slotTasks = tasksBySlotId.get(s.id) || [];
-              const expanded = expandedSlotIds.has(s.id);
-              return (
-                <div
-                  key={s.id}
-                  ref={(node) => {
-                    if (node) slotRowRefs.current.set(s.id, node);
-                    else slotRowRefs.current.delete(s.id);
-                  }}
-                  className={`tm-slot-row-wrap${expanded ? ' tm-slot-row-expanded' : ''}`}
-                >
-                  <div
-                    className={`tm-slot-row${editingSlotId === s.id ? ' tm-slot-row-active' : ''}`}
-                    onClick={() => toggleExpanded(s.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(ev) => {
-                      if (ev.key === 'Enter' || ev.key === ' ') {
-                        ev.preventDefault();
-                        toggleExpanded(s.id);
-                      }
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <span
-                      className="tm-slot-caret"
-                      aria-hidden="true"
-                    >
-                      {expanded ? '▾' : '▸'}
-                    </span>
-                    {color && <span className="tm-slot-dot" style={{ background: color }} />}
-                    <span className="tm-slot-label">{s.label || s.slotType || 'block'}</span>
-                    {slotTasks.length > 0 && (
-                      <span
-                        className="tm-mono tm-sm tm-slot-count"
-                        title={`${slotTasks.length} task${slotTasks.length === 1 ? '' : 's'} in this block`}
-                      >
-                        {slotTasks.length} task{slotTasks.length === 1 ? '' : 's'}
-                      </span>
-                    )}
-                    <span className="tm-slot-time">
-                      {s.startTime}–{s.endTime}{overnight ? ' (+1d)' : ''}
-                    </span>
-                    {s.slotType && (
-                      <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{s.slotType}</span>
-                    )}
-                    <button
-                      className="tm-btn tm-sm"
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        setEditingSlotId(s.id);
-                        setComposerOpen(false);
-                        setDraftSlot(null);
-                      }}
-                    >
-                      edit
-                    </button>
-                  </div>
-                  {expanded && (
-                    <div className="tm-slot-tasks">
-                      {slotTasks.length === 0 ? (
-                        <div className="tm-mono tm-sm tm-slot-tasks-empty">
-                          no tasks in this block yet
-                        </div>
-                      ) : (
-                        slotTasks.map(entry => {
-                          const row = toRow(entry.task, { now: entry.state === 'live' });
-                          const overflow = overflowsSlot(entry, s);
-                          return (
-                            <div key={entry.task.id || entry.task.key} className="tm-slot-task-line">
-                              {renderTaskEntry(row, slotTasks.map(e => e.task))}
-                              {overflow && (
-                                <div className="tm-mono tm-sm tm-slot-task-warn">
-                                  overflows this block by {fmtMinutes(overflow)}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <span className="tm-mono tm-sm" style={{ marginLeft: 'auto', color: 'var(--ink-mute)' }}>
+          click a wedge to expand · drag to move · click empty ring to add
+        </span>
       </div>
+
+      {(composerOpen || editingSlot) && (
+        <SlotComposer
+          initial={editingSlot || draftSlot || undefined}
+          taskTypes={taskTypes}
+          onOpenTypeManager={() => setTypeMgrOpen(true)}
+          onSave={async (data) => {
+            if (editingSlot) {
+              await api.slots.update(editingSlot.id, data);
+              setEditingSlotId(null);
+            } else {
+              await api.slots.add(data);
+              setComposerOpen(false);
+              setDraftSlot(null);
+            }
+          }}
+          onCancel={closeComposer}
+          onDelete={editingSlot ? async () => {
+            await api.slots.remove(editingSlot.id);
+            setEditingSlotId(null);
+          } : undefined}
+          extraActions={editingSlot ? (
+            <>
+              <button
+                className="tm-btn tm-sm"
+                onClick={handleSplit}
+                title="split this block in half"
+              >
+                split
+              </button>
+              {mergeTarget && (
+                <button
+                  className="tm-btn tm-sm"
+                  onClick={handleMerge}
+                  title={`merge with the adjacent block (${mergeTarget.direction})`}
+                >
+                  merge {mergeTarget.direction === 'before' ? '←' : '→'}
+                </button>
+              )}
+            </>
+          ) : null}
+        />
+      )}
+
+      {expandedSlotIds.size > 0 && (
+        <ExpandedWedgePanel
+          slots={viewSlots.filter(s => expandedSlotIds.has(s.id))}
+          tasksBySlotId={tasksBySlotId}
+          taskTypes={taskTypes}
+          renderTaskEntry={renderTaskEntry}
+          onCollapse={(id) => toggleExpanded(id)}
+          onEditSlot={(id) => {
+            setEditingSlotId(id);
+            setComposerOpen(false);
+            setDraftSlot(null);
+          }}
+        />
+      )}
 
       {typeMgrOpen && (
         <SlotTypeManager
@@ -531,8 +450,253 @@ export default function WheelView({
 }
 
 // -------------------------------------------------------------------------
+// Inline subcomponents
+// -------------------------------------------------------------------------
+
+/**
+ * Tiny circular wheel — same shape as the big WheelSvg but reduced to its
+ * essence: colored arcs for the day's slots, optional center label, no
+ * text on wedges. Used on the week strip and the month/quarter/year
+ * calendar cells so every scale visually echoes the day view.
+ */
+export function MiniWheel({
+  slots = [],
+  size = 80,
+  thickness = 10,
+  highlight = false,
+  emptyColor = 'var(--rule-soft)',
+}) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = (size - thickness) / 2 - 2;
+  const ang = (h) => (h / 24) * 360 - 90;
+  const polar = (h, rr) => {
+    const a = ang(h) * Math.PI / 180;
+    return [cx + Math.cos(a) * rr, cy + Math.sin(a) * rr];
+  };
+  const arc = (startH, endH) => {
+    const span = endH - startH;
+    if (span <= 0) return null;
+    const large = span > 12 ? 1 : 0;
+    const [x0, y0] = polar(startH, r);
+    const [x1, y1] = polar(endH, r);
+    return `M${x0} ${y0} A${r} ${r} 0 ${large} 1 ${x1} ${y1}`;
+  };
+
+  const wedges = slots
+    .slice()
+    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
+    .map((s) => {
+      const [sh, sm] = (s.startTime || '00:00').split(':').map(Number);
+      const [eh, em] = (s.endTime || '00:00').split(':').map(Number);
+      const startH = (sh || 0) + (sm || 0) / 60;
+      let endH = (eh || 0) + (em || 0) / 60;
+      if (endH <= startH) endH += 24;
+      return { id: s.id, startH, endH: Math.min(24, endH), color: s.color || 'var(--ink-mute)' };
+    });
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill="none"
+        stroke={emptyColor}
+        strokeWidth={thickness}
+      />
+      {wedges.map((w) => {
+        const d = arc(w.startH, w.endH);
+        if (!d) return null;
+        return (
+          <path
+            key={w.id}
+            d={d}
+            fill="none"
+            stroke={w.color}
+            strokeWidth={thickness}
+            strokeLinecap="butt"
+          />
+        );
+      })}
+      {highlight && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill="none"
+          stroke="var(--orange)"
+          strokeWidth={1.5}
+          strokeDasharray="3 3"
+        />
+      )}
+    </svg>
+  );
+}
+
+/**
+ * Renders short task labels stacked vertically inside a wedge so the user
+ * can read what's actually scheduled in each block without expanding it.
+ * Falls back to the count badge upstream when there are no tasks for the
+ * slot (the parent renders that path conditionally).
+ */
+function WedgeTaskChips({ slotId, tasksBySlotId, cx, startY, maxChips = 3 }) {
+  if (!tasksBySlotId || typeof tasksBySlotId.get !== 'function') return null;
+  const entries = tasksBySlotId.get(slotId) || [];
+  if (entries.length === 0) return null;
+  const visible = entries.slice(0, maxChips);
+  const overflow = entries.length - visible.length;
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      {visible.map((entry, i) => {
+        const t = entry.task || entry;
+        const text = (t.text || t.title || 'task').slice(0, 18);
+        const done = t.status === 'completed';
+        return (
+          <text
+            key={t.id || t.key || i}
+            x={cx}
+            y={startY + i * 13}
+            fontFamily="JetBrains Mono"
+            fontSize={10.5}
+            fill={done ? 'var(--ink-mute)' : 'var(--ink-soft)'}
+            textAnchor="middle"
+            style={{
+              textDecoration: done ? 'line-through' : 'none',
+              pointerEvents: 'none',
+            }}
+          >
+            {text}
+          </text>
+        );
+      })}
+      {overflow > 0 && (
+        <text
+          x={cx}
+          y={startY + visible.length * 13}
+          fontFamily="JetBrains Mono"
+          fontSize={10}
+          fill="var(--orange)"
+          textAnchor="middle"
+          style={{ pointerEvents: 'none' }}
+        >
+          +{overflow} more
+        </text>
+      )}
+    </g>
+  );
+}
+
+/**
+ * Inline panel shown below the wheel when one or more wedges are expanded.
+ * Replaces the old long vertical slot-list — the wheel itself is now the
+ * primary slot view, and this is where you go deep on a specific block.
+ */
+function ExpandedWedgePanel({
+  slots,
+  tasksBySlotId,
+  taskTypes,
+  renderTaskEntry,
+  onCollapse,
+  onEditSlot,
+}) {
+  if (!slots || slots.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {slots.map(s => {
+        const color = s.color || resolveTypeColor(taskTypes, s.slotType) || 'var(--ink)';
+        const overnight = isOvernightSlot(s);
+        const slotTasks = tasksBySlotId?.get?.(s.id) || [];
+        return (
+          <div
+            key={s.id}
+            className="tm-card"
+            style={{
+              padding: '12px 14px',
+              borderLeft: `4px solid ${color}`,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 18 }}>{s.label || s.slotType || 'block'}</span>
+              <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                {s.startTime}–{s.endTime}{overnight ? ' (+1d)' : ''}
+              </span>
+              {s.slotType && (
+                <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                  · {s.slotType}
+                </span>
+              )}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                <button className="tm-btn tm-sm" onClick={() => onEditSlot(s.id)}>edit block</button>
+                <button className="tm-btn tm-sm" onClick={() => onCollapse(s.id)}>close</button>
+              </div>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              {slotTasks.length === 0 ? (
+                <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                  no tasks scheduled in this block yet
+                </div>
+              ) : (
+                slotTasks.map(entry => {
+                  const row = toRow(entry.task, { now: entry.state === 'live' });
+                  const overflow = overflowsSlot(entry, s);
+                  return (
+                    <div
+                      key={entry.task.id || entry.task.key}
+                      style={{ borderTop: '1px solid var(--rule-soft)', padding: '4px 0' }}
+                    >
+                      {renderTaskEntry(row, slotTasks.map(e => e.task))}
+                      {overflow ? (
+                        <div className="tm-mono tm-sm" style={{ color: 'var(--orange)', marginTop: 2 }}>
+                          overflows this block by {fmtMinutes(overflow)}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------------------
 // Helpers
 // -------------------------------------------------------------------------
+
+function ymd(d) {
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${d.getFullYear()}-${m < 10 ? '0' + m : m}-${day < 10 ? '0' + day : day}`;
+}
+
+// Shape-compatible with deriveWheelWedges but without task counts or the
+// `current` flag — used when the wheel is showing a day other than today
+// so the SVG reflects that day's blocks rather than today's.
+function wedgesFromSlots(slots) {
+  return slots
+    .slice()
+    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
+    .map((s) => {
+      const [sh, sm] = (s.startTime || '00:00').split(':').map(Number);
+      const [eh, em] = (s.endTime || '00:00').split(':').map(Number);
+      const startH = (sh || 0) + (sm || 0) / 60;
+      let endH = (eh || 0) + (em || 0) / 60;
+      if (endH <= startH) endH += 24;
+      return {
+        id: s.id,
+        label: s.label || s.slotType || 'block',
+        start: startH,
+        end: Math.min(24, endH),
+        kind: undefined,
+        count: undefined,
+        current: false,
+      };
+    });
+}
 
 function todayYMD() {
   const d = new Date();
@@ -630,11 +794,11 @@ function slotSpan(slot) {
  * the slot window. Each task lands in at most one slot (first match wins)
  * so clicking a category gives an unambiguous list.
  */
-function groupTasksBySlot(todayTasks = [], todaySlots = []) {
+function groupTasksBySlot(todayTasks = [], viewSlots = []) {
   const map = new Map();
-  todaySlots.forEach(s => map.set(s.id, []));
+  viewSlots.forEach(s => map.set(s.id, []));
 
-  const spans = todaySlots.map(s => ({ slot: s, ...slotSpan(s) }));
+  const spans = viewSlots.map(s => ({ slot: s, ...slotSpan(s) }));
 
   for (const entry of todayTasks) {
     const task = entry.task;
@@ -719,13 +883,14 @@ function WheelSvg({
   taskTypes,
   nowHour,
   stats,
+  tasksBySlotId,
   onWedgeCommit,
   onWedgeClick,
   onEmptyHourClick,
   onNudgeEdge,
   editingSlotId,
 }) {
-  const cx = 220, cy = 220, rOuter = 200, rInner = 78;
+  const cx = 320, cy = 320, rOuter = 295, rInner = 110;
   const labelR = (rOuter + rInner) / 2;
   const svgRef = useRef(null);
 
@@ -971,9 +1136,9 @@ function WheelSvg({
     <svg
       ref={svgRef}
       width="100%"
-      height="460"
-      viewBox="0 0 440 440"
-      style={{ maxWidth: 460, touchAction: 'none', userSelect: 'none' }}
+      height="640"
+      viewBox="0 0 640 640"
+      style={{ maxWidth: 720, touchAction: 'none', userSelect: 'none' }}
     >
       <circle
         cx={cx}
@@ -1046,7 +1211,15 @@ function WheelSvg({
             >
               {label}
             </text>
-            {wedge?.count ? (
+            <WedgeTaskChips
+              slotId={slot.id}
+              tasksBySlotId={tasksBySlotId}
+              fallbackCount={wedge?.count}
+              cx={lx}
+              startY={ly + 14}
+              maxChips={(endH - startH) >= 1.5 ? 3 : (endH - startH) >= 0.75 ? 2 : 1}
+            />
+            {!tasksBySlotId?.get?.(slot.id)?.length && wedge?.count ? (
               <text
                 x={lx}
                 y={ly + 14}
@@ -1091,8 +1264,8 @@ function WheelSvg({
 
       <text x={cx} y={18} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" textAnchor="middle" fontStyle="italic" pointerEvents="none">12a</text>
       <text x={cx} y={438} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" textAnchor="middle" fontStyle="italic" pointerEvents="none">12p</text>
-      <text x={10} y={cy + 4} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" fontStyle="italic" pointerEvents="none">6p</text>
-      <text x={420} y={cy + 4} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" fontStyle="italic" pointerEvents="none">6a</text>
+      <text x={10} y={cy + 4} fontFamily="Caveat" fontSize="22" fill="var(--ink-mute)" fontStyle="italic" pointerEvents="none">6p</text>
+      <text x={630} y={cy + 4} fontFamily="Caveat" fontSize="22" fill="var(--ink-mute)" fontStyle="italic" pointerEvents="none">6a</text>
 
       <line x1={cx} y1={cy} x2={nxEnd} y2={nyEnd} stroke="var(--orange)" strokeWidth="2" opacity="0.5" pointerEvents="none" />
       <circle cx={nxEnd} cy={nyEnd} r="5" fill="var(--orange)" pointerEvents="none" />
@@ -1209,8 +1382,8 @@ function NudgeChip({ cx, cy, label, onClick }) {
  * respected — a ruled tomorrow shows up even before the user paints it.
  */
 function HelixStrip({
-  todayKey,
-  todaySlots,
+  viewKey,
+  viewSlots,
   allSlots,
   wheels,
   dayAssignments,
@@ -1218,7 +1391,7 @@ function HelixStrip({
   resolveDay,
   taskTypes,
 }) {
-  const tomorrowKey = addDaysKey(todayKey, 1);
+  const tomorrowKey = addDaysKey(viewKey, 1);
   const tomorrowEffective = resolveDay
     ? resolveDay(tomorrowKey)
     : {
@@ -1249,7 +1422,7 @@ function HelixStrip({
       }))
     : (tomorrowWheel?.blocks || []).slice().sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
-  const overnight = todaySlots.find(s => isOvernightSlot(s));
+  const overnight = viewSlots.find(s => isOvernightSlot(s));
 
   const noTomorrow = !tomorrowWheel && !tomorrowOverride && previewBlocks.length === 0;
 

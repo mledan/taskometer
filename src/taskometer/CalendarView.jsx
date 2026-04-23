@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import DayMenu, { buildDayMenuHandlers } from './DayMenu.jsx';
+import { MiniWheel } from './WheelView.jsx';
 
 function pad(n) { return n < 10 ? `0${n}` : `${n}`; }
 function ymd(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
@@ -18,10 +19,17 @@ export default function CalendarView({
   onNavigate,
   onOpenWheels,
   onOpenRules,
+  scope: controlledScope,
 }) {
   const today = new Date();
   const [anchor, setAnchor] = useState({ year: today.getFullYear(), month: today.getMonth() });
-  const [scope, setScope] = useState('month'); // 'month' | 'quarter' | 'year'
+  const [internalScope, setInternalScope] = useState('month'); // 'month' | 'quarter' | 'year'
+  const scope = controlledScope || internalScope;
+  const scopeControlled = !!controlledScope;
+  const setScope = (s) => {
+    if (scopeControlled) return; // parent owns scope
+    setInternalScope(s);
+  };
   const [dayMenu, setDayMenu] = useState(null); // {date, x, y}
   const [paintWheel, setPaintWheel] = useState(null); // wheelId for drag-paint
   const [isPainting, setIsPainting] = useState(false);
@@ -124,15 +132,17 @@ export default function CalendarView({
           className="tm-btn tm-sm"
           onClick={() => setAnchor({ year: today.getFullYear(), month: today.getMonth() })}
         >today</button>
-        <div className="tm-seg" style={{ marginLeft: 10 }}>
-          {['month', 'quarter', 'year'].map(s => (
-            <button
-              key={s}
-              className={scope === s ? 'tm-on' : ''}
-              onClick={() => setScope(s)}
-            >{s}</button>
-          ))}
-        </div>
+        {!scopeControlled && (
+          <div className="tm-seg" style={{ marginLeft: 10 }}>
+            {['month', 'quarter', 'year'].map(s => (
+              <button
+                key={s}
+                className={scope === s ? 'tm-on' : ''}
+                onClick={() => setScope(s)}
+              >{s}</button>
+            ))}
+          </div>
+        )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
             paint with:
@@ -270,14 +280,40 @@ function MonthGrid({
       >
         <div className="tm-cal-day-num">{d}</div>
         {cellSize === 'full' && (
-          <div className="tm-cal-day-body">
+          <div
+            className="tm-cal-day-body"
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
+          >
+            <MiniWheel
+              slots={(slots || []).filter(s => s.date === dateKey)}
+              size={48}
+              thickness={6}
+              highlight={isToday}
+            />
             {wheel && (
-              <div className="tm-mono tm-sm tm-cal-tag" style={{ color: wheel.color, fontStyle: fromRule ? 'italic' : 'normal' }}>
+              <div
+                className="tm-mono tm-sm tm-cal-tag"
+                style={{
+                  color: wheel.color,
+                  fontStyle: fromRule ? 'italic' : 'normal',
+                  textAlign: 'center',
+                  lineHeight: 1.1,
+                }}
+              >
                 {wheel.name}{fromRule ? ' ·rule' : ''}
               </div>
             )}
             {override && (
-              <div className="tm-mono tm-sm tm-cal-tag" style={{ color: override.color, fontWeight: 600, fontStyle: fromRule ? 'italic' : 'normal' }}>
+              <div
+                className="tm-mono tm-sm tm-cal-tag"
+                style={{
+                  color: override.color,
+                  fontWeight: 600,
+                  fontStyle: fromRule ? 'italic' : 'normal',
+                  textAlign: 'center',
+                  lineHeight: 1.1,
+                }}
+              >
                 {override.label || override.type}{fromRule ? ' ·rule' : ''}
               </div>
             )}
@@ -288,13 +324,12 @@ function MonthGrid({
             )}
           </div>
         )}
-        {cellSize === 'mini' && (wheel || override) && (
-          <div
-            className="tm-cal-mini-dot"
-            style={{
-              background: (override || wheel).color || 'var(--ink-mute)',
-              opacity: fromRule ? 0.55 : 1,
-            }}
+        {cellSize === 'mini' && (
+          <MiniWheel
+            slots={(slots || []).filter(s => s.date === dateKey)}
+            size={28}
+            thickness={4}
+            highlight={isToday}
           />
         )}
       </div>

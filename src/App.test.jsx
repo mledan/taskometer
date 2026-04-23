@@ -7,25 +7,31 @@ test("renders the taskometer header", () => {
   expect(screen.getByText(/taskometer/i)).toBeInTheDocument();
 });
 
-test("shows the three view tabs: gauge, wheel, fit", () => {
+test("shows the scale selector with slot/day/week/month/quarter/year", () => {
   render(<App />);
-  const tabs = screen.getAllByRole("button").map((b) => b.textContent);
-  expect(tabs).toContain("gauge");
-  expect(tabs).toContain("wheel");
-  expect(tabs).toContain("fit");
+  const buttons = screen.getAllByRole("button").map((b) => b.textContent);
+  ["slot", "day", "week", "month", "quarter", "year"].forEach((s) => {
+    expect(buttons).toContain(s);
+  });
 });
 
-test("switching to the wheel tab reveals the 24h slot subhead", () => {
+test("shows the quickstart picker on a fresh install", () => {
   render(<App />);
-  fireEvent.click(screen.getByRole("button", { name: "wheel" }));
-  expect(screen.getByText(/24h slots/i)).toBeInTheDocument();
+  // Fresh install has no slots yet, so the picker card is visible.
+  expect(screen.getByText(/pick a day to start with/i)).toBeInTheDocument();
+  // At least one seeded wheel name is rendered as a button.
+  const buttons = screen.getAllByRole("button").map((b) => b.textContent);
+  expect(buttons.some((t) => /weekday/i.test(t || ""))).toBe(true);
 });
 
-test("switching to the fit tab shows the itinerary label", () => {
-  render(<App />);
-  fireEvent.click(screen.getByRole("button", { name: "fit" }));
-  // Subhead flips to the itinerary label. The old "everything fits"
-  // readout is gone because auto-schedule makes that guarantee a tautology.
-  expect(screen.getAllByText(/itinerary/i).length).toBeGreaterThan(0);
-  expect(screen.queryByText(/everything fits/i)).not.toBeInTheDocument();
+test("switching scale to week renders 7 day cells", () => {
+  const { container } = render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "week" }));
+  // The week strip is a grid of 7 day cells, each rendering a MiniWheel
+  // SVG. Counting SVGs is structural and avoids brittle text matching
+  // (textContent concatenates without separators across nested divs).
+  const svgCount = container.querySelectorAll("svg").length;
+  // Some chrome (wheel toolbar buttons) may add a small constant of svgs;
+  // 7 cells contribute >= 7 by themselves.
+  expect(svgCount).toBeGreaterThanOrEqual(7);
 });

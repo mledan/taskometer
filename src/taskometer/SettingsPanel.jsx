@@ -98,48 +98,6 @@ export default function SettingsPanel({
             browser denied permission — enable it from the site settings first.
           </div>
         )}
-        <label>
-          show coach suggestions
-          <input
-            type="checkbox"
-            checked={!!ui.showCoach}
-            onChange={(e) => setUIField('showCoach', e.target.checked)}
-          />
-        </label>
-      </section>
-
-      <section style={{ marginTop: 14 }}>
-        <div className="tm-mono tm-md" style={{ color: 'var(--orange)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
-          look
-        </div>
-        <div>
-          <div className="tm-mono tm-md" style={{ marginTop: 6 }}>palette</div>
-          <div className="tm-seg">
-            {['warm', 'cool', 'dusk'].map(p => (
-              <button
-                key={p}
-                className={ui.palette === p ? 'tm-on' : ''}
-                onClick={() => setUIField('palette', p)}
-              >
-                {p === 'warm' ? 'warm cream' : p === 'cool' ? 'cool paper' : 'dusk'}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <div className="tm-mono tm-md" style={{ marginTop: 8 }}>rules</div>
-          <div className="tm-seg">
-            {['lines', 'grid', 'blank'].map(r => (
-              <button
-                key={r}
-                className={ui.rules === r ? 'tm-on' : ''}
-                onClick={() => setUIField('rules', r)}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-        </div>
       </section>
 
       <section style={{ marginTop: 14 }}>

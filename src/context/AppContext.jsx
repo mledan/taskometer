@@ -25,6 +25,11 @@ import { batchMatchTasksToSlots } from '../utils/slotMatcher';
 import { getActiveSchedule as getLegacyActiveSchedule } from '../utils/scheduleTemplates';
 import { scheduleTask as engineScheduleTask, scheduleMultipleTasks as engineScheduleMultiple, applyEventOverride } from '../utils/schedulingEngine';
 import { log as telemetryLog, snapshotState } from '../services/telemetry';
+import {
+  DEFAULT_WHEELS as SEED_WHEELS,
+  DEFAULT_TASK_TYPES as SEED_TASK_TYPES,
+  DEFAULT_DAY_WHEEL_ID as SEED_DAY_WHEEL_ID,
+} from '../defaults/defaultSchedule';
 
 // ============================================
 // CONTEXT CREATION
@@ -1794,11 +1799,23 @@ export function AppStateProvider({ children }) {
         const savedState = await db.getState();
 
         const tasks = savedState.tasks || savedState.items || [];
-        // Fresh slate: new users get no default types.
-        // Existing users keep whatever they already saved.
-        const taskTypes = Array.isArray(savedState.taskTypes)
+
+        // Seed policy: an existing user keeps whatever they saved.
+        // A fresh install (no taskTypes, no wheels) gets the shipped
+        // defaults so the app is usable from the first click.
+        const isFreshInstall =
+          (!Array.isArray(savedState.taskTypes) || savedState.taskTypes.length === 0) &&
+          (!savedState.settings?.wheels || savedState.settings.wheels.length === 0);
+
+        const taskTypes = Array.isArray(savedState.taskTypes) && savedState.taskTypes.length > 0
           ? savedState.taskTypes
-          : DEFAULT_TASK_TYPES;
+          : (isFreshInstall ? SEED_TASK_TYPES : DEFAULT_TASK_TYPES);
+
+        const mergedSettings = { ...initialState.settings, ...(savedState.settings || {}) };
+        if (isFreshInstall) {
+          mergedSettings.wheels = SEED_WHEELS;
+          mergedSettings.defaultWheelId = SEED_DAY_WHEEL_ID;
+        }
 
         const payload = {
           tasks,
@@ -1809,12 +1826,12 @@ export function AppStateProvider({ children }) {
           palaces: savedState.palaces || [],
           activeScheduleId: savedState.activeScheduleId,
           activeSchedule: await db.getActiveSchedule(),
-          settings: { ...initialState.settings, ...(savedState.settings || {}) },
+          settings: mergedSettings,
           date: getInitialDate()
         };
 
         dispatch({ type: ACTION_TYPES.INIT_STATE, payload });
-        telemetryLog('app:boot', snapshotState({ ...payload, isInitialized: true }));
+        telemetryLog('app:boot', { freshInstall: isFreshInstall, ...snapshotState({ ...payload, isInitialized: true }) });
       } catch (error) {
         console.error('[AppContext] Initialization error:', error);
         telemetryLog('app:boot:error', { message: error?.message });

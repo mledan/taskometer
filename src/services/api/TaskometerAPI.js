@@ -863,46 +863,9 @@ export const OVERRIDE_TYPES = [
 
 const DEFAULT_OVERRIDE_COLORS = Object.fromEntries(OVERRIDE_TYPES.map(o => [o.id, o.color]));
 
-export const STARTER_WHEELS = [
-  {
-    id: 'starter_9_5',
-    name: '9 to 5',
-    color: '#3B82F6',
-    blocks: [
-      { startTime: '06:30', endTime: '07:30', slotType: 'routine', label: 'morning' },
-      { startTime: '09:00', endTime: '12:00', slotType: 'deep', label: 'deep work' },
-      { startTime: '12:00', endTime: '13:00', slotType: 'break', label: 'lunch' },
-      { startTime: '13:00', endTime: '15:00', slotType: 'mtgs', label: 'meetings' },
-      { startTime: '15:00', endTime: '17:00', slotType: 'admin', label: 'admin' },
-      { startTime: '22:00', endTime: '06:00', slotType: 'sleep', label: 'sleep' },
-    ],
-  },
-  {
-    id: 'starter_weekend',
-    name: 'Weekend chill',
-    color: '#A8BF8C',
-    blocks: [
-      { startTime: '09:00', endTime: '10:00', slotType: 'routine', label: 'slow morning' },
-      { startTime: '10:00', endTime: '12:00', slotType: 'play', label: 'hobby' },
-      { startTime: '12:00', endTime: '13:30', slotType: 'break', label: 'lunch' },
-      { startTime: '13:30', endTime: '17:00', slotType: 'play', label: 'free' },
-      { startTime: '18:00', endTime: '20:00', slotType: 'play', label: 'social' },
-      { startTime: '23:00', endTime: '08:00', slotType: 'sleep', label: 'sleep' },
-    ],
-  },
-  {
-    id: 'starter_early',
-    name: 'Early riser',
-    color: '#10B981',
-    blocks: [
-      { startTime: '05:30', endTime: '06:30', slotType: 'routine', label: 'workout' },
-      { startTime: '07:00', endTime: '11:00', slotType: 'deep', label: 'morning focus' },
-      { startTime: '11:00', endTime: '12:00', slotType: 'break', label: 'walk + lunch' },
-      { startTime: '12:00', endTime: '15:00', slotType: 'mtgs', label: 'meetings' },
-      { startTime: '15:00', endTime: '17:00', slotType: 'admin', label: 'wrap up' },
-      { startTime: '21:00', endTime: '05:00', slotType: 'sleep', label: 'sleep' },
-    ],
-  },
-];
+// The wheel library we ship with. Single source of truth lives in
+// src/defaults/defaultSchedule.js so it can be tweaked without editing
+// this file.
+export { DEFAULT_WHEELS as STARTER_WHEELS } from '../../defaults/defaultSchedule';
 
 export default makeTaskometerAPI;
