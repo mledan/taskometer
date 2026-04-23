@@ -162,14 +162,20 @@ export default function Taskometer() {
     }
     telemetryLog('quickstart:pick', { name: template.name, blocks: template.blocks.length });
     try {
-      const created = await api.wheels.add({
-        name: template.name,
-        color: template.color,
-        blocks: template.blocks,
-      });
+      // Wheels are seeded on first boot, so usually the id already exists.
+      // Only add a new one if we're looking at a never-before-seen template
+      // (e.g. the user nuked the library and we're re-seeding from scratch).
+      const existing = (state.settings?.wheels || []).find(w => w.id === template.id);
+      const wheelId = existing?.id
+        || (await api.wheels.add({
+          id: template.id,
+          name: template.name,
+          color: template.color,
+          blocks: template.blocks,
+        })).id;
       const today = formatYMD(new Date());
-      await api.wheels.applyToDate(created.id, today);
-      telemetryLog('quickstart:applied', { wheelId: created.id, date: today });
+      await api.wheels.applyToDate(wheelId, today);
+      telemetryLog('quickstart:applied', { wheelId, date: today });
     } catch (err) {
       telemetryLog('quickstart:error', { message: err?.message });
     }
@@ -243,8 +249,9 @@ export default function Taskometer() {
   const { todayDone, todayTotal, pushed } = derived.stats;
   const hasSlots = (state.slots?.length || 0) > 0;
   const hasTasks = (state.tasks?.length || 0) > 0;
-  const hasWheels = (state.settings?.wheels?.length || 0) > 0;
-  const showQuickStart = !hasSlots && !hasWheels;
+  // Even when the wheel library is seeded on first boot, the user still
+  // needs to pick which one paints today — so gate on slots, not wheels.
+  const showQuickStart = !hasSlots;
 
   return (
     <div id="tm-root-frame" className="tm-root tm-paper">
