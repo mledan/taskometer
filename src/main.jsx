@@ -13,6 +13,7 @@ import "./index.css";
     if (parsed?.mode === 'account') return;
     const keysToWipe = [
       'smartcircle.auth',
+      'smartcircle.onboarding.done',
       'state',
       'tm.ui',
       'tm.tweaks',

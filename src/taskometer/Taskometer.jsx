@@ -5,6 +5,7 @@ import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
 import WelcomePopup, { readAuth } from './WelcomePopup.jsx';
+import Onboarding, { hasSeenOnboarding } from './Onboarding.jsx';
 import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
@@ -52,6 +53,7 @@ export default function Taskometer() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [wheelsPanelOpen, setWheelsPanelOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(() => !readAuth());
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState(null);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
@@ -342,6 +344,14 @@ export default function Taskometer() {
           </button>
           <button
             className="tm-btn tm-sm"
+            onClick={() => setOnboardingOpen(true)}
+            title="replay the getting-started tour"
+            aria-label="help"
+          >
+            ?
+          </button>
+          <button
+            className="tm-btn tm-sm"
             onClick={() => setSettingsOpen(true)}
             title="settings, notifications, backup, wipe"
           >
@@ -472,7 +482,14 @@ export default function Taskometer() {
       )}
 
       {welcomeOpen && scale === 'day' && (
-        <WelcomePopup onDone={() => setWelcomeOpen(false)} />
+        <WelcomePopup onDone={() => {
+          setWelcomeOpen(false);
+          if (!hasSeenOnboarding()) setOnboardingOpen(true);
+        }} />
+      )}
+
+      {onboardingOpen && !welcomeOpen && (
+        <Onboarding onClose={() => setOnboardingOpen(false)} />
       )}
 
       {shortcutsOpen && (
