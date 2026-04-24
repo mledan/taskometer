@@ -158,14 +158,42 @@ export default function Taskometer() {
     api.tasks.update(id, updates);
     setEditingTaskId(null);
   };
+  const viewKey = formatYMD(selectedDate);
+  const selectedSlot = selectedSlotId
+    ? (state.slots || []).find(s => s.id === selectedSlotId) || null
+    : null;
+  const selectedSlotIsForDay = !!(selectedSlot && selectedSlot.date === viewKey);
+
+  // Navigating to a different day should clear a stale section pick rather
+  // than silently routing new tasks into a slot on another date.
+  useEffect(() => {
+    if (!selectedSlotId) return;
+    const slot = (state.slots || []).find(s => s.id === selectedSlotId);
+    if (!slot || slot.date !== viewKey) setSelectedSlotId(null);
+  }, [viewKey, selectedSlotId, state.slots]);
+
   const handleAddTask = (data) => {
+    let payload = data;
+    if (selectedSlot && selectedSlotIsForDay) {
+      const [h, m] = (selectedSlot.startTime || '09:00').split(':').map(Number);
+      const d = new Date(`${selectedSlot.date}T00:00:00`);
+      d.setHours(h || 0, m || 0, 0, 0);
+      const iso = d.toISOString();
+      payload = {
+        ...data,
+        scheduledSlotId: selectedSlot.id,
+        scheduledTime: iso,
+        scheduledFor: iso,
+      };
+    }
     telemetryLog('task:add', {
-      text: (data?.text || '').slice(0, 40),
-      type: data?.primaryType,
-      duration: data?.duration,
-      priority: data?.priority,
+      text: (payload?.text || '').slice(0, 40),
+      type: payload?.primaryType,
+      duration: payload?.duration,
+      priority: payload?.priority,
+      slotId: payload?.scheduledSlotId || null,
     });
-    return api.tasks.add(data);
+    return api.tasks.add(payload);
   };
 
   const handleSeriesComplete = (id) => api.tasks.completeSeries(id);
@@ -389,6 +417,42 @@ export default function Taskometer() {
           >
             What do you need to do?
           </div>
+          {selectedSlot && selectedSlotIsForDay && (
+            <div
+              className="tm-mono tm-sm"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 8,
+                color: 'var(--ink-mute)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'inline-block',
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  background: selectedSlot.color || 'var(--ink)',
+                }}
+              />
+              <span>
+                adding to <strong style={{ color: 'var(--ink)' }}>{selectedSlot.label || selectedSlot.slotType || 'block'}</strong>
+                {' · '}{selectedSlot.startTime}–{selectedSlot.endTime}
+              </span>
+              <button
+                type="button"
+                className="tm-btn tm-sm"
+                onClick={() => setSelectedSlotId(null)}
+                title="stop targeting this section"
+              >
+                clear
+              </button>
+            </div>
+          )}
           <TaskComposer
             onAdd={handleAddTask}
             taskTypes={state.taskTypes || []}
