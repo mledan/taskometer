@@ -61,11 +61,16 @@ export function resolveTypeColor(taskTypes, id) {
   return t?.color || null;
 }
 
-export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [] }) {
+export function TaskComposer({ onAdd, autoFocus = false, taskTypes = [], type: controlledType, onTypeChange }) {
   const types = getEffectiveTypes(taskTypes);
   const [text, setText] = useState('');
   const [duration, setDuration] = useState(30);
-  const [type, setType] = useState(types[0]?.id || 'deep');
+  const [typeInternal, setTypeInternal] = useState(types[0]?.id || 'deep');
+  const type = controlledType ?? typeInternal;
+  const setType = (v) => {
+    setTypeInternal(v);
+    onTypeChange?.(v);
+  };
   const [priority, setPriority] = useState('medium');
   const [showDetails, setShowDetails] = useState(true);
   const [recurrence, setRecurrence] = useState({ frequency: 'none', interval: 1 });
@@ -367,7 +372,7 @@ export function SlotComposer({
               type="button"
               className="tm-btn tm-sm tm-ghost"
               onClick={onOpenTypeManager}
-              title="add, rename, or recolor slot types"
+              title="add, rename, or recolor block types"
             >
               manage types
             </button>
@@ -584,7 +589,7 @@ export function SlotTypeManager({ taskTypes = [], api, onClose }) {
   };
 
   const removeType = async (id) => {
-    if (!window.confirm('remove this type? slots using it stay but lose the link.')) return;
+    if (!window.confirm('remove this type? blocks using it stay but lose the link.')) return;
     await api.taskTypes.remove(id);
   };
 
@@ -594,10 +599,10 @@ export function SlotTypeManager({ taskTypes = [], api, onClose }) {
         className="tm-modal"
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="manage slot types"
+        aria-label="manage block types"
       >
         <div className="tm-modal-head">
-          <div className="tm-modal-title">slot types</div>
+          <div className="tm-modal-title">block types</div>
           <button
             type="button"
             onClick={onClose}
