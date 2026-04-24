@@ -124,7 +124,7 @@ export default function SettingsPanel({
           <button
             className="tm-btn tm-sm"
             onClick={() => api.backup.exportJSON({ minimal: true })}
-            title="schedule-only JSON (tasks, slots, wheels, rules, overrides)"
+            title="schedule-only JSON (tasks, blocks, wheels, rules, overrides)"
           >
             export schedule.json
           </button>

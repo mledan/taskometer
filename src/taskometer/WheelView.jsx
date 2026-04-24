@@ -30,6 +30,8 @@ export default function WheelView({
   onNavigate,
   onOpenWheels,
   selectedDate,
+  selectedSlotId,
+  onSelectWedge,
 }) {
   const {
     onToggle, onDelete, onEdit, onSaveEdit, editingTaskId,
@@ -129,6 +131,8 @@ export default function WheelView({
   const slotRowRefs = useRef(new Map());
 
   const handleWedgeClick = useCallback((id) => {
+    const slot = viewSlots.find(s => s.id === id);
+    if (slot) onSelectWedge?.(slot);
     let expanding = false;
     setExpandedSlotIds(prev => {
       const next = new Set(prev);
@@ -299,7 +303,36 @@ export default function WheelView({
         </div>
       )}
 
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            minWidth: 180,
+            maxWidth: 220,
+          }}
+        >
+          <div style={{ fontSize: 20, lineHeight: 1.2, color: 'var(--ink)' }}>
+            Start by choosing a wheel
+          </div>
+          <select
+            className="tm-composer-select"
+            value={dayAssignments[viewKey] || ''}
+            onChange={async (ev) => {
+              const next = ev.target.value;
+              if (!next) await api.days.unassign(viewKey);
+              else await api.wheels.applyToDate(next, viewKey, { mode: 'replace' });
+            }}
+            title="apply a wheel to this day"
+            style={{ fontSize: 14, padding: '6px 10px' }}
+          >
+            <option value="">apply wheel…</option>
+            {wheels.map(w => (
+              <option key={w.id} value={w.id}>{w.name}</option>
+            ))}
+          </select>
+        </div>
         <WheelSvg
           wedges={effectiveWedges}
           slots={viewSlots}
@@ -311,6 +344,7 @@ export default function WheelView({
           onWedgeClick={handleWedgeClick}
           onEmptyHourClick={handleEmptyHourClick}
           onNudgeEdge={handleNudgeEdge}
+          selectedSlotId={selectedSlotId}
           editingSlotId={editingSlotId}
         />
         {viewSlots.length === 0 && (
@@ -340,22 +374,6 @@ export default function WheelView({
           {viewSlots.length} block{viewSlots.length === 1 ? '' : 's'}
           {isToday ? '' : ` · ${viewDate.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase()}`}
         </span>
-        <select
-          className="tm-composer-select"
-          value={dayAssignments[viewKey] || ''}
-          onChange={async (ev) => {
-            const next = ev.target.value;
-            if (!next) await api.days.unassign(viewKey);
-            else await api.wheels.applyToDate(next, viewKey, { mode: 'replace' });
-          }}
-          title="apply a wheel to this day"
-          style={{ fontSize: 13, padding: '3px 8px' }}
-        >
-          <option value="">apply wheel…</option>
-          {wheels.map(w => (
-            <option key={w.id} value={w.id}>{w.name}</option>
-          ))}
-        </select>
         <button
           className="tm-btn tm-primary tm-sm"
           onClick={() => {
@@ -644,7 +662,15 @@ function ExpandedWedgePanel({
                 </span>
               )}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                <button className="tm-btn tm-sm" onClick={() => onEditSlot(s.id)}>edit block</button>
+                <button
+                  className="tm-btn tm-sm"
+                  onClick={() => onEditSlot(s.id)}
+                  title="edit block"
+                  aria-label="edit block"
+                  style={{ fontSize: 16, lineHeight: 1, padding: '2px 8px' }}
+                >
+                  ⚙
+                </button>
                 <button className="tm-btn tm-sm" onClick={() => onCollapse(s.id)}>close</button>
               </div>
             </div>
@@ -906,6 +932,7 @@ function WheelSvg({
   onEmptyHourClick,
   onNudgeEdge,
   editingSlotId,
+  selectedSlotId,
 }) {
   const cx = 320, cy = 320, rOuter = 295, rInner = 110;
   const labelR = (rOuter + rInner) / 2;
@@ -940,14 +967,29 @@ function WheelSvg({
 
   const hourTicks = [];
   for (let h = 0; h < 24; h++) {
+    const isMajor = h % 6 === 0;
+    const isMid = h % 3 === 0;
     const [x1, y1] = polar(h, rOuter);
-    const [x2, y2] = polar(h, rOuter + (h % 6 === 0 ? 10 : 5));
-    hourTicks.push(<line key={h} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--ink)" strokeWidth={h % 6 === 0 ? 1.6 : 1} />);
+    const [x2, y2] = polar(h, rOuter + (isMajor ? 10 : isMid ? 8 : 6));
+    hourTicks.push(
+      <line
+        key={h}
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        stroke="var(--ink)"
+        strokeWidth={isMajor ? 1.6 : isMid ? 1.2 : 1}
+        strokeLinecap="round"
+        opacity={isMajor ? 1 : isMid ? 0.85 : 0.7}
+      />,
+    );
   }
 
   const fillFor = (slot, wedge) => {
     const typeColor = slot.color || resolveTypeColor(taskTypes, slot.slotType);
-    if (typeColor) return hexWithAlpha(typeColor, 0.28);
+    const isSelected = selectedSlotId && slot.id === selectedSlotId;
+    if (typeColor) return hexWithAlpha(typeColor, isSelected ? 0.65 : 0.28);
     if (wedge?.current) return 'var(--orange-pale)';
     if (wedge?.kind === 'hot') return 'var(--orange-pale)';
     if (wedge?.kind === 'light') return 'var(--sage-pale)';
@@ -958,6 +1000,8 @@ function WheelSvg({
 
   const strokeFor = (slot, wedge, isCurrent, isEditing) => {
     if (isEditing) return 'var(--orange)';
+    const isSelected = selectedSlotId && slot.id === selectedSlotId;
+    if (isSelected) return 'var(--ink)';
     const typeColor = slot.color || resolveTypeColor(taskTypes, slot.slotType);
     if (typeColor && !isCurrent) return typeColor;
     return isCurrent ? 'var(--ink)' : 'var(--rule)';
@@ -1153,8 +1197,8 @@ function WheelSvg({
     <svg
       ref={svgRef}
       width="100%"
-      height="640"
-      viewBox="0 0 640 640"
+      height="680"
+      viewBox="-20 -20 680 680"
       style={{ maxWidth: 720, touchAction: 'none', userSelect: 'none' }}
     >
       <circle
@@ -1177,7 +1221,8 @@ function WheelSvg({
       {renderGeom.map(({ slot, wedge, startH, endH, startMin, endMin, isCurrent, isEditing, isDragging }) => {
         const label = slot.label || slot.slotType || 'block';
         const stroke = strokeFor(slot, wedge, isCurrent, isEditing);
-        const strokeW = isEditing || isDragging ? 2.6 : isCurrent ? 2.2 : 1;
+        const isSelected = selectedSlotId && slot.id === selectedSlotId;
+        const strokeW = isEditing || isDragging ? 2.6 : isSelected ? 2.8 : isCurrent ? 2.2 : 1;
         const fill = fillFor(slot, wedge);
         const midH = (startH + endH) / 2;
         const [lx, ly] = polar(((midH % 24) + 24) % 24, labelR);
@@ -1279,21 +1324,44 @@ function WheelSvg({
       <circle cx={cx} cy={cy} r={rInner} fill="none" stroke="var(--ink)" strokeWidth="2" pointerEvents="none" />
       {hourTicks}
 
-      <text x={cx} y={18} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" textAnchor="middle" fontStyle="italic" pointerEvents="none">12a</text>
-      <text x={cx} y={438} fontFamily="Caveat" fontSize="18" fill="var(--ink-mute)" textAnchor="middle" fontStyle="italic" pointerEvents="none">12p</text>
-      <text x={10} y={cy + 4} fontFamily="Caveat" fontSize="22" fill="var(--ink-mute)" fontStyle="italic" pointerEvents="none">6p</text>
-      <text x={630} y={cy + 4} fontFamily="Caveat" fontSize="22" fill="var(--ink-mute)" fontStyle="italic" pointerEvents="none">6a</text>
+      {(() => {
+        const labelR = rOuter + 22;
+        const fmt = (h) => {
+          const hr = (h % 12) || 12;
+          const ampm = h < 12 ? 'a' : 'p';
+          return `${hr}${ampm}`;
+        };
+        return (
+          <g pointerEvents="none">
+            {[0, 3, 6, 9, 12, 15, 18, 21].map((h) => {
+              const a = (h / 24) * 2 * Math.PI - Math.PI / 2;
+              const x = cx + Math.cos(a) * labelR;
+              const y = cy + Math.sin(a) * labelR;
+              const isMajor = h % 6 === 0;
+              return (
+                <text
+                  key={h}
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontFamily="JetBrains Mono, monospace"
+                  fontSize={isMajor ? 12 : 11}
+                  fill="var(--ink-mute)"
+                  letterSpacing={0.5}
+                  opacity={isMajor ? 1 : 0.75}
+                >
+                  {fmt(h)}
+                </text>
+              );
+            })}
+          </g>
+        );
+      })()}
 
       <line x1={cx} y1={cy} x2={nxEnd} y2={nyEnd} stroke="var(--orange)" strokeWidth="2" opacity="0.5" pointerEvents="none" />
       <circle cx={nxEnd} cy={nyEnd} r="5" fill="var(--orange)" pointerEvents="none" />
 
-      <text x={cx} y={cy - 14} fontFamily="JetBrains Mono" fontSize="10" fill="var(--ink-mute)" textAnchor="middle" letterSpacing="2" pointerEvents="none">TODAY</text>
-      <text x={cx} y={cy + 10} fontFamily="Caveat" fontSize="26" fill="var(--ink)" textAnchor="middle" fontStyle="italic" pointerEvents="none">
-        {stats.done} of {stats.total}
-      </text>
-      <text x={cx} y={cy + 28} fontFamily="JetBrains Mono" fontSize="9" fill="var(--ink-mute)" textAnchor="middle" letterSpacing="1" pointerEvents="none">
-        {stats.pushed} pushed
-      </text>
 
       {drag && (() => {
         const s = ((drag.startMin % DAY_MIN) + DAY_MIN) % DAY_MIN;

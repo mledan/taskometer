@@ -297,12 +297,12 @@ export default function WheelsPanel({ api, wheels = [], taskTypes = [], onClose 
                         <button
                           className={mergeMode === 'replace' ? 'tm-on' : ''}
                           onClick={() => setMergeMode('replace')}
-                          title="clear the day's existing slots, then apply"
+                          title="clear the day's existing blocks, then apply"
                         >replace</button>
                         <button
                           className={mergeMode === 'merge' ? 'tm-on' : ''}
                           onClick={() => setMergeMode('merge')}
-                          title="layer on top of existing slots (overlap allowed)"
+                          title="layer on top of existing blocks (overlap allowed)"
                         >merge</button>
                       </div>
                       <button className="tm-btn tm-primary tm-sm" onClick={apply}>apply</button>

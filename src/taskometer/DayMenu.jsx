@@ -94,7 +94,7 @@ export default function DayMenu({
               className={`tm-btn tm-sm${override?.type === o.id ? ' tm-primary' : ''}`}
               onClick={() => onOverride(o.id)}
               style={override?.type !== o.id ? { borderColor: o.color, color: o.color } : undefined}
-              title={o.clearsSlots ? 'clears this day\'s slots (restores on clear override)' : ''}
+              title={o.clearsSlots ? 'clears this day\'s blocks (restores on clear override)' : ''}
             >
               {o.label.toLowerCase()}
             </button>

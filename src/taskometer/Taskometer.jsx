@@ -4,8 +4,10 @@ import CalendarView from './CalendarView.jsx';
 import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
+import WelcomePopup, { readAuth } from './WelcomePopup.jsx';
 import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
+import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
 import useTaskNotifications from '../hooks/useTaskNotifications.js';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts.js';
 import KeyboardShortcuts from '../components/KeyboardShortcuts.jsx';
@@ -19,7 +21,7 @@ import './taskometer.css';
  * rules) is gone. Each scale picks its own body component.
  */
 
-const SCALES = ['slot', 'day', 'week', 'month', 'quarter', 'year'];
+const SCALES = ['block', 'day', 'week', 'month', 'quarter', 'year'];
 const CALENDAR_SCOPES = new Set(['month', 'quarter', 'year']);
 
 const DEFAULT_UI = {
@@ -49,7 +51,10 @@ export default function Taskometer() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [wheelsPanelOpen, setWheelsPanelOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(() => !readAuth());
   const [search, setSearch] = useState('');
+  const [selectedType, setSelectedType] = useState(null);
+  const [selectedSlotId, setSelectedSlotId] = useState(null);
   const searchRef = useRef(null);
 
   const { state, api, derived } = useTaskometerAPI();
@@ -70,7 +75,36 @@ export default function Taskometer() {
     if (state.isLoading || !state.isInitialized) return;
     loggedReadyRef.current = true;
     telemetryLog('app:ready', { scale, ...snapshotState(state) });
-  }, [state, scale]);
+
+    // First-run: paint the Weekday (Typical) wheel onto today so a brand-new
+    // user lands on the colorful circle with the default wheel pre-selected.
+    const hasSlots = (state.slots?.length || 0) > 0;
+    if (!hasSlots) {
+      (async () => {
+        try {
+          const existing = (state.settings?.wheels || []).find(w => w.id === DEFAULT_DAY_WHEEL_ID);
+          let wheelId = existing?.id;
+          if (!wheelId) {
+            const tmpl = STARTER_WHEELS.find(w => w.id === DEFAULT_DAY_WHEEL_ID);
+            if (!tmpl) return;
+            const added = await api.wheels.add({
+              id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
+            });
+            wheelId = added.id;
+          }
+          const today = (() => {
+            const d = new Date();
+            const m = d.getMonth() + 1, day = d.getDate();
+            return `${d.getFullYear()}-${m<10?'0'+m:m}-${day<10?'0'+day:day}`;
+          })();
+          await api.wheels.applyToDate(wheelId, today);
+          telemetryLog('autopaint:applied', { wheelId, date: today });
+        } catch (err) {
+          telemetryLog('autopaint:error', { message: err?.message });
+        }
+      })();
+    }
+  }, [state, scale, api]);
 
   // Paper backdrop
   useEffect(() => {
@@ -88,7 +122,7 @@ export default function Taskometer() {
   useKeyboardShortcuts({
     goToDashboard: () => setScale('day'),
     goToPlan: () => setScale('week'),
-    goToTodos: () => setScale('slot'),
+    goToTodos: () => setScale('block'),
     newTask: () => searchRef.current?.focus?.() || null,
     search: () => { searchRef.current?.focus?.(); },
     cancel: () => {
@@ -324,16 +358,44 @@ export default function Taskometer() {
       )}
 
       {hasSlots && (
-        <div style={{ marginBottom: 14 }}>
+        <div
+          style={{
+            marginBottom: 18,
+            padding: '14px 18px',
+            border: '2px solid var(--orange)',
+            borderRadius: 12,
+            background: 'var(--paper-warm, #FAF5EC)',
+            boxShadow: '0 2px 8px rgba(212, 102, 58, 0.08)',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'Caveat, cursive',
+              fontSize: 26,
+              lineHeight: 1,
+              color: 'var(--orange)',
+              marginBottom: 8,
+            }}
+          >
+            What do you need to do?
+          </div>
           <TaskComposer
             onAdd={handleAddTask}
             taskTypes={state.taskTypes || []}
             autoFocus={!hasTasks}
+            type={selectedType}
+            onTypeChange={(id) => {
+              setSelectedType(id);
+              const match = (state.slots || []).find(
+                (s) => s.slotType === id && s.date === formatYMD(selectedDate),
+              );
+              setSelectedSlotId(match?.id || null);
+            }}
           />
         </div>
       )}
 
-      {scale === 'slot' && (
+      {scale === 'block' && (
         <SlotView
           currentSlot={filteredDerived.currentSlot}
           nextSlot={filteredDerived.nextSlot}
@@ -362,6 +424,11 @@ export default function Taskometer() {
           rowHandlers={rowHandlers}
           onNavigate={() => {}}
           onOpenWheels={() => setWheelsPanelOpen(true)}
+          selectedSlotId={selectedSlotId}
+          onSelectWedge={(slot) => {
+            setSelectedSlotId(slot?.id || null);
+            if (slot?.slotType) setSelectedType(slot.slotType);
+          }}
         />
       )}
 
@@ -402,6 +469,10 @@ export default function Taskometer() {
           taskTypes={state.taskTypes || []}
           onClose={() => setWheelsPanelOpen(false)}
         />
+      )}
+
+      {welcomeOpen && scale === 'day' && (
+        <WelcomePopup onDone={() => setWelcomeOpen(false)} />
       )}
 
       {shortcutsOpen && (
@@ -488,7 +559,7 @@ function SlotView({ currentSlot, nextSlot, next, slots = [], api, rowHandlers })
           heading="now"
           slot={slot}
           tasks={tasks}
-          emptyHint="nothing in this slot yet — add a task above and it'll drop in here."
+          emptyHint="nothing in this block yet — add a task above and it'll drop in here."
           moveTargets={moveTargets}
           moveHandlers={moveHandlers}
           rowHandlers={rowHandlers}
@@ -586,7 +657,7 @@ function SlotPanel({ heading, slot, tasks, emptyHint, muted, moveTargets, moveHa
                       moveHandlers.toSlot(id, v);
                       e.target.value = '';
                     }}
-                    title="move to another slot today"
+                    title="move to another block today"
                   >
                     <option value="">move to…</option>
                     {otherSlots.map(s => (
