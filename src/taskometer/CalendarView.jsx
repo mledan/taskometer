@@ -6,8 +6,34 @@ function pad(n) { return n < 10 ? `0${n}` : `${n}`; }
 function ymd(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function todayYMD() { return ymd(new Date()); }
 
-function startOfMonth(y, m) { return new Date(y, m, 1); }
 function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+
+// Six-row (42-cell) grid including leading/trailing days from adjacent months.
+// Gives every month the same footprint so the quarter/year layouts don't jitter
+// between 5- and 6-row months.
+function buildMonthCells(year, month) {
+  const first = new Date(year, month, 1);
+  const firstWeekday = (first.getDay() + 6) % 7; // Mon=0
+  const numDays = daysInMonth(year, month);
+
+  const prev = month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 };
+  const next = month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 };
+  const prevDays = daysInMonth(prev.year, prev.month);
+
+  const out = [];
+  for (let i = firstWeekday - 1; i >= 0; i--) {
+    const d = prevDays - i;
+    out.push({ year: prev.year, month: prev.month, day: d, outside: true });
+  }
+  for (let d = 1; d <= numDays; d++) {
+    out.push({ year, month, day: d, outside: false });
+  }
+  let tail = 1;
+  while (out.length < 42) {
+    out.push({ year: next.year, month: next.month, day: tail++, outside: true });
+  }
+  return out;
+}
 
 export default function CalendarView({
   wheels = [],
@@ -27,11 +53,11 @@ export default function CalendarView({
   const scope = controlledScope || internalScope;
   const scopeControlled = !!controlledScope;
   const setScope = (s) => {
-    if (scopeControlled) return; // parent owns scope
+    if (scopeControlled) return;
     setInternalScope(s);
   };
   const [dayMenu, setDayMenu] = useState(null); // {date, x, y}
-  const [paintWheel, setPaintWheel] = useState(null); // wheelId for drag-paint
+  const [paintWheel, setPaintWheel] = useState(null);
   const [isPainting, setIsPainting] = useState(false);
 
   const slotsByDate = useMemo(() => {
@@ -42,6 +68,12 @@ export default function CalendarView({
     }
     return map;
   }, [slots]);
+
+  const wheelsById = useMemo(() => {
+    const m = {};
+    for (const w of wheels) m[w.id] = w;
+    return m;
+  }, [wheels]);
 
   const shift = (delta) => {
     let { year, month } = anchor;
@@ -64,7 +96,7 @@ export default function CalendarView({
   const title = scope === 'year'
     ? `${anchor.year}`
     : scope === 'quarter'
-      ? `Q starting ${monthName(anchor.month)} ${anchor.year}`
+      ? `${monthName(anchor.month)} → ${monthName(((anchor.month + 2) % 12))} ${anchor.year}`
       : `${monthName(anchor.month)} ${anchor.year}`;
 
   const onDayClick = (dateKey, ev) => {
@@ -76,9 +108,7 @@ export default function CalendarView({
       y: rect.bottom + window.scrollY + 4,
     });
   };
-
   const closeDayMenu = () => setDayMenu(null);
-
   const dayMenuHandlers = buildDayMenuHandlers({ api, menu: dayMenu, close: closeDayMenu });
 
   // Drag-paint: hold a wheel, hover over days to assign. When the starting
@@ -109,8 +139,6 @@ export default function CalendarView({
     await api.wheels.applyToDate(paintWheel, dateKey, { mode: paintMode });
   };
 
-  // Global pointer up clears painting and resets the "I've confirmed"
-  // latch so the next drag gets its own confirmation prompt.
   React.useEffect(() => {
     const up = () => {
       setIsPainting(false);
@@ -122,18 +150,36 @@ export default function CalendarView({
 
   const todayKey = todayYMD();
 
+  // A density mode per scope — the cell layout and sizing differ substantially
+  // between full month, condensed quarter, and year-heatmap.
+  const density = scope === 'year' ? 'mini' : scope === 'quarter' ? 'compact' : 'full';
+  const gridCols = scope === 'year' ? 'repeat(4, 1fr)' : scope === 'quarter' ? 'repeat(3, 1fr)' : '1fr';
+
+  // Peak slot count across all rendered months — used to normalize the
+  // heatmap intensity so a quiet stretch doesn't look empty and a busy one
+  // doesn't clip at full saturation.
+  const peakSlotCount = useMemo(() => {
+    let peak = 1;
+    for (const k in slotsByDate) {
+      if (slotsByDate[k] > peak) peak = slotsByDate[k];
+    }
+    return peak;
+  }, [slotsByDate]);
+
   return (
-    <div className="tm-fade-up">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-        <button className="tm-btn tm-sm" onClick={() => shift(-1)} aria-label="previous">‹</button>
-        <span className="tm-caveat" style={{ fontSize: 26 }}>{title}</span>
-        <button className="tm-btn tm-sm" onClick={() => shift(1)} aria-label="next">›</button>
-        <button
-          className="tm-btn tm-sm"
-          onClick={() => setAnchor({ year: today.getFullYear(), month: today.getMonth() })}
-        >today</button>
+    <div className="tm-fade-up tm-cal-root">
+      <div className="tm-cal-toolbar">
+        <div className="tm-cal-nav">
+          <button className="tm-btn tm-sm" onClick={() => shift(-1)} aria-label="previous">‹</button>
+          <span className="tm-caveat tm-cal-title">{title}</span>
+          <button className="tm-btn tm-sm" onClick={() => shift(1)} aria-label="next">›</button>
+          <button
+            className="tm-btn tm-sm tm-cal-today-btn"
+            onClick={() => setAnchor({ year: today.getFullYear(), month: today.getMonth() })}
+          >today</button>
+        </div>
         {!scopeControlled && (
-          <div className="tm-seg" style={{ marginLeft: 10 }}>
+          <div className="tm-seg tm-cal-scope">
             {['month', 'quarter', 'year'].map(s => (
               <button
                 key={s}
@@ -143,10 +189,8 @@ export default function CalendarView({
             ))}
           </div>
         )}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-            paint with:
-          </span>
+        <div className="tm-cal-paint">
+          <span className="tm-mono tm-sm tm-cal-paint-label">paint with</span>
           <select
             className="tm-composer-select"
             value={paintWheel || ''}
@@ -175,42 +219,50 @@ export default function CalendarView({
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: scope === 'year' ? 'repeat(4, 1fr)' : scope === 'quarter' ? 'repeat(3, 1fr)' : '1fr',
-          gap: 16,
-        }}
-      >
+      <div className={`tm-cal-deck tm-cal-deck-${density}`} style={{ gridTemplateColumns: gridCols }}>
         {monthsToRender.map(({ year, month }) => (
-          <MonthGrid
+          <MonthCard
             key={`${year}-${month}`}
             year={year}
             month={month}
+            density={density}
             todayKey={todayKey}
             wheels={wheels}
+            wheelsById={wheelsById}
             dayAssignments={dayAssignments}
             dayOverrides={dayOverrides}
             resolveDay={resolveDay}
             slots={slots}
             slotsByDate={slotsByDate}
-            scope={scope}
+            peakSlotCount={peakSlotCount}
             onDayClick={onDayClick}
             onDayPointerDown={onDayPointerDown}
             onDayPointerEnter={onDayPointerEnter}
+            onJumpToMonth={scopeControlled ? null : (y, m) => {
+              setAnchor({ year: y, month: m });
+              setScope('month');
+            }}
           />
         ))}
       </div>
 
-      <div className="tm-mono tm-sm" style={{ marginTop: 10, color: 'var(--ink-mute)' }}>
-        click a day for actions · set "paint with" to a wheel, then drag across days to bulk-paint
-        <span style={{ marginLeft: 8 }}>
-          · <span style={{ display: 'inline-block', width: 10, height: 10, border: '1.5px solid var(--ink-mute)', borderRadius: 2, verticalAlign: 'middle' }} /> pinned ·
-          <span style={{ display: 'inline-block', width: 10, height: 10, border: '1.5px dashed var(--ink-mute)', borderRadius: 2, verticalAlign: 'middle', marginLeft: 4 }} /> from a rule
+      <div className="tm-cal-legend tm-mono tm-sm">
+        <span>click a day for actions</span>
+        <span className="tm-cal-legend-sep">·</span>
+        <span>set "paint with" then drag to bulk-paint</span>
+        <span className="tm-cal-legend-sep">·</span>
+        <span className="tm-cal-legend-key">
+          <span className="tm-cal-legend-swatch tm-cal-legend-pin" /> pinned
+        </span>
+        <span className="tm-cal-legend-key">
+          <span className="tm-cal-legend-swatch tm-cal-legend-rule" /> from rule
+        </span>
+        <span className="tm-cal-legend-key">
+          <span className="tm-cal-legend-swatch tm-cal-legend-today" /> today
         </span>
       </div>
 
-      <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="tm-cal-actions">
         <button className="tm-btn tm-sm" onClick={() => onNavigate('wheel')}>back to wheel</button>
         <button className="tm-btn tm-sm" onClick={() => onNavigate('fit')}>week view</button>
         {onOpenWheels && (
@@ -235,119 +287,235 @@ export default function CalendarView({
   );
 }
 
-function MonthGrid({
-  year, month, todayKey, wheels, dayAssignments, dayOverrides, resolveDay, slots = [], slotsByDate,
-  scope, onDayClick, onDayPointerDown, onDayPointerEnter,
+function MonthCard({
+  year, month, density, todayKey,
+  wheels, wheelsById,
+  dayAssignments, dayOverrides, resolveDay,
+  slots = [], slotsByDate, peakSlotCount,
+  onDayClick, onDayPointerDown, onDayPointerEnter,
+  onJumpToMonth,
 }) {
-  const first = startOfMonth(year, month);
-  const numDays = daysInMonth(year, month);
-  const firstWeekday = (first.getDay() + 6) % 7; // Monday = 0
-  const cellSize = scope === 'year' ? 'mini' : 'full';
+  const cells = buildMonthCells(year, month);
   const weekdayHeaders = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const isCurrentRealMonth = (() => {
+    const n = new Date();
+    return n.getFullYear() === year && n.getMonth() === month;
+  })();
 
-  const cells = [];
-  for (let i = 0; i < firstWeekday; i++) {
-    cells.push(<div key={`b${i}`} className="tm-cal-cell tm-cal-empty" />);
-  }
-  for (let d = 1; d <= numDays; d++) {
-    const dateKey = `${year}-${pad(month + 1)}-${pad(d)}`;
-    const pinnedWheelId = dayAssignments[dateKey];
-    const pinnedOverride = dayOverrides[dateKey] || null;
-    const effective = resolveDay ? resolveDay(dateKey) : {
-      wheelId: pinnedWheelId || null,
-      override: pinnedOverride,
-      source: pinnedOverride || pinnedWheelId ? 'pin' : 'none',
-    };
-    const wheel = wheels.find(w => w.id === effective.wheelId) || null;
-    const override = effective.override;
-    const fromRule = effective.source === 'rule';
-    const slotCount = slotsByDate[dateKey] || 0;
-    const isToday = dateKey === todayKey;
-    const bg = override ? override.color : wheel ? wheel.color : null;
+  // Summary: blocks this month (from slots) + painted days + dominant wheel.
+  const stats = useMemo(() => {
+    const prefix = `${year}-${pad(month + 1)}-`;
+    let blocks = 0;
+    let paintedDays = 0;
+    const wheelTally = {};
+    for (let d = 1; d <= daysInMonth(year, month); d++) {
+      const key = `${prefix}${pad(d)}`;
+      if (slotsByDate[key]) blocks += slotsByDate[key];
+      const eff = resolveDay ? resolveDay(key) : {
+        wheelId: dayAssignments[key] || null,
+        override: dayOverrides[key] || null,
+        source: (dayAssignments[key] || dayOverrides[key]) ? 'pin' : 'none',
+      };
+      if (eff.wheelId || eff.override) {
+        if (eff.source === 'pin') paintedDays += 1;
+        if (eff.wheelId) wheelTally[eff.wheelId] = (wheelTally[eff.wheelId] || 0) + 1;
+      }
+    }
+    let dominantWheelId = null;
+    let dominantCount = 0;
+    for (const id in wheelTally) {
+      if (wheelTally[id] > dominantCount) {
+        dominantCount = wheelTally[id];
+        dominantWheelId = id;
+      }
+    }
+    return { blocks, paintedDays, dominantWheelId };
+  }, [year, month, slotsByDate, dayAssignments, dayOverrides, resolveDay]);
 
-    cells.push(
-      <div
-        key={dateKey}
-        className={`tm-cal-cell tm-cal-${cellSize}${isToday ? ' tm-cal-today' : ''}${fromRule ? ' tm-cal-ruled' : ''}`}
-        onClick={(ev) => onDayClick(dateKey, ev)}
-        onPointerDown={(ev) => onDayPointerDown(dateKey, ev)}
-        onPointerEnter={() => onDayPointerEnter(dateKey)}
-        style={{
-          background: bg ? hexA(bg, fromRule ? 0.12 : 0.22) : 'var(--paper)',
-          borderColor: bg || 'var(--rule)',
-          borderStyle: fromRule ? 'dashed' : 'solid',
-        }}
-        title={`${dateKey}${wheel ? ' · ' + wheel.name : ''}${override ? ' · ' + (override.label || override.type) : ''}${fromRule ? ' · from rule' : ''}`}
-      >
-        <div className="tm-cal-day-num">{d}</div>
-        {cellSize === 'full' && (
-          <div
-            className="tm-cal-day-body"
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
+  const dominantWheel = stats.dominantWheelId ? wheelsById[stats.dominantWheelId] : null;
+
+  return (
+    <div className={`tm-cal-card tm-cal-card-${density}${isCurrentRealMonth ? ' tm-cal-card-current' : ''}`}>
+      <header className="tm-cal-card-header">
+        {onJumpToMonth ? (
+          <button
+            type="button"
+            className="tm-cal-card-title tm-caveat"
+            onClick={() => onJumpToMonth(year, month)}
+            title="open this month"
           >
-            <MiniWheel
-              slots={(slots || []).filter(s => s.date === dateKey)}
-              size={48}
-              thickness={6}
-              highlight={isToday}
-            />
-            {wheel && (
-              <div
-                className="tm-mono tm-sm tm-cal-tag"
-                style={{
-                  color: wheel.color,
-                  fontStyle: fromRule ? 'italic' : 'normal',
-                  textAlign: 'center',
-                  lineHeight: 1.1,
-                }}
-              >
-                {wheel.name}{fromRule ? ' ·rule' : ''}
-              </div>
-            )}
-            {override && (
-              <div
-                className="tm-mono tm-sm tm-cal-tag"
-                style={{
-                  color: override.color,
-                  fontWeight: 600,
-                  fontStyle: fromRule ? 'italic' : 'normal',
-                  textAlign: 'center',
-                  lineHeight: 1.1,
-                }}
-              >
-                {override.label || override.type}{fromRule ? ' ·rule' : ''}
-              </div>
-            )}
-            {!wheel && !override && slotCount > 0 && (
-              <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-                {slotCount} block{slotCount === 1 ? '' : 's'}
-              </div>
-            )}
-          </div>
+            {monthName(month)}{density !== 'full' ? '' : ` ${year}`}
+          </button>
+        ) : (
+          <span className="tm-cal-card-title tm-caveat">
+            {monthName(month)}{density !== 'full' ? '' : ` ${year}`}
+          </span>
         )}
-        {cellSize === 'mini' && (
+        <div className="tm-cal-card-stats tm-mono tm-sm">
+          {stats.blocks > 0 && (
+            <span title="scheduled blocks this month">{stats.blocks} blk</span>
+          )}
+          {stats.paintedDays > 0 && (
+            <span title="days pinned to a wheel">{stats.paintedDays} pin</span>
+          )}
+          {dominantWheel && (
+            <span
+              className="tm-cal-card-dot"
+              style={{ background: dominantWheel.color }}
+              title={`most-used wheel: ${dominantWheel.name}`}
+            />
+          )}
+        </div>
+      </header>
+
+      <div className="tm-cal-weekdays">
+        {weekdayHeaders.map((w, i) => (
+          <div key={i} className={`tm-cal-weekday tm-mono${i >= 5 ? ' tm-cal-weekend' : ''}`}>{w}</div>
+        ))}
+      </div>
+
+      <div className="tm-cal-grid">
+        {cells.map((c, idx) => {
+          const dateKey = `${c.year}-${pad(c.month + 1)}-${pad(c.day)}`;
+          const isWeekend = (idx % 7) >= 5;
+          const isToday = dateKey === todayKey;
+          const pinnedWheelId = dayAssignments[dateKey];
+          const pinnedOverride = dayOverrides[dateKey] || null;
+          const eff = resolveDay ? resolveDay(dateKey) : {
+            wheelId: pinnedWheelId || null,
+            override: pinnedOverride,
+            source: pinnedOverride || pinnedWheelId ? 'pin' : 'none',
+          };
+          const wheel = eff.wheelId ? wheelsById[eff.wheelId] : null;
+          const override = eff.override;
+          const fromRule = eff.source === 'rule';
+          const slotCount = slotsByDate[dateKey] || 0;
+          const color = override ? override.color : wheel ? wheel.color : null;
+
+          return (
+            <DayCell
+              key={`${idx}-${dateKey}`}
+              dateKey={dateKey}
+              day={c.day}
+              outside={c.outside}
+              density={density}
+              isWeekend={isWeekend}
+              isToday={isToday}
+              color={color}
+              wheel={wheel}
+              override={override}
+              fromRule={fromRule}
+              slotCount={slotCount}
+              peakSlotCount={peakSlotCount}
+              slots={slots}
+              onDayClick={onDayClick}
+              onDayPointerDown={onDayPointerDown}
+              onDayPointerEnter={onDayPointerEnter}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DayCell({
+  dateKey, day, outside, density, isWeekend, isToday,
+  color, wheel, override, fromRule, slotCount, peakSlotCount,
+  slots, onDayClick, onDayPointerDown, onDayPointerEnter,
+}) {
+  const label = override ? (override.label || override.type) : wheel ? wheel.name : null;
+  const title = `${dateKey}${wheel ? ' · ' + wheel.name : ''}${override ? ' · ' + (override.label || override.type) : ''}${fromRule ? ' · from rule' : ''}${slotCount ? ` · ${slotCount} block${slotCount === 1 ? '' : 's'}` : ''}`;
+
+  // Heatmap wash opacity. In mini (year) we also scale by slot-count to get a
+  // real heatmap feel; elsewhere opacity purely distinguishes pin vs rule.
+  let washOpacity = 0;
+  if (color) {
+    if (density === 'mini') {
+      const base = fromRule ? 0.10 : 0.22;
+      const bonus = slotCount > 0 ? Math.min(0.28, (slotCount / Math.max(peakSlotCount, 1)) * 0.28) : 0;
+      washOpacity = base + bonus;
+    } else {
+      washOpacity = fromRule ? 0.12 : 0.22;
+    }
+  } else if (density === 'mini' && slotCount > 0) {
+    // Unpainted busy day still shows faint ink wash so year-view scanning works
+    washOpacity = Math.min(0.18, (slotCount / Math.max(peakSlotCount, 1)) * 0.18);
+  }
+
+  const background = color ? hexA(color, washOpacity) : (density === 'mini' && slotCount > 0 ? hexA('#1C1A16', washOpacity) : 'var(--paper)');
+  const accentColor = color || null;
+  const accentClass = accentColor ? (fromRule ? 'tm-cal-accent-rule' : 'tm-cal-accent-pin') : '';
+
+  const classNames = [
+    'tm-cal-cell',
+    `tm-cal-cell-${density}`,
+    outside ? 'tm-cal-cell-outside' : '',
+    isWeekend ? 'tm-cal-cell-weekend' : '',
+    isToday ? 'tm-cal-cell-today' : '',
+    accentClass,
+  ].filter(Boolean).join(' ');
+
+  return (
+    <div
+      className={classNames}
+      style={{ background }}
+      onClick={(ev) => onDayClick(dateKey, ev)}
+      onPointerDown={(ev) => onDayPointerDown(dateKey, ev)}
+      onPointerEnter={() => onDayPointerEnter(dateKey)}
+      title={title}
+    >
+      {accentColor && (
+        <span
+          className="tm-cal-cell-accent"
+          style={{ '--tm-accent': accentColor }}
+          aria-hidden
+        />
+      )}
+
+      <span className={`tm-cal-day-num${isToday ? ' tm-cal-day-num-today' : ''}`}>{day}</span>
+
+      {density === 'full' && (
+        <div className="tm-cal-cell-body">
           <MiniWheel
             slots={(slots || []).filter(s => s.date === dateKey)}
-            size={28}
+            size={48}
+            thickness={6}
+            highlight={isToday}
+          />
+          {label && (
+            <div
+              className="tm-cal-cell-tag tm-mono"
+              style={{
+                color: (override && override.color) || (wheel && wheel.color) || 'var(--ink-mute)',
+                fontStyle: fromRule ? 'italic' : 'normal',
+              }}
+            >
+              {label}{fromRule ? ' ·rule' : ''}
+            </div>
+          )}
+          {!label && slotCount > 0 && (
+            <div className="tm-cal-cell-tag tm-mono" style={{ color: 'var(--ink-mute)' }}>
+              {slotCount} block{slotCount === 1 ? '' : 's'}
+            </div>
+          )}
+        </div>
+      )}
+
+      {density === 'compact' && (
+        <div className="tm-cal-cell-body">
+          <MiniWheel
+            slots={(slots || []).filter(s => s.date === dateKey)}
+            size={26}
             thickness={4}
             highlight={isToday}
           />
-        )}
-      </div>
-    );
-  }
+        </div>
+      )}
 
-  return (
-    <div className="tm-cal-month">
-      <div className="tm-caveat" style={{ fontSize: 18, marginBottom: 4, color: 'var(--ink-soft)' }}>
-        {monthName(month)} {year}
-      </div>
-      <div className="tm-cal-grid">
-        {weekdayHeaders.map((w, i) => (
-          <div key={i} className="tm-cal-wk tm-mono tm-sm">{w}</div>
-        ))}
-        {cells}
-      </div>
+      {density === 'mini' && slotCount > 0 && (
+        <span className="tm-cal-slot-dot" style={{ background: color || 'var(--ink)' }} aria-hidden />
+      )}
     </div>
   );
 }
