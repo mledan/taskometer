@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import WheelView, { MiniWheel } from './WheelView.jsx';
 import CalendarView from './CalendarView.jsx';
+import { WeekTimeline, MonthInsights, QuarterInsights, YearInsights } from './TimelineViews.jsx';
 import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
@@ -541,13 +542,11 @@ export default function Taskometer() {
       )}
 
       {scale === 'week' && (
-        <WeekView
+        <WeekTimeline
           selectedDate={selectedDate}
           slots={state.slots || []}
           tasks={filteredState.tasks || []}
-          wheels={derived.wheels}
-          dayAssignments={derived.dayAssignments}
-          dayOverrides={derived.dayOverrides}
+          taskTypes={state.taskTypes || []}
           onPickDate={(d) => {
             telemetryLog('ui:week-pick-day', { date: formatYMD(d) });
             setSelectedDate(d);
@@ -556,17 +555,30 @@ export default function Taskometer() {
         />
       )}
 
-      {CALENDAR_SCOPES.has(scale) && (
-        <CalendarView
-          scope={scale}
-          wheels={derived.wheels}
+      {scale === 'month' && (
+        <MonthInsights
+          selectedDate={selectedDate}
           slots={state.slots || []}
-          dayAssignments={derived.dayAssignments}
-          dayOverrides={derived.dayOverrides}
-          resolveDay={derived.resolveDay}
-          api={api}
-          onNavigate={() => {}}
-          onOpenWheels={() => setWheelsPanelOpen(true)}
+          taskTypes={state.taskTypes || []}
+          onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
+        />
+      )}
+
+      {scale === 'quarter' && (
+        <QuarterInsights
+          selectedDate={selectedDate}
+          slots={state.slots || []}
+          taskTypes={state.taskTypes || []}
+          onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
+        />
+      )}
+
+      {scale === 'year' && (
+        <YearInsights
+          selectedDate={selectedDate}
+          slots={state.slots || []}
+          taskTypes={state.taskTypes || []}
+          onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
         />
       )}
 
