@@ -1,3 +1,5 @@
+import { FAMOUS_WHEELS } from './famousWheels';
+
 /**
  * Default schedule shipped with a fresh install.
  *
@@ -99,6 +101,7 @@ export const DEFAULT_WHEELS = [
       { startTime: '21:00', endTime: '05:00', slotType: 'sleep',    label: 'sleep' },
     ],
   },
+  ...FAMOUS_WHEELS,
 ];
 
 export default { DEFAULT_WHEELS, DEFAULT_TASK_TYPES, DEFAULT_DAY_WHEEL_ID };

@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { TaskRow } from './shared.jsx';
+import { FAMOUS_WHEELS } from '../defaults/famousWheels';
+
+const WHEEL_CATEGORY_BY_ID = (() => {
+  const m = {};
+  for (const w of FAMOUS_WHEELS) m[w.id] = w.category;
+  return m;
+})();
 import {
   SlotComposer,
   SlotTypeManager,
@@ -329,9 +336,26 @@ export default function WheelView({
             style={{ fontSize: 14, padding: '6px 10px' }}
           >
             <option value="">apply wheel…</option>
-            {wheels.map(w => (
-              <option key={w.id} value={w.id}>{w.name}</option>
-            ))}
+            {(() => {
+              const groups = new Map();
+              for (const w of wheels) {
+                const cat = w.category || WHEEL_CATEGORY_BY_ID[w.id] || 'My Wheels';
+                if (!groups.has(cat)) groups.set(cat, []);
+                groups.get(cat).push(w);
+              }
+              const order = ['My Wheels', 'Productivity Systems', 'Tech & CEOs', 'Modern', 'Athletes', 'Writers & Artists', 'Historical', 'Lifestyles'];
+              const sorted = [...groups.keys()].sort((a, b) => {
+                const ai = order.indexOf(a), bi = order.indexOf(b);
+                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+              });
+              return sorted.map(cat => (
+                <optgroup key={cat} label={cat}>
+                  {groups.get(cat).map(w => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </optgroup>
+              ));
+            })()}
           </select>
         </div>
         <div data-onboard="wheel" style={{ display: 'inline-flex' }}>
