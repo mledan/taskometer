@@ -159,43 +159,51 @@ export default function Onboarding({ onClose }) {
         .sc-onb-panel { animation: sc-panel-in 0.28s ease-out both; }
       `}</style>
 
-      <svg
-        width="100%"
-        height="100%"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 250,
-          pointerEvents: 'none',
-        }}
-      >
-        <defs>
-          <mask id="sc-spotlight">
-            <rect x="0" y="0" width="100%" height="100%" fill="white" />
-            {rect && (
-              <rect
-                x={rect.left - PADDING}
-                y={rect.top - PADDING}
-                width={rect.width + PADDING * 2}
-                height={rect.height + PADDING * 2}
-                rx="14"
-                ry="14"
-                fill="black"
-              />
-            )}
-          </mask>
-        </defs>
-        <rect
-          x="0"
-          y="0"
+      {/* Four dim panels framing the spotlight cutout. Leaves the cutout
+          itself completely uncovered so clicks pass through to the real
+          UI underneath — no more accidental dismissals when the user
+          tries the highlighted control. */}
+      {(() => {
+        if (!rect) {
+          return (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(20, 18, 14, 0.55)',
+                zIndex: 250,
+                pointerEvents: 'none',
+              }}
+            />
+          );
+        }
+        const top = Math.max(0, rect.top - PADDING);
+        const bottom = rect.top + rect.height + PADDING;
+        const left = Math.max(0, rect.left - PADDING);
+        const right = rect.left + rect.width + PADDING;
+        const dim = 'rgba(20, 18, 14, 0.55)';
+        const base = { position: 'fixed', background: dim, zIndex: 250, pointerEvents: 'none' };
+        return (
+          <>
+            <div style={{ ...base, top: 0, left: 0, right: 0, height: top }} />
+            <div style={{ ...base, top: bottom, left: 0, right: 0, bottom: 0 }} />
+            <div style={{ ...base, top, height: bottom - top, left: 0, width: left }} />
+            <div style={{ ...base, top, height: bottom - top, left: right, right: 0 }} />
+          </>
+        );
+      })()}
+
+      {rect && (
+        <svg
           width="100%"
           height="100%"
-          fill="rgba(20, 18, 14, 0.55)"
-          mask="url(#sc-spotlight)"
-          style={{ pointerEvents: 'auto', cursor: 'default' }}
-          onClick={finish}
-        />
-        {rect && (
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 251,
+            pointerEvents: 'none',
+          }}
+        >
           <rect
             className="sc-onb-ring"
             x={rect.left - PADDING}
@@ -209,8 +217,8 @@ export default function Onboarding({ onClose }) {
             strokeWidth="4"
             style={{ filter: 'drop-shadow(0 0 12px rgba(212,102,58,0.55))' }}
           />
-        )}
-      </svg>
+        </svg>
+      )}
 
       <div
         role="dialog"
