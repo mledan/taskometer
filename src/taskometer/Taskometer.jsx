@@ -6,6 +6,7 @@ import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
 import WelcomePopup, { readAuth } from './WelcomePopup.jsx';
 import Onboarding, { hasSeenOnboarding } from './Onboarding.jsx';
+import AccountPanel from './AccountPanel.jsx';
 import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
@@ -54,6 +55,10 @@ export default function Taskometer() {
   const [wheelsPanelOpen, setWheelsPanelOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(() => !readAuth());
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const auth = (() => { try { return JSON.parse(localStorage.getItem('smartcircle.auth') || 'null'); } catch (_) { return null; } })();
+  const isLoggedIn = auth?.mode === 'account';
+  const accountInitial = (auth?.profile?.firstName?.[0] || auth?.profile?.username?.[0] || 'G').toUpperCase();
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState(null);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
@@ -379,6 +384,34 @@ export default function Taskometer() {
             ?
           </button>
           <button
+            data-onboard="account"
+            className="tm-btn tm-sm"
+            onClick={() => setAccountOpen(true)}
+            title={isLoggedIn ? `signed in as @${auth.profile.username}` : 'guest — click to create an account'}
+            aria-label="account"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              paddingLeft: 4,
+              paddingRight: 10,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 22, height: 22, borderRadius: '50%',
+                background: isLoggedIn ? 'var(--orange)' : 'var(--ink-mute)',
+                color: 'var(--paper)',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'Caveat, cursive', fontSize: 16, fontWeight: 600, lineHeight: 1,
+              }}
+            >
+              {accountInitial}
+            </span>
+            {isLoggedIn ? (auth.profile.firstName || auth.profile.username) : 'guest'}
+          </button>
+          <button
             className="tm-btn tm-sm"
             onClick={() => setSettingsOpen(true)}
             title="settings, notifications, backup, wipe"
@@ -397,6 +430,7 @@ export default function Taskometer() {
 
       {hasSlots && (
         <div
+          data-onboard="composer"
           style={{
             marginBottom: 18,
             padding: '14px 18px',
@@ -554,6 +588,14 @@ export default function Taskometer() {
 
       {onboardingOpen && !welcomeOpen && (
         <Onboarding onClose={() => setOnboardingOpen(false)} />
+      )}
+
+      {accountOpen && (
+        <AccountPanel
+          onClose={() => setAccountOpen(false)}
+          onSignOut={() => { setAccountOpen(false); setWelcomeOpen(true); }}
+          onCreateAccount={() => setWelcomeOpen(true)}
+        />
       )}
 
       {shortcutsOpen && (

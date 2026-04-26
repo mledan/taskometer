@@ -11,8 +11,12 @@ export function readAuth() {
   }
 }
 
-function writeAuth(data) {
+export function writeAuth(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (_) {}
+}
+
+export function clearAuth() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
 }
 
 export default function WelcomePopup({ onDone }) {

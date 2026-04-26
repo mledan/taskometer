@@ -305,6 +305,7 @@ export default function WheelView({
 
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
         <div
+          data-onboard="wheel-picker"
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -333,6 +334,7 @@ export default function WheelView({
             ))}
           </select>
         </div>
+        <div data-onboard="wheel" style={{ display: 'inline-flex' }}>
         <WheelSvg
           wedges={effectiveWedges}
           slots={viewSlots}
@@ -347,6 +349,7 @@ export default function WheelView({
           selectedSlotId={selectedSlotId}
           editingSlotId={editingSlotId}
         />
+        </div>
         {viewSlots.length === 0 && (
           <div className="tm-wheel-empty">
             <div className="tm-caveat" style={{ fontSize: 24, marginBottom: 4 }}>tap the ring to drop a block</div>
