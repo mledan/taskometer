@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const STORAGE_KEY = 'smartcircle.onboarding.done';
 
@@ -18,28 +18,36 @@ const STEPS = [
   },
   {
     title: '1. Pick a wheel',
-    body: '"Weekday 9-5 (Typical)" is already loaded. Use the dropdown to swap to a different starter or a wheel you saved.',
+    body: 'Try the dropdown — pick any of the famous schedules or a starter. The whole day repaints to match.',
     target: '[data-onboard="wheel-picker"]',
+    awaitSignal: 'wheelPicked',
+    progressHint: "go ahead — change the dropdown",
   },
   {
     title: '2. Click a block',
-    body: 'Tap any colored section on the wheel. It stays highlighted, and the task type below updates to match.',
+    body: 'Tap any colored wedge. It stays highlighted and the task-type dropdown below auto-matches.',
     target: '[data-onboard="wheel"]',
+    awaitSignal: 'blockClicked',
+    progressHint: "click a wedge on the wheel",
   },
   {
     title: '3. Add a task',
-    body: 'Type what you need to do and hit Add. Your task lands inside the selected block.',
+    body: 'Type something into the orange box and hit Add. It lands inside the block you selected.',
     target: '[data-onboard="composer"]',
+    awaitSignal: 'taskAdded',
+    progressHint: "add any task to continue",
   },
   {
     title: '4. Reshape your day',
-    body: 'Click any wedge on the wheel and use the ⚙ gear to edit it. Drag the edges to resize.',
+    body: 'Click a wedge then hit the ⚙ gear to edit its label, color, or time. Drag the wedge edges to resize.',
     target: '[data-onboard="wheel"]',
   },
   {
-    title: '5. Manage your account',
-    body: 'Open the account button in the top-right anytime to view your profile, save your day, or sign out.',
+    title: '5. Your account',
+    body: 'Open the account button in the top-right to view your profile or sign out. Guest sessions reset on refresh.',
     target: '[data-onboard="account"]',
+    awaitSignal: 'accountOpened',
+    progressHint: "click the account button",
   },
   {
     title: "You're all set",
@@ -117,11 +125,28 @@ function pickPanelPlacement(rect) {
   };
 }
 
-export default function Onboarding({ onClose }) {
+export default function Onboarding({ onClose, signals = {} }) {
   const [i, setI] = useState(0);
   const step = STEPS[i];
   const isLast = i === STEPS.length - 1;
   const rect = useTargetRect(step.target, i);
+
+  // Snapshot signal values when a step opens; auto-advance when they change.
+  const baselineRef = React.useRef({});
+  React.useEffect(() => {
+    baselineRef.current = { ...signals };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i]);
+  React.useEffect(() => {
+    if (!step.awaitSignal) return;
+    const baseline = baselineRef.current[step.awaitSignal];
+    const current = signals[step.awaitSignal];
+    if (current !== undefined && current !== baseline) {
+      // small delay so the user sees their action register before advancing
+      const t = setTimeout(() => setI((cur) => (cur === i ? cur + 1 : cur)), 450);
+      return () => clearTimeout(t);
+    }
+  }, [signals, step.awaitSignal, i]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -272,9 +297,35 @@ export default function Onboarding({ onClose }) {
         >
           {step.title}
         </div>
-        <div style={{ fontSize: 15, color: 'var(--ink)', lineHeight: 1.45, marginBottom: 14 }}>
+        <div style={{ fontSize: 15, color: 'var(--ink)', lineHeight: 1.45, marginBottom: step.progressHint ? 8 : 14 }}>
           {step.body}
         </div>
+        {step.progressHint && (
+          <div
+            style={{
+              fontSize: 12,
+              color: 'var(--orange)',
+              fontFamily: 'JetBrains Mono, monospace',
+              marginBottom: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                display: 'inline-block',
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: 'var(--orange)',
+                animation: 'sc-pulse-ring 1.2s ease-in-out infinite',
+              }}
+            />
+            {step.progressHint}
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ display: 'flex', gap: 4, flex: 1 }}>

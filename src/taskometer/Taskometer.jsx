@@ -599,7 +599,15 @@ export default function Taskometer() {
       )}
 
       {onboardingOpen && !welcomeOpen && (
-        <Onboarding onClose={() => setOnboardingOpen(false)} />
+        <Onboarding
+          onClose={() => setOnboardingOpen(false)}
+          signals={{
+            wheelPicked: derived.dayAssignments?.[formatYMD(selectedDate)] || '',
+            blockClicked: selectedSlotId || '',
+            taskAdded: (state.tasks || []).length,
+            accountOpened: accountOpen ? 1 : 0,
+          }}
+        />
       )}
 
       {accountOpen && (
