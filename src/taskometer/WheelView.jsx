@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import WheelPickerModal from './WheelPickerModal.jsx';
 import { TaskRow } from './shared.jsx';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
 
@@ -49,6 +50,7 @@ export default function WheelView({
   const [typeMgrOpen, setTypeMgrOpen] = useState(false);
   const [draftSlot, setDraftSlot] = useState(null);
   const [expandedSlotIds, setExpandedSlotIds] = useState(() => new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const now = new Date();
   const nowHour = now.getHours() + now.getMinutes() / 60;
@@ -335,7 +337,7 @@ export default function WheelView({
             title="apply a wheel to this day"
             style={{ fontSize: 14, padding: '6px 10px' }}
           >
-            <option value="">apply wheel…</option>
+            <option value="">quick switch…</option>
             {(() => {
               const groups = new Map();
               for (const w of wheels) {
@@ -357,6 +359,15 @@ export default function WheelView({
               ));
             })()}
           </select>
+          <button
+            type="button"
+            className="tm-btn tm-sm tm-primary"
+            onClick={() => setPickerOpen(true)}
+            title="browse the full library with previews and search"
+            style={{ fontSize: 12 }}
+          >
+            Browse all wheels →
+          </button>
         </div>
         <div data-onboard="wheel" style={{ display: 'inline-flex' }}>
         <WheelSvg
@@ -505,6 +516,18 @@ export default function WheelView({
           taskTypes={taskTypes}
           api={api}
           onClose={() => setTypeMgrOpen(false)}
+        />
+      )}
+
+      {pickerOpen && (
+        <WheelPickerModal
+          wheels={wheels}
+          currentWheelId={dayAssignments[viewKey] || null}
+          onApply={async (wheelId) => {
+            await api.wheels.applyToDate(wheelId, viewKey, { mode: 'replace' });
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
         />
       )}
     </div>

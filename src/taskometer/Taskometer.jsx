@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import WheelView, { MiniWheel } from './WheelView.jsx';
 import CalendarView from './CalendarView.jsx';
 import { WeekTimeline, MonthInsights, QuarterInsights, YearInsights } from './TimelineViews.jsx';
+import DailyWrap from './DailyWrap.jsx';
 import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
@@ -538,6 +539,15 @@ export default function Taskometer() {
             setSelectedSlotId(slot?.id || null);
             if (slot?.slotType) setSelectedType(slot.slotType);
           }}
+        />
+      )}
+
+      {scale === 'day' && (
+        <DailyWrap
+          selectedDate={selectedDate}
+          slots={state.slots || []}
+          tasks={state.tasks || []}
+          taskTypes={state.taskTypes || []}
         />
       )}
 
