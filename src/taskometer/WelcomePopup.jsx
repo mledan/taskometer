@@ -19,7 +19,42 @@ export function clearAuth() {
   try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
 }
 
-export default function WelcomePopup({ onDone }) {
+const RHYTHMS = [
+  {
+    id: 'lion',
+    name: 'Lion',
+    tagline: 'Up before sunrise. Crushes mornings.',
+    wheelId: 'system_early_bird',
+    color: '#F59E0B',
+    icon: '🦁',
+  },
+  {
+    id: 'bear',
+    name: 'Bear',
+    tagline: 'Steady, sun-aligned. The classic 9-to-5.',
+    wheelId: 'default_weekday',
+    color: '#A8BF8C',
+    icon: '🐻',
+  },
+  {
+    id: 'wolf',
+    name: 'Wolf',
+    tagline: "Comes alive at night. Best work after dark.",
+    wheelId: 'system_night_owl',
+    color: '#7C3AED',
+    icon: '🐺',
+  },
+  {
+    id: 'dolphin',
+    name: 'Dolphin',
+    tagline: 'Bursty, rhythmic. Pomodoros in short waves.',
+    wheelId: 'system_pomodoro',
+    color: '#06B6D4',
+    icon: '🐬',
+  },
+];
+
+export default function WelcomePopup({ onDone, onPickWheel }) {
   const [view, setView] = useState('welcome');
   const [form, setForm] = useState({
     username: '',
@@ -33,6 +68,11 @@ export default function WelcomePopup({ onDone }) {
   const pickGuest = () => {
     // Intentionally NOT persisted — guest state is session-only, so refreshing
     // re-prompts and resets the workspace.
+    onDone?.();
+  };
+
+  const pickRhythm = (rhythm) => {
+    if (rhythm?.wheelId) onPickWheel?.(rhythm.wheelId);
     onDone?.();
   };
 
@@ -85,8 +125,65 @@ export default function WelcomePopup({ onDone }) {
               <button className="tm-btn tm-primary" onClick={() => setView('signup')}>
                 Log In / Create Account
               </button>
-              <button className="tm-btn tm-ghost" onClick={pickGuest}>
+              <button className="tm-btn tm-ghost" onClick={() => setView('rhythm')}>
                 Continue as Guest
+              </button>
+            </div>
+          </div>
+        )}
+
+        {view === 'rhythm' && (
+          <div>
+            <div className="tm-modal-head">
+              <div className="tm-modal-title">What's your rhythm?</div>
+              <button
+                type="button"
+                className="tm-btn tm-sm"
+                onClick={() => setView('welcome')}
+                aria-label="back"
+              >
+                ← Back
+              </button>
+            </div>
+            <div style={{ fontSize: 15, color: 'var(--ink-mute)', marginBottom: 14, lineHeight: 1.45 }}>
+              Pick the chronotype that sounds most like you. We'll load a matching wheel — you can change it anytime.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {RHYTHMS.map(r => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => pickRhythm(r)}
+                  style={{
+                    all: 'unset',
+                    cursor: 'pointer',
+                    padding: '14px 14px',
+                    border: `2px solid ${r.color}`,
+                    borderRadius: 12,
+                    background: 'var(--paper)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                    transition: 'transform 0.1s, background 0.15s',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-warm, #FAF5EC)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--paper)'; }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span aria-hidden style={{ fontSize: 28, lineHeight: 1 }}>{r.icon}</span>
+                    <span style={{ fontFamily: 'Caveat, cursive', fontSize: 26, color: r.color, lineHeight: 1 }}>
+                      {r.name}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.35 }}>
+                    {r.tagline}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+              <button type="button" className="tm-btn tm-ghost tm-sm" onClick={pickGuest}>
+                skip — I'll pick my own
               </button>
             </div>
           </div>

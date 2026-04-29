@@ -592,10 +592,34 @@ export default function Taskometer() {
       )}
 
       {welcomeOpen && scale === 'day' && (
-        <WelcomePopup onDone={() => {
-          setWelcomeOpen(false);
-          if (!hasSeenOnboarding()) setOnboardingOpen(true);
-        }} />
+        <WelcomePopup
+          onDone={() => {
+            setWelcomeOpen(false);
+            if (!hasSeenOnboarding()) setOnboardingOpen(true);
+          }}
+          onPickWheel={async (wheelId) => {
+            try {
+              const today = formatYMD(new Date());
+              const existing = (state.settings?.wheels || []).find(w => w.id === wheelId);
+              let actualId = existing?.id;
+              if (!actualId) {
+                const tmpl = STARTER_WHEELS.find(w => w.id === wheelId);
+                if (tmpl) {
+                  const added = await api.wheels.add({
+                    id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
+                  });
+                  actualId = added.id;
+                }
+              }
+              if (actualId) {
+                await api.wheels.applyToDate(actualId, today, { mode: 'replace' });
+                telemetryLog('rhythm:applied', { wheelId, date: today });
+              }
+            } catch (err) {
+              telemetryLog('rhythm:error', { message: err?.message });
+            }
+          }}
+        />
       )}
 
       {onboardingOpen && !welcomeOpen && (

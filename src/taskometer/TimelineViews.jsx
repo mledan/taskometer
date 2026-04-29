@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { resolveTypeColor } from './Composers.jsx';
 
 /**
@@ -420,6 +420,22 @@ function dayDensity(slots) {
   return Math.min(1, total / (24 * 60));
 }
 
+function dayBreakdown(slots, taskTypes) {
+  const m = new Map();
+  for (const s of slots) {
+    m.set(s.slotType, (m.get(s.slotType) || 0) + durationMin(s));
+  }
+  const arr = [...m.entries()].map(([id, mins]) => ({
+    id,
+    mins,
+    color: resolveTypeColor(taskTypes, id) || '#94A3B8',
+    name: typeName(taskTypes, id),
+  }));
+  arr.sort((a, b) => b.mins - a.mins);
+  const total = arr.reduce((acc, t) => acc + t.mins, 0);
+  return { arr, total };
+}
+
 export function InsightsGrid({
   startDate,
   endDate,
@@ -429,6 +445,7 @@ export function InsightsGrid({
   cellSize = 16,
   gap = 3,
 }) {
+  const [hover, setHover] = useState(null); // { date, slots, x, y }
   const days = useMemo(() => {
     const out = [];
     const cur = new Date(startDate); cur.setHours(0, 0, 0, 0);
@@ -475,7 +492,7 @@ export function InsightsGrid({
   const todayKey = ymd(new Date());
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: gap }}>
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: gap }}>
       {/* weekday labels */}
       <div
         style={{
@@ -513,7 +530,11 @@ export function InsightsGrid({
               <div
                 key={ri}
                 onClick={() => onPickDate?.(d)}
-                title={`${d.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })} — ${dom ? dom.id + ' • ' + Math.round(density * 100) + '% scheduled' : 'no blocks'}`}
+                onMouseEnter={(e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  setHover({ date: d, slots: daySlots, x: r.left + r.width / 2, y: r.top });
+                }}
+                onMouseLeave={() => setHover(null)}
                 style={{
                   width: cellSize,
                   height: cellSize,
@@ -530,6 +551,69 @@ export function InsightsGrid({
           })}
         </div>
       ))}
+
+      {hover && (
+        <DayHoverCard
+          date={hover.date}
+          slots={hover.slots}
+          taskTypes={taskTypes}
+          x={hover.x}
+          y={hover.y}
+        />
+      )}
+    </div>
+  );
+}
+
+function DayHoverCard({ date, slots, taskTypes, x, y }) {
+  const { arr, total } = useMemo(() => dayBreakdown(slots, taskTypes), [slots, taskTypes]);
+  const cardW = 240;
+  // position above the cell, clamp to viewport
+  const left = Math.max(8, Math.min((typeof window !== 'undefined' ? window.innerWidth : 1024) - cardW - 8, x - cardW / 2));
+  const top = Math.max(8, y - 12);
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left,
+        top,
+        transform: 'translateY(-100%)',
+        width: cardW,
+        background: 'var(--paper)',
+        border: '1.5px solid var(--ink)',
+        borderRadius: 10,
+        padding: '10px 12px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+        zIndex: 220,
+        pointerEvents: 'none',
+        fontFamily: 'inherit',
+      }}
+    >
+      <div style={{ fontFamily: 'Caveat, cursive', fontSize: 22, lineHeight: 1, color: 'var(--ink)' }}>
+        {date.toLocaleDateString('en', { weekday: 'long' })}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ink-mute)', fontFamily: 'JetBrains Mono, monospace', marginBottom: 8 }}>
+        {date.toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })} · {total ? fmtH(total) + ' scheduled' : 'no blocks'}
+      </div>
+      {arr.slice(0, 4).map(t => (
+        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, fontSize: 13 }}>
+          <span style={{ width: 9, height: 9, borderRadius: 2, background: t.color, flexShrink: 0 }} />
+          <span style={{ flex: 1, color: 'var(--ink)' }}>{t.name}</span>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--ink-mute)' }}>
+            {fmtH(t.mins)} · {Math.round((t.mins / total) * 100)}%
+          </span>
+        </div>
+      ))}
+      {arr.length > 4 && (
+        <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 4, fontFamily: 'JetBrains Mono, monospace' }}>
+          +{arr.length - 4} more
+        </div>
+      )}
+      {total > 0 && (
+        <div style={{ fontSize: 11, color: 'var(--orange)', marginTop: 6, fontFamily: 'JetBrains Mono, monospace' }}>
+          click to open this day →
+        </div>
+      )}
     </div>
   );
 }
