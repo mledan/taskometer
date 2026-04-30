@@ -52,6 +52,17 @@ export default function WheelView({
   const [expandedSlotIds, setExpandedSlotIds] = useState(() => new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  // Keep the expansion panel in sync with the parent's selectedSlotId.
+  // Picking a type from the composer dropdown auto-highlights a wedge
+  // upstream; we want that same wedge to be the only one expanded here.
+  useEffect(() => {
+    if (selectedSlotId) {
+      setExpandedSlotIds(new Set([selectedSlotId]));
+    } else {
+      setExpandedSlotIds(new Set());
+    }
+  }, [selectedSlotId]);
+
   const now = new Date();
   const nowHour = now.getHours() + now.getMinutes() / 60;
 
@@ -118,12 +129,13 @@ export default function WheelView({
   // shape, not today's.
   const effectiveWedges = isToday ? wedges : wedgesFromSlots(viewSlots);
 
+  // Single-selection: expansion holds at most one slot id at a time so
+  // clicking a new wedge collapses any previously-opened one. Toggling
+  // the same id closes it.
   const toggleExpanded = useCallback((slotId) => {
     setExpandedSlotIds(prev => {
-      const next = new Set(prev);
-      if (next.has(slotId)) next.delete(slotId);
-      else next.add(slotId);
-      return next;
+      if (prev.has(slotId)) return new Set();
+      return new Set([slotId]);
     });
   }, []);
 
@@ -144,17 +156,14 @@ export default function WheelView({
     if (slot) onSelectWedge?.(slot);
     let expanding = false;
     setExpandedSlotIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-        expanding = true;
+      if (prev.has(id)) {
+        // Toggling off the currently-expanded slot.
+        return new Set();
       }
-      return next;
+      expanding = true;
+      // Single-selection: drop any previously-expanded slot.
+      return new Set([id]);
     });
-    // When we're opening the row, pull it into view so the tasks underneath
-    // are visible without a manual scroll.
     if (expanding) {
       requestAnimationFrame(() => {
         const node = slotRowRefs.current.get(id);
@@ -163,7 +172,7 @@ export default function WheelView({
         }
       });
     }
-  }, []);
+  }, [viewSlots, onSelectWedge]);
 
   const handleEmptyHourClick = useCallback((hourFloat) => {
     const startMin = snapMin(Math.round(hourFloat * 60));
