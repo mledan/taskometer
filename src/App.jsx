@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Notifications from './components/Notifications.jsx';
 import Taskometer from './taskometer/Taskometer.jsx';
 import { AppStateProvider, useAppState } from './AppContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
+import Landing from './marketing/Landing.jsx';
+import TeamsDemo from './marketing/TeamsDemo.jsx';
 
 function AppContent() {
   const { isLoading, error } = useAppState();
@@ -41,12 +44,51 @@ function statusBanner(color, bg, borderStyle = 'solid') {
   };
 }
 
+/**
+ * Tiny pathname router. Three routes only — no need for react-router.
+ *   /          → Landing (marketing)
+ *   /teams     → TeamsDemo (mocked enterprise dashboard)
+ *   /app/*     → Taskometer (the actual product)
+ *
+ * Marketing routes don't mount AppStateProvider so they stay snappy and
+ * don't trigger the guest-reset that the app expects.
+ */
+function useRoute() {
+  const [path, setPath] = useState(() =>
+    typeof window !== 'undefined' ? window.location.pathname : '/'
+  );
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  return path;
+}
+
 function App() {
+  const path = useRoute();
+
+  if (path.startsWith('/app')) {
+    return (
+      <ThemeProvider>
+        <AppStateProvider>
+          <AppContent />
+        </AppStateProvider>
+      </ThemeProvider>
+    );
+  }
+
+  if (path === '/teams' || path.startsWith('/teams/')) {
+    return (
+      <ThemeProvider>
+        <TeamsDemo />
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider>
-      <AppStateProvider>
-        <AppContent />
-      </AppStateProvider>
+      <Landing />
     </ThemeProvider>
   );
 }

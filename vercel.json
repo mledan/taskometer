@@ -3,5 +3,8 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/((?!assets|favicon\\.ico|manifest\\.json|robots\\.txt|logo128\\.png).*)", "destination": "/index.html" }
+  ]
 }

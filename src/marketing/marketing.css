@@ -1,0 +1,492 @@
+/* ─────────────────────────────────────────────────────────────────────
+   Marketing pages — landing + teams demo. Paper aesthetic shared with
+   the app, but more breathable. Headlines lean Caveat; body uses the
+   default sans; utility text is JetBrains Mono.
+   ───────────────────────────────────────────────────────────────────── */
+
+.mk-page {
+  min-height: 100vh;
+  padding: 0 0 80px;
+  color: var(--ink);
+}
+
+.mk-mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-mute);
+}
+
+/* ── Top nav ─────────────────────────────────────────────────────── */
+.mk-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 48px;
+  max-width: 1320px;
+  margin: 0 auto;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.mk-brand {
+  font-family: 'Caveat', cursive;
+  font-size: 30px;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+.mk-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.mk-nav-links a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+}
+.mk-nav-links a:hover { color: var(--ink); }
+.mk-cta-link { font-family: inherit !important; }
+
+/* ── Hero ────────────────────────────────────────────────────────── */
+.mk-hero {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 80px 48px 60px;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+.mk-hero-text { max-width: 580px; }
+.mk-h1 {
+  font-family: 'Caveat', cursive;
+  font-size: 88px;
+  line-height: 0.95;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 24px;
+}
+.mk-h1-accent { color: var(--orange); }
+.mk-lede {
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0 0 28px;
+}
+.mk-cta-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.mk-cta {
+  font-size: 16px !important;
+  padding: 10px 20px !important;
+}
+.mk-fineprint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+.mk-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.mk-hero-art {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+.mk-hero-bigwheel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 22px;
+  border: 1.5px solid var(--rule);
+  border-radius: 18px;
+  background: var(--paper-warm, #FAF5EC);
+}
+.mk-hero-bigwheel-label {
+  font-family: 'Caveat', cursive;
+  font-size: 28px;
+  color: var(--ink);
+  line-height: 1;
+}
+.mk-hero-mini {
+  display: flex;
+  gap: 18px;
+}
+.mk-hero-mini-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  border: 1px dashed var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+}
+.mk-hero-mini-name { font-size: 11px; }
+
+@media (max-width: 960px) {
+  .mk-hero { grid-template-columns: 1fr; padding: 40px 24px; }
+  .mk-h1 { font-size: 56px; }
+  .mk-nav { padding: 18px 24px; }
+  .mk-nav-links { gap: 14px; }
+  .mk-nav-links a:not(.mk-cta-link) { display: none; }
+}
+
+/* ── Sections ────────────────────────────────────────────────────── */
+.mk-section {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 70px 48px;
+  border-top: 1px dashed var(--rule);
+}
+.mk-section-head { margin-bottom: 28px; }
+.mk-section-sub { font-size: 13px; }
+.mk-h2 {
+  font-family: 'Caveat', cursive;
+  font-size: 56px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0 0 16px;
+  font-weight: 600;
+}
+.mk-h2-tight { margin-bottom: 4px; font-size: 42px; }
+
+@media (max-width: 760px) {
+  .mk-section { padding: 50px 24px; }
+  .mk-h2 { font-size: 40px; }
+}
+
+/* ── Steps ───────────────────────────────────────────────────────── */
+.mk-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 36px;
+}
+.mk-step {
+  padding: 24px;
+  border: 1.5px solid var(--rule);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.mk-step-n {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--orange);
+  letter-spacing: 0.18em;
+  margin-bottom: 12px;
+}
+.mk-step-title {
+  font-family: 'Caveat', cursive;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+.mk-step-body {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+@media (max-width: 760px) {
+  .mk-steps { grid-template-columns: 1fr; }
+}
+
+/* ── Shapes grid ─────────────────────────────────────────────────── */
+.mk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+}
+.mk-grid-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+  transition: border-color 0.12s, transform 0.08s;
+}
+.mk-grid-card:hover {
+  border-color: var(--orange);
+  transform: translateY(-1px);
+}
+.mk-grid-card-text { display: flex; flex-direction: column; gap: 2px; }
+.mk-grid-card-name {
+  font-size: 15px;
+  color: var(--ink);
+  font-weight: 500;
+}
+.mk-grid-card-cat {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Teams teaser ────────────────────────────────────────────────── */
+.mk-teams-teaser {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 50px;
+  align-items: center;
+}
+.mk-teams-art {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+  border: 1.5px solid var(--rule);
+  border-radius: 18px;
+  background: var(--paper-warm, #FAF5EC);
+}
+@media (max-width: 760px) {
+  .mk-teams-teaser { grid-template-columns: 1fr; }
+}
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+.mk-footer {
+  max-width: 1320px;
+  margin: 60px auto 0;
+  padding: 30px 48px;
+  border-top: 1px solid var(--rule-soft);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.mk-footer-links { display: flex; gap: 24px; }
+.mk-footer-links a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+}
+.mk-footer-links a:hover { color: var(--ink); }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Teams demo specific
+   ───────────────────────────────────────────────────────────────────── */
+
+.mk-dashboard { display: flex; flex-direction: column; gap: 22px; }
+.mk-dash-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.mk-card {
+  padding: 22px 26px;
+  border: 1.5px solid var(--rule);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.mk-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.mk-card-title {
+  font-family: 'Caveat', cursive;
+  font-size: 28px;
+  color: var(--ink);
+  line-height: 1;
+}
+
+/* Aggregate stack bar */
+.mk-stack {
+  display: flex;
+  height: 24px;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+}
+.mk-stack-seg { min-width: 4px; }
+.mk-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin-top: 14px;
+}
+.mk-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.mk-legend-dot {
+  width: 11px; height: 11px; border-radius: 3px;
+}
+.mk-legend-pct { font-size: 11px; }
+
+/* Team grid */
+.mk-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+.mk-team-card {
+  display: flex;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper-warm, #FAF5EC);
+  transition: border-color 0.12s, transform 0.08s;
+  cursor: pointer;
+}
+.mk-team-card:hover { border-color: var(--orange); transform: translateY(-1px); }
+.mk-team-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mk-team-card-name {
+  font-size: 17px;
+  color: var(--ink);
+  font-weight: 500;
+}
+.mk-team-card-role {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.mk-team-card-focus {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+.mk-team-card-shape { font-size: 11px; margin-top: 4px; }
+
+/* Shared shapes */
+.mk-shared {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+.mk-shared-card {
+  padding: 14px 16px;
+  border: 1.5px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+}
+.mk-shared-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.mk-shared-dot { width: 12px; height: 12px; border-radius: 50%; }
+.mk-shared-name {
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink);
+}
+.mk-shared-desc {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+/* Outlook sync */
+.mk-syncgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 28px;
+}
+.mk-sync-card {
+  padding: 22px;
+  border: 1.5px solid var(--rule);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.mk-sync-title {
+  font-family: 'Caveat', cursive;
+  font-size: 28px;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.mk-sync-body {
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+@media (max-width: 760px) {
+  .mk-syncgrid { grid-template-columns: 1fr; }
+}
+
+/* Pricing */
+.mk-pricing {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 28px;
+}
+.mk-price-card {
+  padding: 26px;
+  border: 1.5px solid var(--rule);
+  border-radius: 16px;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mk-price-card-featured {
+  border-color: var(--orange);
+  border-width: 2px;
+  background: var(--paper-warm, #FAF5EC);
+  box-shadow: 0 4px 18px rgba(212, 102, 58, 0.10);
+}
+.mk-price-tier {
+  font-family: 'Caveat', cursive;
+  font-size: 32px;
+  color: var(--ink);
+  line-height: 1;
+}
+.mk-price-amount {
+  font-family: 'Caveat', cursive;
+  font-size: 56px;
+  line-height: 1;
+  color: var(--orange);
+}
+.mk-price-cadence { font-size: 12px; }
+.mk-price-features {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mk-price-features li {
+  font-size: 14px;
+  color: var(--ink);
+  padding-left: 18px;
+  position: relative;
+}
+.mk-price-features li::before {
+  content: '·';
+  position: absolute;
+  left: 4px;
+  color: var(--orange);
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1;
+}
+@media (max-width: 760px) {
+  .mk-pricing { grid-template-columns: 1fr; }
+}

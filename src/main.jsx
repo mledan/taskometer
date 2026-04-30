@@ -4,10 +4,11 @@ import App from './App'
 import "./styles/variables.css";
 import "./index.css";
 
-// Guest-mode reset: any visitor who isn't signed into an account starts fresh
-// on every page load. Only accounts persist across refreshes.
+// Guest-mode reset: visitors who aren't signed in start fresh on every load.
+// Scoped to /app so marketing pages don't bulldoze localStorage.
 (function resetGuestData() {
   try {
+    if (!window.location.pathname.startsWith('/app')) return;
     const raw = localStorage.getItem('smartcircle.auth');
     const parsed = raw ? JSON.parse(raw) : null;
     if (parsed?.mode === 'account') return;
@@ -20,8 +21,6 @@ import "./index.css";
       'tm.scale',
     ];
     for (const k of keysToWipe) localStorage.removeItem(k);
-    // Wipe any taskometer-* adapter keys too (tasks, slots, types, schedules,
-    // settings, history, model version, etc.) so guest always starts fresh.
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (k && k.startsWith('taskometer-')) localStorage.removeItem(k);
