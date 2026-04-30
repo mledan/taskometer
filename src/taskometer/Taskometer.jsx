@@ -218,9 +218,39 @@ export default function Taskometer() {
     }
 
     if (targetSlot) {
-      const [h, m] = (targetSlot.startTime || '09:00').split(':').map(Number);
+      // Find the next free minute inside this slot. New tasks line up
+      // after whatever is already scheduled in there so three Study tasks
+      // don't all stack at 1:00pm.
+      const [sh, sm] = (targetSlot.startTime || '09:00').split(':').map(Number);
+      const [eh, em] = (targetSlot.endTime || '17:00').split(':').map(Number);
+      const slotStartMin = (sh || 0) * 60 + (sm || 0);
+      let slotEndMin = (eh || 0) * 60 + (em || 0);
+      if (slotEndMin <= slotStartMin) slotEndMin += 24 * 60;
+
+      const existing = (state.tasks || []).filter(t => {
+        if (t.status === 'cancelled') return false;
+        if (t.scheduledSlotId === targetSlot.id) return true;
+        if (!t.scheduledTime) return false;
+        const ts = new Date(t.scheduledTime);
+        if (formatYMD(ts) !== targetSlot.date) return false;
+        const tMin = ts.getHours() * 60 + ts.getMinutes();
+        return tMin >= slotStartMin && tMin < slotEndMin;
+      });
+
+      let nextMin = slotStartMin;
+      for (const t of existing) {
+        const ts = new Date(t.scheduledTime);
+        const start = ts.getHours() * 60 + ts.getMinutes();
+        const end = start + (t.duration || 30);
+        if (end > nextMin) nextMin = end;
+      }
+      // Don't schedule past the slot end — clamp so the new task at least
+      // starts inside the slot. Overflow is handled by the existing
+      // overflow indicator.
+      if (nextMin >= slotEndMin) nextMin = Math.max(slotStartMin, slotEndMin - (data?.duration || 30));
+
       const d = new Date(`${targetSlot.date}T00:00:00`);
-      d.setHours(h || 0, m || 0, 0, 0);
+      d.setHours(Math.floor(nextMin / 60), nextMin % 60, 0, 0);
       const iso = d.toISOString();
       payload = {
         ...data,

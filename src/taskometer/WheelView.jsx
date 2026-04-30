@@ -968,6 +968,42 @@ function WheelSvg({
     return `M${x0} ${y0} A${rOuter} ${rOuter} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${rInner} ${rInner} 0 ${large} 0 ${x3} ${y3} Z`;
   };
 
+  /**
+   * Donut-band path between two radii — used for task occupancy fills
+   * inside a wedge. `bandInner` and `bandOuter` are absolute radii in
+   * the same units as rInner/rOuter.
+   */
+  const bandPath = (startH, endH, bandInner, bandOuter) => {
+    const sH = Math.max(0, startH);
+    const eH = Math.min(24, endH);
+    if (eH <= sH) return '';
+    const [x0, y0] = polar(sH, bandOuter);
+    const [x1, y1] = polar(eH, bandOuter);
+    const [x2, y2] = polar(eH, bandInner);
+    const [x3, y3] = polar(sH, bandInner);
+    const large = (eH - sH) > 12 ? 1 : 0;
+    return `M${x0} ${y0} A${bandOuter} ${bandOuter} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${bandInner} ${bandInner} 0 ${large} 0 ${x3} ${y3} Z`;
+  };
+
+  /**
+   * Same overnight-aware splitting as renderWedgeShape but returns a
+   * single path string for a band. Tasks rarely cross midnight inside a
+   * single slot, so we can flatten back to one path.
+   */
+  const wedgePathBand = (startH, endH, bandInner, bandOuter) => {
+    let s = startH, e = endH;
+    const shift = Math.floor(s / 24);
+    s -= shift * 24;
+    e -= shift * 24;
+    const segs = [[s, Math.min(24, e)]];
+    if (e > 24) segs.push([0, e - 24]);
+    if (e < 0) segs.push([e + 24, 24]);
+    return segs
+      .map(([a, b]) => bandPath(a, b, bandInner, bandOuter))
+      .filter(Boolean)
+      .join(' ');
+  };
+
   const hourTicks = [];
   for (let h = 0; h < 24; h++) {
     const isMajor = h % 6 === 0;
@@ -1237,6 +1273,50 @@ function WheelSvg({
         const [exH, eyH] = polar(eNorm === 0 && endMin !== 0 ? 24 : eNorm, (rOuter + rInner) / 2);
         const isOvernight = endMin > DAY_MIN;
 
+        // Task occupancy fills: one filled inner band per scheduled task,
+        // sized to its duration and positioned at its scheduled time. Lets
+        // the user see how packed a block is at a glance.
+        const slotTasks = tasksBySlotId?.get?.(slot.id) || [];
+        const slotStartMin = (() => {
+          const [h, m] = (slot.startTime || '00:00').split(':').map(Number);
+          return (h || 0) * 60 + (m || 0);
+        })();
+        const slotEndMinRaw = (() => {
+          const [h, m] = (slot.endTime || '00:00').split(':').map(Number);
+          return (h || 0) * 60 + (m || 0);
+        })();
+        const slotEndMin = slotEndMinRaw <= slotStartMin ? slotEndMinRaw + DAY_MIN : slotEndMinRaw;
+        const slotDoneMin = slotTasks
+          .filter(e => e.task?.status === 'completed')
+          .reduce((acc, e) => acc + ((e.task?.duration) || 30), 0);
+        const slotPlannedMin = slotTasks
+          .reduce((acc, e) => acc + ((e.task?.duration) || 30), 0);
+        const slotSpan = slotEndMin - slotStartMin;
+        const taskBands = slotTasks.map((entry, idx) => {
+          const ts = new Date(entry.start);
+          const startMin = ts.getHours() * 60 + ts.getMinutes();
+          // Normalize into the wedge's frame so overnight slots line up.
+          const norm = startMin < slotStartMin ? startMin + DAY_MIN : startMin;
+          const taskStartH = norm / 60;
+          const dur = entry.task?.duration || 30;
+          const taskEndH = (norm + dur) / 60;
+          const isDone = entry.task?.status === 'completed';
+          // Color: full slot color when planned, half-mute when done so
+          // completed work reads as "checked off" without losing its place.
+          return {
+            key: entry.task?.id || `t${idx}`,
+            startH: taskStartH,
+            endH: Math.min(slotEndMin / 60, taskEndH),
+            color: slot.color || 'var(--ink)',
+            isDone,
+          };
+        });
+
+        // Inner band sits just inside the wedge perimeter at rInner,
+        // claiming the inner ~14px ring as a "tasks gauge".
+        const taskBandInner = rInner + 2;
+        const taskBandOuter = rInner + 16;
+
         return (
           <g key={slot.id}>
             {renderWedgeShape(
@@ -1249,6 +1329,56 @@ function WheelSvg({
               (ev) => onWedgePointerDown(ev, slot),
               (ev) => { ev.stopPropagation(); if (!isDragging) onWedgeClick(slot.id); }
             )}
+
+            {/* Faint full-band background so the gauge ring reads even
+                when the wedge is empty. */}
+            {slotTasks.length > 0 && (
+              <path
+                d={wedgePathBand(startH, endH, taskBandInner, taskBandOuter)}
+                fill="rgba(0,0,0,0.06)"
+                stroke="none"
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
+
+            {/* Per-task filled segments — one band per task. */}
+            {taskBands.map(band => {
+              const d = wedgePathBand(band.startH, band.endH, taskBandInner, taskBandOuter);
+              if (!d) return null;
+              return (
+                <path
+                  key={`fill-${band.key}`}
+                  d={d}
+                  fill={band.color}
+                  fillOpacity={band.isDone ? 0.55 : 0.95}
+                  stroke="var(--ink)"
+                  strokeOpacity={band.isDone ? 0.25 : 0.5}
+                  strokeWidth={0.6}
+                  style={{ pointerEvents: 'none' }}
+                />
+              );
+            })}
+
+            {/* Compact "Xm / Ym" gauge readout at slot midpoint, below the
+                label. Only shown when there's actually scheduled time. */}
+            {slotPlannedMin > 0 && (endH - startH) >= 1.2 && (() => {
+              const midH = (startH + endH) / 2;
+              const [gx, gy] = polar(((midH % 24) + 24) % 24, rInner + 26);
+              return (
+                <text
+                  x={gx}
+                  y={gy}
+                  fontFamily="JetBrains Mono"
+                  fontSize="10"
+                  fill="var(--ink-mute)"
+                  textAnchor="middle"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  {fmtMinutes(slotDoneMin)} / {fmtMinutes(slotPlannedMin)}
+                  {slotPlannedMin > slotSpan ? ' ⚠' : ''}
+                </text>
+              );
+            })()}
             {isOvernight && (
               // faint connector text
               <text
