@@ -7,6 +7,7 @@ import { ThemeProvider } from './context/ThemeContext.jsx';
 import Landing from './marketing/Landing.jsx';
 import TeamsDemo from './marketing/TeamsDemo.jsx';
 import { Privacy, Terms } from './marketing/Legal.jsx';
+import YearCanvas from './taskometer/year/YearCanvas.jsx';
 import { runStorageMigrations } from './storage-migrations.js';
 
 function AppContent() {
@@ -73,6 +74,17 @@ function App() {
   // point that mirrors what main.jsx does in production.
   runStorageMigrations();
   const path = useRoute();
+
+  if (path === '/app/year' || path.startsWith('/app/year/')) {
+    // The annual-first canvas — Story A from the design review. Doesn't
+    // need AppStateProvider because it reads rhythms directly from
+    // localStorage via the rhythms.js module.
+    return (
+      <ThemeProvider>
+        <YearCanvas />
+      </ThemeProvider>
+    );
+  }
 
   if (path.startsWith('/app')) {
     return (

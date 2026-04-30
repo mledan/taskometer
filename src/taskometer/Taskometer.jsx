@@ -697,6 +697,12 @@ export default function Taskometer() {
         </div>
       </header>
 
+      {/* Promote the new annual-first flow. Customers told us they think
+          year → day, not day → year, so we point them at the new canvas
+          first. Dismissible — once dismissed, stays dismissed via
+          localStorage. */}
+      <YearPromoBanner />
+
       {showQuickStart && (
         <QuickStart
           onPick={handleQuickStart}
@@ -1278,6 +1284,47 @@ function OverflowItem({ children, onClick }) {
     >
       {children}
     </button>
+  );
+}
+
+function YearPromoBanner() {
+  const KEY = 'taskometer.yearPromoDismissed';
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(KEY) === '1'; } catch (_) { return false; }
+  });
+  if (dismissed) return null;
+  const dismiss = () => {
+    try { localStorage.setItem(KEY, '1'); } catch (_) {}
+    setDismissed(true);
+  };
+  return (
+    <div
+      style={{
+        marginBottom: 18,
+        padding: '14px 18px',
+        border: '2px dashed var(--orange)',
+        borderRadius: 12,
+        background: 'var(--paper-warm, #FAF5EC)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        flexWrap: 'wrap',
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ fontFamily: 'Caveat, cursive', fontSize: 26, lineHeight: 1, color: 'var(--orange)', marginBottom: 4 }}>
+          Plan your year first.
+        </div>
+        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-soft)' }}>
+          New: define recurring rhythms (weekly all-hands, biweekly retro, monthly review)
+          and watch them paint your year. Add tasks here on top.
+        </div>
+      </div>
+      <a href="/app/year" className="tm-btn tm-primary">Open year canvas →</a>
+      <button type="button" className="tm-btn tm-sm" onClick={dismiss} title="hide this banner">
+        ×
+      </button>
+    </div>
   );
 }
 

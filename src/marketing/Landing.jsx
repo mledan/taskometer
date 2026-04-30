@@ -32,17 +32,18 @@ export default function Landing() {
       <section className="mk-hero">
         <div className="mk-hero-text">
           <h1 className="mk-h1">
-            Shape your day.<br/>
-            <span className="mk-h1-accent">Loop it forward.</span>
+            Lay out your year.<br/>
+            <span className="mk-h1-accent">Live the days.</span>
           </h1>
           <p className="mk-lede">
-            Most days repeat. So why rebuild your calendar every Monday?
-            Taskometer turns a day into a 24-hour wheel — paint it once,
-            apply it forever.
+            Most calendars start at "today" and ask you to fill it in.
+            Taskometer starts at "your year" and asks what repeats. Define
+            your rhythms once — weekly standups, monthly reviews, quarterly
+            planning — and the year paints itself. Then drop tasks on top.
           </p>
           <div className="mk-cta-row">
-            <a href="/app" className="tm-btn tm-primary mk-cta">
-              Try free — no signup
+            <a href="/app/year" className="tm-btn tm-primary mk-cta">
+              Build your year →
             </a>
             <a href="/teams" className="tm-btn tm-ghost mk-cta">
               For teams →

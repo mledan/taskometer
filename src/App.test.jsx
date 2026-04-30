@@ -30,7 +30,8 @@ describe('routing', () => {
   test('/ renders the landing page (not the app)', () => {
     setPath('/');
     render(<App />);
-    expect(screen.getByText(/Shape your day\./i)).toBeInTheDocument();
+    // New annual-first hero copy.
+    expect(screen.getByText(/Lay out your year\./i)).toBeInTheDocument();
     // The active-wheel chip ("pick a wheel") only renders inside /app —
     // its absence confirms we're on marketing.
     expect(screen.queryByText(/pick a wheel/i)).not.toBeInTheDocument();
@@ -67,6 +68,18 @@ describe('routing', () => {
     setPath('/app');
     render(<App />);
     expect(screen.getByText(/Welcome to taskometer/i)).toBeInTheDocument();
+  });
+
+  test('/app/year renders the annual canvas', () => {
+    setPath('/app/year');
+    render(<App />);
+    // Year title shows the current year
+    expect(screen.getByText(String(new Date().getFullYear()))).toBeInTheDocument();
+    // Rail headers
+    expect(screen.getByText(/^Rhythms$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Exceptions$/)).toBeInTheDocument();
+    // Empty-state copy
+    expect(screen.getByText(/No rhythms yet/i)).toBeInTheDocument();
   });
 });
 
