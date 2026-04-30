@@ -17,6 +17,7 @@ import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
 import { listRhythms, listExceptions, dateIsExcepted, addRhythm } from '../services/rhythms.js';
+import { useMultiSelect } from '../hooks/useMultiSelect.js';
 import { pendingRhythmSlotsForDate } from '../services/rhythmsToSlots.js';
 import { findScheduleTarget } from '../services/scheduling.js';
 import useTaskNotifications from '../hooks/useTaskNotifications.js';
@@ -94,6 +95,11 @@ export default function Taskometer() {
   // pendingRange — only one is active at a time.
   const [pendingDays, setPendingDays] = useState(null); // string[] | null
   const [saveDaysAsRhythmModal, setSaveDaysAsRhythmModal] = useState(null); // string[] | null
+  // Single multi-select instance shared across the calendar scope tabs
+  // so switching from month → quarter → year keeps the selection. Was
+  // previously per-Insights-component, which destroyed selection on
+  // every scope change.
+  const multiSelect = useMultiSelect();
   const auth = (() => {
     try {
       // taskometer.auth is the current key; smartcircle.auth is the legacy
@@ -927,6 +933,7 @@ export default function Taskometer() {
             setPickerOpen(true);
           }}
           onSaveDaysAsRhythm={saveDaysAsRhythm}
+          multiSelect={multiSelect}
         />
       )}
 
@@ -947,6 +954,7 @@ export default function Taskometer() {
             setPickerOpen(true);
           }}
           onSaveDaysAsRhythm={saveDaysAsRhythm}
+          multiSelect={multiSelect}
         />
       )}
 
@@ -967,6 +975,7 @@ export default function Taskometer() {
             setPickerOpen(true);
           }}
           onSaveDaysAsRhythm={saveDaysAsRhythm}
+          multiSelect={multiSelect}
         />
       )}
 

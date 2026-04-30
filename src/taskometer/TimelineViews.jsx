@@ -631,14 +631,18 @@ function hexAlpha(hex, a) {
 
 /* ─────────────────── month / quarter / year wrappers ─────────────────── */
 
-export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays, onSaveDaysAsRhythm }) {
+export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays, onSaveDaysAsRhythm, multiSelect }) {
   const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
   const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
   const monthSlots = (slots || []).filter(s => {
     const k = s.date;
     return k >= ymd(start) && k <= ymd(end);
   });
-  const ms = useMultiSelect();
+  // Shared instance from Taskometer keeps the selection across scope
+  // switches. If a caller forgets to pass one we fall back to a local
+  // hook so older surfaces still work.
+  const localMs = useMultiSelect();
+  const ms = multiSelect || localMs;
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <CategoryBreakdownBar slots={monthSlots} taskTypes={taskTypes} label="month" />
@@ -677,13 +681,17 @@ export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPa
   );
 }
 
-export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays, onSaveDaysAsRhythm }) {
+export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays, onSaveDaysAsRhythm, multiSelect }) {
   const q = Math.floor(selectedDate.getMonth() / 3);
   const year = selectedDate.getFullYear();
   const start = new Date(year, q * 3, 1);
   const end = new Date(year, q * 3 + 3, 0);
   const slice = (slots || []).filter(s => s.date >= ymd(start) && s.date <= ymd(end));
-  const ms = useMultiSelect();
+  // Shared instance from Taskometer keeps the selection across scope
+  // switches. If a caller forgets to pass one we fall back to a local
+  // hook so older surfaces still work.
+  const localMs = useMultiSelect();
+  const ms = multiSelect || localMs;
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <CategoryBreakdownBar slots={slice} taskTypes={taskTypes} label="quarter" />
@@ -729,12 +737,16 @@ export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, on
   );
 }
 
-export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays, onSaveDaysAsRhythm }) {
+export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays, onSaveDaysAsRhythm, multiSelect }) {
   const y = selectedDate.getFullYear();
   const start = new Date(y, 0, 1);
   const end = new Date(y, 11, 31);
   const slice = (slots || []).filter(s => s.date >= ymd(start) && s.date <= ymd(end));
-  const ms = useMultiSelect();
+  // Shared instance from Taskometer keeps the selection across scope
+  // switches. If a caller forgets to pass one we fall back to a local
+  // hook so older surfaces still work.
+  const localMs = useMultiSelect();
+  const ms = multiSelect || localMs;
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <CategoryBreakdownBar slots={slice} taskTypes={taskTypes} label="year" />
