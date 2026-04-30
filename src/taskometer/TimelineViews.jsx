@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { resolveTypeColor } from './Composers.jsx';
+import { MiniWheel } from './WheelView.jsx';
 
 /**
  * New visualizations for non-day scopes. The mini-wheel grid reads as
@@ -638,15 +639,14 @@ export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate }) {
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <CategoryBreakdownBar slots={monthSlots} taskTypes={taskTypes} label="month" />
-      <ScopeHeatmapHeader title={selectedDate.toLocaleDateString('en', { month: 'long', year: 'numeric' })} />
-      <InsightsGrid
-        startDate={start}
-        endDate={end}
+      <MonthCalendar
+        year={selectedDate.getFullYear()}
+        month={selectedDate.getMonth()}
         slots={monthSlots}
         taskTypes={taskTypes}
         onPickDate={onPickDate}
-        cellSize={28}
-        gap={4}
+        wheelSize={62}
+        showHeader
       />
     </div>
   );
@@ -654,22 +654,29 @@ export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate }) {
 
 export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate }) {
   const q = Math.floor(selectedDate.getMonth() / 3);
-  const start = new Date(selectedDate.getFullYear(), q * 3, 1);
-  const end = new Date(selectedDate.getFullYear(), q * 3 + 3, 0);
+  const year = selectedDate.getFullYear();
+  const start = new Date(year, q * 3, 1);
+  const end = new Date(year, q * 3 + 3, 0);
   const slice = (slots || []).filter(s => s.date >= ymd(start) && s.date <= ymd(end));
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <CategoryBreakdownBar slots={slice} taskTypes={taskTypes} label="quarter" />
-      <ScopeHeatmapHeader title={`Q${q + 1} ${selectedDate.getFullYear()}`} />
-      <InsightsGrid
-        startDate={start}
-        endDate={end}
-        slots={slice}
-        taskTypes={taskTypes}
-        onPickDate={onPickDate}
-        cellSize={20}
-        gap={3}
-      />
+      <ScopeHeatmapHeader title={`Q${q + 1} ${year}`} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
+        {[0, 1, 2].map(off => (
+          <MonthCalendar
+            key={off}
+            year={year}
+            month={q * 3 + off}
+            slots={slice}
+            taskTypes={taskTypes}
+            onPickDate={onPickDate}
+            wheelSize={28}
+            compact
+            showHeader
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -682,17 +689,146 @@ export function YearInsights({ selectedDate, slots, taskTypes, onPickDate }) {
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <CategoryBreakdownBar slots={slice} taskTypes={taskTypes} label="year" />
-      <ScopeHeatmapHeader title={`${y} · activity heatmap`} />
-      <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
-        <InsightsGrid
-          startDate={start}
-          endDate={end}
-          slots={slice}
-          taskTypes={taskTypes}
-          onPickDate={onPickDate}
-          cellSize={12}
-          gap={2}
-        />
+      <ScopeHeatmapHeader title={`${y}`} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
+        {Array.from({ length: 12 }, (_, m) => (
+          <MonthCalendar
+            key={m}
+            year={y}
+            month={m}
+            slots={slice}
+            taskTypes={taskTypes}
+            onPickDate={onPickDate}
+            wheelSize={22}
+            compact
+            showHeader
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A clean month calendar — day numbers laid out in the standard
+ * Mon–Sun grid, each cell rendering a MiniWheel of that day's blocks.
+ * Today is outlined in orange. Click any cell to jump to the day view.
+ *
+ * Used standalone for MonthInsights, and tiled for QuarterInsights and
+ * YearInsights with `compact` reducing the visual weight per cell.
+ */
+function MonthCalendar({
+  year,
+  month,
+  slots,
+  taskTypes,
+  onPickDate,
+  wheelSize = 56,
+  compact = false,
+  showHeader = false,
+}) {
+  const monthLabel = useMemo(
+    () => new Date(year, month, 1).toLocaleDateString('en', { month: 'long', year: 'numeric' }),
+    [year, month],
+  );
+
+  const cells = useMemo(() => {
+    const first = new Date(year, month, 1);
+    const last = new Date(year, month + 1, 0);
+    // Monday-first week: getDay() returns 0=Sun, we shift so 0=Mon, 6=Sun.
+    const lead = (first.getDay() + 6) % 7;
+    const out = [];
+    for (let i = 0; i < lead; i++) out.push(null);
+    for (let d = 1; d <= last.getDate(); d++) out.push(new Date(year, month, d));
+    while (out.length % 7 !== 0) out.push(null);
+    return out;
+  }, [year, month]);
+
+  const slotsByDate = useMemo(() => {
+    const m = new Map();
+    for (const s of slots || []) {
+      if (!m.has(s.date)) m.set(s.date, []);
+      m.get(s.date).push(s);
+    }
+    return m;
+  }, [slots]);
+
+  const todayKey = ymd(new Date());
+  const cellPad = compact ? 4 : 8;
+  const dayFontSize = compact ? 11 : 13;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {showHeader && (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontFamily: 'Caveat, cursive', fontSize: compact ? 20 : 26, color: 'var(--ink)', lineHeight: 1 }}>
+            {monthLabel}
+          </span>
+        </div>
+      )}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gap: 2,
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: compact ? 9 : 10,
+          color: 'var(--ink-mute)',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(l => (
+          <div key={l} style={{ padding: '2px 0', textAlign: 'center' }}>{l[0]}</div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+        {cells.map((d, i) => {
+          if (!d) {
+            return <div key={i} style={{ minHeight: wheelSize + cellPad * 2 }} />;
+          }
+          const key = ymd(d);
+          const cellSlots = slotsByDate.get(key) || [];
+          const isToday = key === todayKey;
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onPickDate?.(d)}
+              title={`open ${d.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }).toLowerCase()}`}
+              style={{
+                all: 'unset',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+                padding: cellPad,
+                border: `1px ${isToday ? 'solid var(--orange)' : 'dashed var(--rule)'}`,
+                borderRadius: 6,
+                background: isToday ? 'var(--paper-warm, #FAF5EC)' : 'var(--paper)',
+                transition: 'background 0.12s, transform 0.08s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-warm, #FAF5EC)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = isToday ? 'var(--paper-warm, #FAF5EC)' : 'var(--paper)'; }}
+            >
+              <span style={{
+                fontFamily: 'Caveat, cursive',
+                fontSize: dayFontSize + (compact ? 2 : 6),
+                lineHeight: 1,
+                color: isToday ? 'var(--orange)' : 'var(--ink)',
+              }}>
+                {d.getDate()}
+              </span>
+              <MiniWheel slots={cellSlots} size={wheelSize} thickness={Math.max(3, Math.round(wheelSize / 9))} />
+              {!compact && (
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'var(--ink-mute)' }}>
+                  {cellSlots.length ? `${cellSlots.length}b` : '·'}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -705,7 +841,7 @@ function ScopeHeatmapHeader({ title }) {
         {title}
       </span>
       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--ink-mute)' }}>
-        click any day to open it · color = dominant block type · darkness = how full
+        click any day to open it
       </span>
     </div>
   );

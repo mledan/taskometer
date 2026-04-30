@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import WheelView, { MiniWheel } from './WheelView.jsx';
+import WheelPickerModal from './WheelPickerModal.jsx';
 import CalendarView from './CalendarView.jsx';
 import { WeekTimeline, MonthInsights, QuarterInsights, YearInsights } from './TimelineViews.jsx';
 import DailyWrap from './DailyWrap.jsx';
@@ -12,6 +13,7 @@ import AccountPanel from './AccountPanel.jsx';
 import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
+import { FAMOUS_WHEELS } from '../defaults/famousWheels';
 import useTaskNotifications from '../hooks/useTaskNotifications.js';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts.js';
 import KeyboardShortcuts from '../components/KeyboardShortcuts.jsx';
@@ -58,6 +60,8 @@ export default function Taskometer() {
   const [welcomeOpen, setWelcomeOpen] = useState(() => !readAuth());
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [overflowOpen, setOverflowOpen] = useState(false);
   const auth = (() => { try { return JSON.parse(localStorage.getItem('smartcircle.auth') || 'null'); } catch (_) { return null; } })();
   const isLoggedIn = auth?.mode === 'account';
   const accountInitial = (auth?.profile?.firstName?.[0] || auth?.profile?.username?.[0] || 'G').toUpperCase();
@@ -181,18 +185,57 @@ export default function Taskometer() {
 
   const handleAddTask = (data) => {
     let payload = data;
-    if (selectedSlot && selectedSlotIsForDay) {
-      const [h, m] = (selectedSlot.startTime || '09:00').split(':').map(Number);
-      const d = new Date(`${selectedSlot.date}T00:00:00`);
+    const daySlots = (state.slots || [])
+      .filter(s => s.date === viewKey)
+      .slice()
+      .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+    // Resolve which slot to land in. Priority:
+    //   1. user explicitly clicked a wedge → selectedSlot
+    //   2. user picked a type that matches a slot today → first match
+    //   3. nothing matched → drop into the slot that covers "now" today,
+    //      or the first slot of the day if we're not on today.
+    let targetSlot = selectedSlot && selectedSlotIsForDay ? selectedSlot : null;
+    if (!targetSlot && data?.primaryType) {
+      targetSlot = daySlots.find(s => s.slotType === data.primaryType) || null;
+    }
+    if (!targetSlot && daySlots.length) {
+      const isToday = viewKey === formatYMD(new Date());
+      if (isToday) {
+        const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+        const inSpan = (s) => {
+          const [sh, sm] = (s.startTime || '00:00').split(':').map(Number);
+          const [eh, em] = (s.endTime || '00:00').split(':').map(Number);
+          const start = (sh || 0) * 60 + (sm || 0);
+          let end = (eh || 0) * 60 + (em || 0);
+          if (end <= start) end += 24 * 60;
+          return nowMin >= start && nowMin < end;
+        };
+        targetSlot = daySlots.find(inSpan) || daySlots[0];
+      } else {
+        targetSlot = daySlots[0];
+      }
+    }
+
+    if (targetSlot) {
+      const [h, m] = (targetSlot.startTime || '09:00').split(':').map(Number);
+      const d = new Date(`${targetSlot.date}T00:00:00`);
       d.setHours(h || 0, m || 0, 0, 0);
       const iso = d.toISOString();
       payload = {
         ...data,
-        scheduledSlotId: selectedSlot.id,
+        scheduledSlotId: targetSlot.id,
         scheduledTime: iso,
         scheduledFor: iso,
       };
+    } else {
+      // No slots on this day at all — still give the task a scheduledTime
+      // pinned to the day so it shows up in the day view's task list.
+      const d = new Date(`${viewKey}T09:00:00`);
+      const iso = d.toISOString();
+      payload = { ...data, scheduledTime: iso, scheduledFor: iso };
     }
+
     telemetryLog('task:add', {
       text: (payload?.text || '').slice(0, 40),
       type: payload?.primaryType,
@@ -297,25 +340,62 @@ export default function Taskometer() {
 
   const { todayDone, todayTotal, pushed } = derived.stats;
 
+  const activeWheelId = derived.dayAssignments?.[viewKey] || null;
+  const userWheels = state.settings?.wheels || [];
+  const activeWheel = activeWheelId
+    ? (userWheels.find(w => w.id === activeWheelId)
+       || FAMOUS_WHEELS.find(w => w.id === activeWheelId)
+       || null)
+    : null;
+
+  const applyWheelToDay = async (wheelId) => {
+    if (!wheelId) {
+      await api.days.unassign(viewKey);
+      return;
+    }
+    const existing = userWheels.find(w => w.id === wheelId);
+    let actualId = existing?.id;
+    if (!actualId) {
+      const tmpl = [...STARTER_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
+      if (!tmpl) return;
+      const added = await api.wheels.add({
+        id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
+      });
+      actualId = added.id;
+    }
+    await api.wheels.applyToDate(actualId, viewKey, { mode: 'replace' });
+    telemetryLog('rail:applied', { wheelId, date: viewKey });
+  };
+
   return (
     <div id="tm-root-frame" className="tm-root tm-paper">
       <header
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 14,
+          gap: 16,
           flexWrap: 'wrap',
-          marginBottom: 14,
-          paddingBottom: 10,
+          marginBottom: 18,
+          paddingTop: 24,
+          paddingBottom: 14,
           borderBottom: '1px solid var(--rule-soft)',
         }}
       >
-        <div
-          className="tm-logo"
-          style={{ fontFamily: 'Caveat', fontSize: 30, lineHeight: 1, color: 'var(--ink)' }}
+        <button
+          type="button"
+          className={`tm-active-chip${activeWheel ? '' : ' tm-active-chip-empty'}`}
+          onClick={() => setPickerOpen(true)}
+          title={activeWheel ? `current wheel — click to switch` : 'no wheel on this day — click to pick one'}
+          data-onboard="wheel-picker"
         >
-          taskometer
-        </div>
+          <span
+            className="tm-active-chip-dot"
+            style={{ background: activeWheel?.color || 'transparent', border: activeWheel ? 'none' : '1.5px dashed var(--ink-mute)' }}
+            aria-hidden
+          />
+          {activeWheel ? activeWheel.name : 'pick a wheel'}
+          <span aria-hidden style={{ fontSize: 14, color: 'var(--ink-mute)', marginLeft: 2 }}>▾</span>
+        </button>
 
         <div className="tm-seg" style={{ marginLeft: 4 }}>
           {SCALES.map(s => (
@@ -363,28 +443,52 @@ export default function Taskometer() {
               aria-label="search"
             />
           )}
-          <button
-            className="tm-btn tm-sm"
-            onClick={() => { telemetryLog('ui:wheels-open'); setWheelsPanelOpen(true); }}
-            title="wheel library — save, edit, apply templates"
-          >
-            wheels
-          </button>
-          <button
-            className="tm-btn tm-sm"
-            onClick={() => { telemetryLog('backup:export-ics'); api.backup.exportICS(); }}
-            title="export as iCalendar (.ics) for Google/Apple/Outlook import"
-          >
-            ⤓ ics
-          </button>
-          <button
-            className="tm-btn tm-sm"
-            onClick={() => setOnboardingOpen(true)}
-            title="replay the getting-started tour"
-            aria-label="help"
-          >
-            ?
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className="tm-btn tm-sm"
+              onClick={() => setOverflowOpen(o => !o)}
+              aria-haspopup="menu"
+              aria-expanded={overflowOpen}
+              title="more"
+            >
+              ⋯
+            </button>
+            {overflowOpen && (
+              <div
+                role="menu"
+                onMouseLeave={() => setOverflowOpen(false)}
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 'calc(100% + 6px)',
+                  background: 'var(--paper)',
+                  border: '1.5px solid var(--ink)',
+                  borderRadius: 10,
+                  padding: 6,
+                  boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+                  zIndex: 60,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  minWidth: 180,
+                }}
+              >
+                <OverflowItem onClick={() => { setOverflowOpen(false); telemetryLog('ui:wheels-open'); setWheelsPanelOpen(true); }}>
+                  manage wheels
+                </OverflowItem>
+                <OverflowItem onClick={() => { setOverflowOpen(false); telemetryLog('backup:export-ics'); api.backup.exportICS(); }}>
+                  export .ics
+                </OverflowItem>
+                <OverflowItem onClick={() => { setOverflowOpen(false); setOnboardingOpen(true); }}>
+                  replay tour
+                </OverflowItem>
+                <OverflowItem onClick={() => { setOverflowOpen(false); setSettingsOpen(true); }}>
+                  settings
+                </OverflowItem>
+              </div>
+            )}
+          </div>
           <button
             data-onboard="account"
             className="tm-btn tm-sm"
@@ -412,13 +516,6 @@ export default function Taskometer() {
               {accountInitial}
             </span>
             {isLoggedIn ? (auth.profile.firstName || auth.profile.username) : 'guest'}
-          </button>
-          <button
-            className="tm-btn tm-sm"
-            onClick={() => setSettingsOpen(true)}
-            title="settings, notifications, backup, wipe"
-          >
-            ⚙
           </button>
         </div>
       </header>
@@ -517,38 +614,48 @@ export default function Taskometer() {
       )}
 
       {scale === 'day' && (
-        <WheelView
-          selectedDate={selectedDate}
-          wedges={derived.wedges}
-          nowTask={derived.nowTask}
-          upcoming={filteredDerived.upcoming}
-          pushed={filteredDerived.pushed}
-          slots={state.slots || []}
-          taskTypes={state.taskTypes || []}
-          todayTasks={filteredDerived.todayTasks}
-          wheels={derived.wheels}
-          dayAssignments={derived.dayAssignments}
-          dayOverrides={derived.dayOverrides}
-          resolveDay={derived.resolveDay}
-          api={api}
-          rowHandlers={rowHandlers}
-          onNavigate={() => {}}
-          onOpenWheels={() => setWheelsPanelOpen(true)}
-          selectedSlotId={selectedSlotId}
-          onSelectWedge={(slot) => {
-            setSelectedSlotId(slot?.id || null);
-            if (slot?.slotType) setSelectedType(slot.slotType);
-          }}
-        />
-      )}
-
-      {scale === 'day' && (
-        <DailyWrap
-          selectedDate={selectedDate}
-          slots={state.slots || []}
-          tasks={state.tasks || []}
-          taskTypes={state.taskTypes || []}
-        />
+        <div className="tm-dash">
+          <div className="tm-dash-main">
+            <WheelView
+              selectedDate={selectedDate}
+              wedges={derived.wedges}
+              nowTask={derived.nowTask}
+              upcoming={filteredDerived.upcoming}
+              pushed={filteredDerived.pushed}
+              slots={state.slots || []}
+              taskTypes={state.taskTypes || []}
+              todayTasks={filteredDerived.todayTasks}
+              wheels={derived.wheels}
+              dayAssignments={derived.dayAssignments}
+              dayOverrides={derived.dayOverrides}
+              resolveDay={derived.resolveDay}
+              api={api}
+              rowHandlers={rowHandlers}
+              onNavigate={() => {}}
+              onOpenWheels={() => setWheelsPanelOpen(true)}
+              selectedSlotId={selectedSlotId}
+              onSelectWedge={(slot) => {
+                setSelectedSlotId(slot?.id || null);
+                if (slot?.slotType) setSelectedType(slot.slotType);
+              }}
+            />
+            <DailyWrap
+              selectedDate={selectedDate}
+              slots={state.slots || []}
+              tasks={state.tasks || []}
+              taskTypes={state.taskTypes || []}
+            />
+          </div>
+          <aside className="tm-dash-side">
+            <WheelRail
+              userWheels={userWheels}
+              activeWheelId={activeWheelId}
+              onApply={applyWheelToDay}
+              onBrowseAll={() => setPickerOpen(true)}
+              onSaveToday={() => setWheelsPanelOpen(true)}
+            />
+          </aside>
+        </div>
       )}
 
       {scale === 'week' && (
@@ -592,6 +699,18 @@ export default function Taskometer() {
         />
       )}
 
+      {pickerOpen && (
+        <WheelPickerModal
+          wheels={[...userWheels, ...FAMOUS_WHEELS.filter(fw => !userWheels.some(uw => uw.id === fw.id))]}
+          currentWheelId={activeWheelId}
+          onApply={async (wheelId) => {
+            await applyWheelToDay(wheelId);
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
+
       {wheelsPanelOpen && (
         <WheelsPanel
           api={api}
@@ -606,28 +725,6 @@ export default function Taskometer() {
           onDone={() => {
             setWelcomeOpen(false);
             if (!hasSeenOnboarding()) setOnboardingOpen(true);
-          }}
-          onPickWheel={async (wheelId) => {
-            try {
-              const today = formatYMD(new Date());
-              const existing = (state.settings?.wheels || []).find(w => w.id === wheelId);
-              let actualId = existing?.id;
-              if (!actualId) {
-                const tmpl = STARTER_WHEELS.find(w => w.id === wheelId);
-                if (tmpl) {
-                  const added = await api.wheels.add({
-                    id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
-                  });
-                  actualId = added.id;
-                }
-              }
-              if (actualId) {
-                await api.wheels.applyToDate(actualId, today, { mode: 'replace' });
-                telemetryLog('rhythm:applied', { wheelId, date: today });
-              }
-            } catch (err) {
-              telemetryLog('rhythm:error', { message: err?.message });
-            }
           }}
         />
       )}
@@ -936,6 +1033,109 @@ function WeekView({ selectedDate, slots, tasks, wheels = [], dayAssignments = {}
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// IDs we surface in the rail's "Featured" group — a small, opinionated
+// taste of the library. Users hit "Browse all" for the rest.
+const RAIL_FEATURED_IDS = [
+  'system_early_bird',
+  'system_night_owl',
+  'system_pomodoro',
+  'famous_buffett',
+  'famous_cook',
+  'famous_franklin',
+];
+
+function OverflowItem({ children, onClick }) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      style={{
+        all: 'unset',
+        cursor: 'pointer',
+        padding: '6px 10px',
+        borderRadius: 6,
+        fontSize: 14,
+        color: 'var(--ink)',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-warm, #FAF5EC)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function WheelRail({ userWheels, activeWheelId, onApply, onBrowseAll, onSaveToday }) {
+  // The rail is "shape this day fast" — your saved shapes plus a tiny
+  // curated set so first-time users see something useful without the
+  // 100-wheel dump. Everything else lives behind "Browse all".
+  const featured = useMemo(() => {
+    const userIds = new Set(userWheels.map(w => w.id));
+    return RAIL_FEATURED_IDS
+      .map(id => FAMOUS_WHEELS.find(w => w.id === id))
+      .filter(Boolean)
+      .filter(w => !userIds.has(w.id));
+  }, [userWheels]);
+
+  const renderChip = (w) => {
+    const slotsForMini = (w.blocks || []).map(b => ({
+      startTime: b.startTime,
+      endTime: b.endTime,
+      color: b.color,
+    }));
+    const on = activeWheelId === w.id;
+    return (
+      <button
+        key={w.id}
+        type="button"
+        role="listitem"
+        className={`tm-chip-wheel${on ? ' tm-chip-on' : ''}`}
+        onClick={() => onApply(w.id)}
+        title={`apply "${w.name}"`}
+      >
+        <MiniWheel slots={slotsForMini} size={32} thickness={4} />
+        <span className="tm-chip-wheel-name">{w.name}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="tm-rail" role="list" aria-label="wheel library">
+      <div className="tm-rail-head">
+        <span className="tm-rail-title">Shapes</span>
+        <button type="button" className="tm-btn tm-sm tm-ghost" onClick={onBrowseAll} title="open the full library">
+          browse all →
+        </button>
+      </div>
+
+      {userWheels.length > 0 && (
+        <div>
+          <div className="tm-rail-cat">Mine</div>
+          <div className="tm-rail-list">{userWheels.map(renderChip)}</div>
+        </div>
+      )}
+
+      {featured.length > 0 && (
+        <div>
+          <div className="tm-rail-cat">Featured</div>
+          <div className="tm-rail-list">{featured.map(renderChip)}</div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        className="tm-btn tm-sm tm-ghost"
+        onClick={onSaveToday}
+        title="save today's blocks as a reusable shape"
+        style={{ alignSelf: 'flex-start', marginTop: 4 }}
+      >
+        + save today as shape
+      </button>
     </div>
   );
 }

@@ -55,11 +55,150 @@ body.tm-body {
 .tm-flow { font-family: 'Shadows Into Light', cursive; }
 
 .tm-root {
-  max-width: 980px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 0 28px 120px;
+  padding: 0 48px 120px;
   position: relative;
   min-height: 100vh;
+}
+
+/* Dashboard layout: day view splits into a generous main column and a
+   library rail. Below 1080px the rail collapses to a horizontal strip
+   above the main column so nothing crowds. */
+.tm-dash {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 28px;
+  align-items: start;
+}
+.tm-dash-main { min-width: 0; }
+.tm-dash-side {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+@media (max-width: 1080px) {
+  .tm-dash { grid-template-columns: 1fr; }
+  .tm-dash-side { position: static; max-height: none; }
+}
+
+/* Wheel rail: stack of chip-cards, each a MiniWheel + name. The rail is
+   the "library" surface — the user picks one to paint a day. Famous
+   wheels live here too, grouped by category. */
+.tm-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tm-rail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+.tm-rail-title {
+  font-family: 'Caveat', cursive;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--ink);
+}
+.tm-rail-cat {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin: 6px 0 4px;
+}
+.tm-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tm-chip-wheel {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+  transition: background 0.12s, border-color 0.12s, transform 0.08s;
+}
+.tm-chip-wheel:hover {
+  background: var(--paper-warm);
+  border-color: var(--ink-mute);
+}
+.tm-chip-wheel:active { transform: translateY(1px); }
+.tm-chip-wheel.tm-chip-on {
+  border-color: var(--orange);
+  background: var(--orange-pale, #FBE9DD);
+  box-shadow: 0 1px 0 rgba(212, 102, 58, 0.18);
+}
+.tm-chip-wheel-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tm-chip-wheel-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-mute);
+}
+
+/* Active-wheel chip in the header — single, prominent, the "you are
+   here" indicator that's also a button into the picker. */
+.tm-active-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 6px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper-warm, #FAF5EC);
+  cursor: pointer;
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink);
+  transition: background 0.12s;
+}
+.tm-active-chip:hover { background: var(--orange-pale, #FBE9DD); }
+.tm-active-chip-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.tm-active-chip-empty { color: var(--ink-mute); border-style: dashed; }
+
+/* Wordmark — the Helix mark sits where "taskometer" used to. */
+.tm-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.tm-wordmark-name {
+  font-family: 'Caveat', cursive;
+  font-size: 36px;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.tm-wordmark-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
 }
 
 /* Header */

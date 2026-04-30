@@ -322,62 +322,6 @@ export default function WheelView({
       )}
 
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-        <div
-          data-onboard="wheel-picker"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            minWidth: 180,
-            maxWidth: 220,
-          }}
-        >
-          <div style={{ fontSize: 20, lineHeight: 1.2, color: 'var(--ink)' }}>
-            Start by choosing a wheel
-          </div>
-          <select
-            className="tm-composer-select"
-            value={dayAssignments[viewKey] || ''}
-            onChange={async (ev) => {
-              const next = ev.target.value;
-              if (!next) await api.days.unassign(viewKey);
-              else await api.wheels.applyToDate(next, viewKey, { mode: 'replace' });
-            }}
-            title="apply a wheel to this day"
-            style={{ fontSize: 14, padding: '6px 10px' }}
-          >
-            <option value="">quick switch…</option>
-            {(() => {
-              const groups = new Map();
-              for (const w of wheels) {
-                const cat = w.category || WHEEL_CATEGORY_BY_ID[w.id] || 'My Wheels';
-                if (!groups.has(cat)) groups.set(cat, []);
-                groups.get(cat).push(w);
-              }
-              const order = ['My Wheels', 'Productivity Systems', 'Tech & CEOs', 'Modern', 'Athletes', 'Writers & Artists', 'Historical', 'Lifestyles'];
-              const sorted = [...groups.keys()].sort((a, b) => {
-                const ai = order.indexOf(a), bi = order.indexOf(b);
-                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-              });
-              return sorted.map(cat => (
-                <optgroup key={cat} label={cat}>
-                  {groups.get(cat).map(w => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
-                </optgroup>
-              ));
-            })()}
-          </select>
-          <button
-            type="button"
-            className="tm-btn tm-sm tm-primary"
-            onClick={() => setPickerOpen(true)}
-            title="browse the full library with previews and search"
-            style={{ fontSize: 12 }}
-          >
-            Browse all wheels →
-          </button>
-        </div>
         <div data-onboard="wheel" style={{ display: 'inline-flex' }}>
         <WheelSvg
           wedges={effectiveWedges}
