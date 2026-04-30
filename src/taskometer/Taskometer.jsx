@@ -67,6 +67,10 @@ export default function Taskometer() {
   // closed. Object = { wheel } where wheel may need to be added to the
   // user's library before applyToRange can target it by ID.
   const [painterTarget, setPainterTarget] = useState(null);
+  // When the user lassos days in a calendar view we open the picker in
+  // "range mode" — the user picks a wheel and it paints the lassoed
+  // range. Null = picker is in single-day mode (the default).
+  const [pendingRange, setPendingRange] = useState(null); // { startDate, endDate } | null
   const auth = (() => { try { return JSON.parse(localStorage.getItem('smartcircle.auth') || 'null'); } catch (_) { return null; } })();
   const isLoggedIn = auth?.mode === 'account';
   const accountInitial = (auth?.profile?.firstName?.[0] || auth?.profile?.username?.[0] || 'G').toUpperCase();
@@ -414,6 +418,66 @@ export default function Taskometer() {
     setPainterTarget({ wheel: w });
   };
 
+  // Paint a wheel onto a single arbitrary date — used when a chip is
+  // dragged onto a calendar cell. Mirrors applyWheelToDay but takes the
+  // date explicitly instead of using viewKey.
+  const paintWheelOnDate = async (wheelId, dateKey) => {
+    if (!wheelId || !dateKey) return;
+    const existing = userWheels.find(w => w.id === wheelId);
+    let actualId = existing?.id;
+    if (!actualId) {
+      const tmpl = [...STARTER_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
+      if (!tmpl) return;
+      const added = await api.wheels.add({
+        id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
+      });
+      actualId = added.id;
+    }
+    await api.wheels.applyToDate(actualId, dateKey, { mode: 'replace' });
+    telemetryLog('drag-paint:applied', { wheelId, date: dateKey });
+  };
+
+  // Paint a wheel onto a closed date range with no day-of-week filter —
+  // used by the lasso flow where the user has already picked their dates
+  // visually. Honors the picker callback contract by taking wheelId.
+  const paintWheelOverRange = async (wheelId, startDate, endDate) => {
+    if (!wheelId || !startDate || !endDate) return;
+    const existing = userWheels.find(w => w.id === wheelId);
+    let actualId = existing?.id;
+    if (!actualId) {
+      const tmpl = [...STARTER_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
+      if (!tmpl) return;
+      const added = await api.wheels.add({
+        id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
+      });
+      actualId = added.id;
+    }
+    const result = await api.wheels.applyToRange(actualId, startDate, endDate, { mode: 'replace' });
+    telemetryLog('lasso-paint:applied', { wheelId, count: result?.painted?.length || 0, startDate, endDate });
+  };
+
+  // Save today's blocks as a new shape, then chain into the painter so
+  // the user can paint that shape across a range immediately.
+  const saveAndPaint = async () => {
+    const name = window.prompt('name this shape (e.g. "Workday", "Weekend", "Travel"):');
+    if (!name?.trim()) return;
+    const palette = ['#D4663A', '#A8BF8C', '#D9C98C', '#C7BEDD', '#F2C4A6'];
+    const color = palette[(userWheels.length) % palette.length];
+    try {
+      const newWheel = await api.wheels.saveFromDate(viewKey, { name: name.trim(), color });
+      if (newWheel?.id) {
+        telemetryLog('save-paint:saved', { wheelId: newWheel.id });
+        setPainterTarget({ wheel: newWheel });
+      } else {
+        // fall back: open the wheels panel so the user sees their save
+        setWheelsPanelOpen(true);
+      }
+    } catch (err) {
+      telemetryLog('save-paint:error', { message: err?.message });
+      setWheelsPanelOpen(true);
+    }
+  };
+
   const paintWheelAcrossRange = async ({ startDate, endDate, weekdaysOnly, weekendsOnly, customDow, mode }) => {
     if (!painterTarget?.wheel) return;
     const target = painterTarget.wheel;
@@ -755,7 +819,7 @@ export default function Taskometer() {
               onApply={applyWheelToDay}
               onSchedule={openPainter}
               onBrowseAll={() => setPickerOpen(true)}
-              onSaveToday={() => setWheelsPanelOpen(true)}
+              onSaveToday={saveAndPaint}
             />
           </aside>
         </div>
@@ -781,6 +845,11 @@ export default function Taskometer() {
           slots={state.slots || []}
           taskTypes={state.taskTypes || []}
           onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
+          onPaintDay={paintWheelOnDate}
+          onPaintRange={(startDate, endDate) => {
+            setPendingRange({ startDate, endDate });
+            setPickerOpen(true);
+          }}
         />
       )}
 
@@ -790,6 +859,11 @@ export default function Taskometer() {
           slots={state.slots || []}
           taskTypes={state.taskTypes || []}
           onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
+          onPaintDay={paintWheelOnDate}
+          onPaintRange={(startDate, endDate) => {
+            setPendingRange({ startDate, endDate });
+            setPickerOpen(true);
+          }}
         />
       )}
 
@@ -799,6 +873,11 @@ export default function Taskometer() {
           slots={state.slots || []}
           taskTypes={state.taskTypes || []}
           onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
+          onPaintDay={paintWheelOnDate}
+          onPaintRange={(startDate, endDate) => {
+            setPendingRange({ startDate, endDate });
+            setPickerOpen(true);
+          }}
         />
       )}
 
@@ -806,11 +885,20 @@ export default function Taskometer() {
         <WheelPickerModal
           wheels={[...userWheels, ...FAMOUS_WHEELS.filter(fw => !userWheels.some(uw => uw.id === fw.id))]}
           currentWheelId={activeWheelId}
+          rangeContext={pendingRange}
           onApply={async (wheelId) => {
-            await applyWheelToDay(wheelId);
+            if (pendingRange) {
+              await paintWheelOverRange(wheelId, pendingRange.startDate, pendingRange.endDate);
+              setPendingRange(null);
+            } else {
+              await applyWheelToDay(wheelId);
+            }
             setPickerOpen(false);
           }}
-          onClose={() => setPickerOpen(false)}
+          onClose={() => {
+            setPickerOpen(false);
+            setPendingRange(null);
+          }}
         />
       )}
 
@@ -1206,12 +1294,17 @@ function WheelRail({ userWheels, activeWheelId, onApply, onSchedule, onBrowseAll
         key={w.id}
         role="listitem"
         className={`tm-chip-wheel${on ? ' tm-chip-on' : ''}`}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/wheel-id', w.id);
+          e.dataTransfer.effectAllowed = 'copy';
+        }}
       >
         <button
           type="button"
           className="tm-chip-wheel-main"
           onClick={() => onApply(w.id)}
-          title={`apply "${w.name}" to this day`}
+          title={`apply "${w.name}" to this day · drag onto a calendar cell to paint a different day`}
         >
           <MiniWheel slots={slotsForMini} size={32} thickness={4} />
           <span className="tm-chip-wheel-name">{w.name}</span>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { resolveTypeColor } from './Composers.jsx';
 import { MiniWheel } from './WheelView.jsx';
 
@@ -629,7 +629,7 @@ function hexAlpha(hex, a) {
 
 /* ─────────────────── month / quarter / year wrappers ─────────────────── */
 
-export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate }) {
+export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange }) {
   const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
   const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
   const monthSlots = (slots || []).filter(s => {
@@ -645,6 +645,8 @@ export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate }) {
         slots={monthSlots}
         taskTypes={taskTypes}
         onPickDate={onPickDate}
+        onPaintDay={onPaintDay}
+        onPaintRange={onPaintRange}
         wheelSize={62}
         showHeader
       />
@@ -652,7 +654,7 @@ export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate }) {
   );
 }
 
-export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate }) {
+export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange }) {
   const q = Math.floor(selectedDate.getMonth() / 3);
   const year = selectedDate.getFullYear();
   const start = new Date(year, q * 3, 1);
@@ -671,6 +673,8 @@ export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate }) 
             slots={slice}
             taskTypes={taskTypes}
             onPickDate={onPickDate}
+            onPaintDay={onPaintDay}
+            onPaintRange={onPaintRange}
             wheelSize={28}
             compact
             showHeader
@@ -681,7 +685,7 @@ export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate }) 
   );
 }
 
-export function YearInsights({ selectedDate, slots, taskTypes, onPickDate }) {
+export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange }) {
   const y = selectedDate.getFullYear();
   const start = new Date(y, 0, 1);
   const end = new Date(y, 11, 31);
@@ -699,6 +703,8 @@ export function YearInsights({ selectedDate, slots, taskTypes, onPickDate }) {
             slots={slice}
             taskTypes={taskTypes}
             onPickDate={onPickDate}
+            onPaintDay={onPaintDay}
+            onPaintRange={onPaintRange}
             wheelSize={22}
             compact
             showHeader
@@ -723,6 +729,8 @@ function MonthCalendar({
   slots,
   taskTypes,
   onPickDate,
+  onPaintDay,
+  onPaintRange,
   wheelSize = 56,
   compact = false,
   showHeader = false,
@@ -735,7 +743,6 @@ function MonthCalendar({
   const cells = useMemo(() => {
     const first = new Date(year, month, 1);
     const last = new Date(year, month + 1, 0);
-    // Monday-first week: getDay() returns 0=Sun, we shift so 0=Mon, 6=Sun.
     const lead = (first.getDay() + 6) % 7;
     const out = [];
     for (let i = 0; i < lead; i++) out.push(null);
@@ -752,6 +759,53 @@ function MonthCalendar({
     }
     return m;
   }, [slots]);
+
+  // Drag-drop state for chips dropped from the rail. dragOverKey is the
+  // date currently under the cursor — we highlight it so the user sees
+  // the drop target.
+  const [dragOverKey, setDragOverKey] = useState(null);
+
+  // Lasso state. lassoAnchor is the date the user started dragging
+  // from. lassoEnd is the date currently under the pointer. Selection
+  // is an ordered range of YMD strings between them.
+  const [lassoAnchor, setLassoAnchor] = useState(null);
+  const [lassoEnd, setLassoEnd] = useState(null);
+  const lassoActive = lassoAnchor && lassoEnd;
+  const lassoSelection = useMemo(() => {
+    if (!lassoActive) return new Set();
+    const a = new Date(`${lassoAnchor}T00:00:00`);
+    const b = new Date(`${lassoEnd}T00:00:00`);
+    const start = a.getTime() <= b.getTime() ? a : b;
+    const end = a.getTime() <= b.getTime() ? b : a;
+    const set = new Set();
+    const cur = new Date(start);
+    while (cur.getTime() <= end.getTime()) {
+      set.add(ymd(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+    return set;
+  }, [lassoAnchor, lassoEnd, lassoActive]);
+
+  // Once mouse is up anywhere, finish the lasso. Window listener so the
+  // user can release outside any cell.
+  useEffect(() => {
+    if (!lassoAnchor) return;
+    const onUp = () => {
+      if (lassoAnchor && lassoEnd && onPaintRange) {
+        const a = new Date(`${lassoAnchor}T00:00:00`);
+        const b = new Date(`${lassoEnd}T00:00:00`);
+        const startKey = a.getTime() <= b.getTime() ? lassoAnchor : lassoEnd;
+        const endKey = a.getTime() <= b.getTime() ? lassoEnd : lassoAnchor;
+        // Only fire for ranges of 2+ days. Single click should still
+        // open the day, not the painter — preserves existing behavior.
+        if (startKey !== endKey) onPaintRange(startKey, endKey);
+      }
+      setLassoAnchor(null);
+      setLassoEnd(null);
+    };
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, [lassoAnchor, lassoEnd, onPaintRange]);
 
   const todayKey = ymd(new Date());
   const cellPad = compact ? 4 : 8;
@@ -782,7 +836,10 @@ function MonthCalendar({
           <div key={l} style={{ padding: '2px 0', textAlign: 'center' }}>{l[0]}</div>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+      <div
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}
+        onMouseLeave={() => { setDragOverKey(null); }}
+      >
         {cells.map((d, i) => {
           if (!d) {
             return <div key={i} style={{ minHeight: wheelSize + cellPad * 2 }} />;
@@ -790,33 +847,92 @@ function MonthCalendar({
           const key = ymd(d);
           const cellSlots = slotsByDate.get(key) || [];
           const isToday = key === todayKey;
+          const isDragOver = dragOverKey === key;
+          const isInLasso = lassoSelection.has(key);
+
+          // Resolve background + border for the cell's current state.
+          // Drag-over wins, then lasso, then today, then default.
+          let background = 'var(--paper)';
+          let borderStyle = 'dashed';
+          let borderColor = 'var(--rule)';
+          if (isToday) {
+            background = 'var(--paper-warm, #FAF5EC)';
+            borderStyle = 'solid';
+            borderColor = 'var(--orange)';
+          }
+          if (isInLasso) {
+            background = 'var(--orange-pale, #FBE9DD)';
+            borderStyle = 'solid';
+            borderColor = 'var(--orange)';
+          }
+          if (isDragOver) {
+            background = 'var(--orange-pale, #FBE9DD)';
+            borderStyle = 'solid';
+            borderColor = 'var(--orange)';
+          }
+
           return (
-            <button
+            <div
               key={i}
-              type="button"
-              onClick={() => onPickDate?.(d)}
-              title={`open ${d.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }).toLowerCase()}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                // Click-not-drag opens the day. We suppress this when a
+                // lasso just finished so the click that ended the drag
+                // doesn't ALSO open one of the lassoed days.
+                if (lassoAnchor) return;
+                onPickDate?.(d);
+              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') onPickDate?.(d); }}
+              onMouseDown={(e) => {
+                // Left button only; leave middle/right for native menus.
+                if (e.button !== 0) return;
+                if (!onPaintRange) return;
+                setLassoAnchor(key);
+                setLassoEnd(key);
+              }}
+              onMouseEnter={() => {
+                if (lassoAnchor) setLassoEnd(key);
+              }}
+              onDragOver={(e) => {
+                if (!onPaintDay) return;
+                if (e.dataTransfer.types.includes('text/wheel-id')) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'copy';
+                  setDragOverKey(key);
+                }
+              }}
+              onDragLeave={() => {
+                if (dragOverKey === key) setDragOverKey(null);
+              }}
+              onDrop={(e) => {
+                if (!onPaintDay) return;
+                e.preventDefault();
+                const wheelId = e.dataTransfer.getData('text/wheel-id');
+                setDragOverKey(null);
+                if (wheelId) onPaintDay(wheelId, key);
+              }}
+              title={`open ${d.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }).toLowerCase()} · drop a wheel to paint · drag across days to range-paint`}
               style={{
-                all: 'unset',
-                cursor: 'pointer',
+                cursor: lassoAnchor ? 'crosshair' : 'pointer',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 2,
                 padding: cellPad,
-                border: `1px ${isToday ? 'solid var(--orange)' : 'dashed var(--rule)'}`,
+                border: `${isDragOver || isInLasso ? '2px' : '1px'} ${borderStyle} ${borderColor}`,
                 borderRadius: 6,
-                background: isToday ? 'var(--paper-warm, #FAF5EC)' : 'var(--paper)',
-                transition: 'background 0.12s, transform 0.08s',
+                background,
+                transition: 'background 0.08s, border-color 0.08s',
+                userSelect: 'none',
+                outline: 'none',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-warm, #FAF5EC)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = isToday ? 'var(--paper-warm, #FAF5EC)' : 'var(--paper)'; }}
             >
               <span style={{
                 fontFamily: 'Caveat, cursive',
                 fontSize: dayFontSize + (compact ? 2 : 6),
                 lineHeight: 1,
-                color: isToday ? 'var(--orange)' : 'var(--ink)',
+                color: isToday || isInLasso || isDragOver ? 'var(--orange)' : 'var(--ink)',
               }}>
                 {d.getDate()}
               </span>
@@ -826,10 +942,15 @@ function MonthCalendar({
                   {cellSlots.length ? `${cellSlots.length}b` : '·'}
                 </span>
               )}
-            </button>
+            </div>
           );
         })}
       </div>
+      {lassoActive && lassoSelection.size > 1 && (
+        <div className="tm-mono tm-sm" style={{ color: 'var(--orange)', textAlign: 'center', marginTop: 4 }}>
+          {lassoSelection.size} days selected · release to pick a wheel
+        </div>
+      )}
     </div>
   );
 }

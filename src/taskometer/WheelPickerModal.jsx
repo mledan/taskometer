@@ -48,6 +48,7 @@ export default function WheelPickerModal({
   currentWheelId,
   onApply,
   onClose,
+  rangeContext,
 }) {
   const [query, setQuery] = useState('');
   const [activeCat, setActiveCat] = useState('All');
@@ -116,9 +117,28 @@ export default function WheelPickerModal({
         }}
       >
         <div className="tm-modal-head">
-          <div className="tm-modal-title">Choose a wheel</div>
+          <div className="tm-modal-title">
+            {rangeContext ? 'Pick a wheel to paint' : 'Choose a wheel'}
+          </div>
           <button type="button" className="tm-btn tm-sm" onClick={onClose} aria-label="close">close</button>
         </div>
+
+        {rangeContext && (
+          <div
+            className="tm-mono tm-md"
+            style={{
+              padding: '8px 12px',
+              marginBottom: 12,
+              border: '1.5px solid var(--orange)',
+              borderRadius: 8,
+              background: 'var(--orange-pale, #FBE9DD)',
+              color: 'var(--orange)',
+              fontWeight: 600,
+            }}
+          >
+            painting {rangeContext.startDate} → {rangeContext.endDate} · click any wheel to apply
+          </div>
+        )}
 
         {/* Describe your day → AI-style suggestion (keyword match, no external API) */}
         <div
