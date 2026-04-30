@@ -339,3 +339,49 @@ export function buildYearMap(year, rhythms, exceptions) {
 
 /** Test-only — clear the per-rhythm occurrence cache. */
 export function _clearOccurrenceCache() { _occurrenceCache.clear(); }
+
+// ───────────────────────── conflict detection ─────────────────────────
+
+function hhmmToMin(s) {
+  if (!s) return 0;
+  const [h, m] = s.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+/** Two HH:MM windows overlap if one starts before the other ends, both ways. */
+function windowsOverlap(a, b) {
+  const aS = hhmmToMin(a.startTime || '00:00');
+  const aE = hhmmToMin(a.endTime || '00:00');
+  const bS = hhmmToMin(b.startTime || '00:00');
+  const bE = hhmmToMin(b.endTime || '00:00');
+  return aS < bE && bS < aE;
+}
+
+/**
+ * Find rhythms whose occurrences AND time-of-day overlap with a
+ * candidate rhythm in `[startDate, endDate]`.
+ *
+ * Returns `[{ rhythm, dates }]` where `dates` is the list of YMD keys
+ * on which both fire and the time-of-day windows intersect.
+ *
+ * Used by the composer / save-modal / rail to surface ⚠ warnings.
+ * Skips comparing a rhythm to itself by id (so editing a rhythm
+ * doesn't report a self-conflict).
+ */
+export function findRhythmConflicts(candidate, others, startDate, endDate) {
+  if (!candidate?.startTime || !candidate?.endTime) return [];
+  const start = startDate instanceof Date ? startDate : parseYMD(startDate);
+  const end   = endDate   instanceof Date ? endDate   : parseYMD(endDate);
+  if (!start || !end) return [];
+
+  const candidateDates = new Set(occurrencesInRange(candidate, start, end));
+  const out = [];
+  for (const other of others || []) {
+    if (!other || other.id === candidate.id) continue;
+    if (!windowsOverlap(candidate, other)) continue;
+    const otherDates = occurrencesInRange(other, start, end);
+    const shared = otherDates.filter(d => candidateDates.has(d));
+    if (shared.length > 0) out.push({ rhythm: other, dates: shared });
+  }
+  return out;
+}

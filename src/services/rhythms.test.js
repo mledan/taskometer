@@ -6,6 +6,7 @@ import {
   addRhythm,
   listRhythms,
   removeRhythm,
+  findRhythmConflicts,
 } from './rhythms.js';
 
 /**
@@ -171,6 +172,43 @@ describe('buildYearMap', () => {
     const apr7 = map.get('2026-04-07');
     expect(apr7).toBeDefined();
     expect(apr7[0].suppressed).toBeNull();
+  });
+});
+
+describe('findRhythmConflicts', () => {
+  test('two weekly Tuesdays at the same time conflict on every shared date', () => {
+    const a = { id: 'a', startTime: '09:00', endTime: '10:00', cadence: { kind: 'weekly', dayOfWeek: 2 } };
+    const b = { id: 'b', startTime: '09:30', endTime: '10:30', cadence: { kind: 'weekly', dayOfWeek: 2 } };
+    const conflicts = findRhythmConflicts(a, [b], '2026-04-01', '2026-04-30');
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0].rhythm.id).toBe('b');
+    expect(conflicts[0].dates).toEqual(['2026-04-07', '2026-04-14', '2026-04-21', '2026-04-28']);
+  });
+
+  test('different weekday → no conflict even with overlapping time-of-day', () => {
+    const a = { id: 'a', startTime: '09:00', endTime: '10:00', cadence: { kind: 'weekly', dayOfWeek: 2 } };
+    const b = { id: 'b', startTime: '09:00', endTime: '10:00', cadence: { kind: 'weekly', dayOfWeek: 3 } };
+    expect(findRhythmConflicts(a, [b], '2026-04-01', '2026-04-30')).toEqual([]);
+  });
+
+  test('non-overlapping time-of-day → no conflict', () => {
+    const a = { id: 'a', startTime: '09:00', endTime: '10:00', cadence: { kind: 'weekly', dayOfWeek: 2 } };
+    const b = { id: 'b', startTime: '10:00', endTime: '11:00', cadence: { kind: 'weekly', dayOfWeek: 2 } };
+    expect(findRhythmConflicts(a, [b], '2026-04-01', '2026-04-30')).toEqual([]);
+  });
+
+  test('skips self by id', () => {
+    const a = { id: 'a', startTime: '09:00', endTime: '10:00', cadence: { kind: 'weekly', dayOfWeek: 2 } };
+    expect(findRhythmConflicts(a, [a], '2026-04-01', '2026-04-30')).toEqual([]);
+  });
+
+  test('detects custom-cadence overlap with weekly', () => {
+    const a = { id: 'a', startTime: '09:00', endTime: '10:00', cadence: { kind: 'weekly', dayOfWeek: 2 } };
+    // 2026-04-14 is a Tuesday; included in custom dates.
+    const b = { id: 'b', startTime: '09:30', endTime: '10:30', cadence: { kind: 'custom', dates: ['2026-04-14'] } };
+    const conflicts = findRhythmConflicts(a, [b], '2026-04-01', '2026-04-30');
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0].dates).toEqual(['2026-04-14']);
   });
 });
 

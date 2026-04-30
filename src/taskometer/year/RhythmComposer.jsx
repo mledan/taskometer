@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { addRhythm, updateRhythm } from '../../services/rhythms.js';
+import React, { useEffect, useMemo, useState } from 'react';
+import { addRhythm, updateRhythm, listRhythms, findRhythmConflicts } from '../../services/rhythms.js';
 
 /**
  * Modal for creating or editing a Rhythm. The cadence form swaps based
@@ -57,6 +57,26 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
     return init.slice().sort();
   });
   const [newDate, setNewDate] = useState(todayYMD());
+
+  // Live conflict check. Whenever the cadence or time-of-day changes
+  // we re-derive a candidate rhythm and look for overlapping rhythms
+  // in the next 90 days. Cheap thanks to the per-rhythm memo.
+  const conflicts = useMemo(() => {
+    const cadence = { kind };
+    if (kind === 'weekly' || kind === 'biweekly' || kind === 'monthly_nth') cadence.dayOfWeek = dayOfWeek;
+    if (kind === 'biweekly') cadence.anchor = anchor;
+    if (kind === 'monthly_nth') cadence.nth = nth;
+    if (kind === 'monthly_date') cadence.monthDate = monthDate;
+    if (kind === 'quarterly_week') cadence.weekOfQuarter = weekOfQuarter;
+    if (kind === 'project') { cadence.anchor = anchor; cadence.end = end; }
+    if (kind === 'oneoff') cadence.anchor = anchor;
+    if (kind === 'custom') cadence.dates = customDates;
+    const candidate = { id: rhythm?.id, cadence, startTime, endTime };
+    const peers = listRhythms();
+    const today = new Date();
+    const horizon = new Date(today); horizon.setDate(horizon.getDate() + 90);
+    return findRhythmConflicts(candidate, peers, today, horizon);
+  }, [kind, dayOfWeek, nth, monthDate, weekOfQuarter, anchor, end, customDates, startTime, endTime, rhythm?.id]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -336,6 +356,37 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
             />
           </div>
         </Section>
+
+        {conflicts.length > 0 && (
+          <div
+            role="alert"
+            style={{
+              marginTop: 14,
+              padding: '10px 12px',
+              border: '1.5px solid var(--orange)',
+              borderRadius: 8,
+              background: 'rgba(212, 102, 58, 0.08)',
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 12,
+              color: 'var(--ink)',
+            }}
+          >
+            <div style={{ marginBottom: 4, color: 'var(--orange)', fontWeight: 600 }}>
+              ⚠ overlaps {conflicts.length} other rhythm{conflicts.length === 1 ? '' : 's'}
+            </div>
+            {conflicts.slice(0, 3).map(c => (
+              <div key={c.rhythm.id} style={{ color: 'var(--ink-soft)' }}>
+                "{c.rhythm.name}" · {c.rhythm.startTime}–{c.rhythm.endTime}
+                {' · '}{c.dates.length} shared day{c.dates.length === 1 ? '' : 's'}
+              </div>
+            ))}
+            {conflicts.length > 3 && (
+              <div style={{ color: 'var(--ink-mute)', marginTop: 4 }}>
+                + {conflicts.length - 3} more
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{
           display: 'flex',

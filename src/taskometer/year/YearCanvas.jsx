@@ -7,6 +7,7 @@ import {
   addException,
   buildYearMap,
   ymd,
+  findRhythmConflicts,
 } from '../../services/rhythms.js';
 import RhythmComposer from './RhythmComposer.jsx';
 import ExceptionModal from './ExceptionModal.jsx';
@@ -110,6 +111,21 @@ export default function YearCanvas() {
     () => buildYearMap(year, rhythms, exceptions),
     [year, rhythms, exceptions],
   );
+
+  // Pairwise conflicts within the current year. Map<rhythmId, count>
+  // so the rail can show a ⚠ next to each rhythm that overlaps anything
+  // else. Computing once per (year, rhythms) pair is O(N²) on rhythm
+  // count, which is fine — users will have <50 rhythms.
+  const conflictsByRhythm = useMemo(() => {
+    const start = new Date(year, 0, 1);
+    const end = new Date(year, 11, 31);
+    const map = new Map();
+    for (const r of rhythms) {
+      const conflicts = findRhythmConflicts(r, rhythms, start, end);
+      if (conflicts.length > 0) map.set(r.id, conflicts.length);
+    }
+    return map;
+  }, [year, rhythms]);
 
   const handleDelete = (id) => {
     if (!window.confirm('Delete this rhythm? Its occurrences disappear from the year.')) return;
@@ -215,25 +231,46 @@ export default function YearCanvas() {
               </div>
             ) : (
               <ul className="yc-rail-list">
-                {rhythms.map(r => (
-                  <li key={r.id} className="yc-rail-item">
-                    <span className="yc-rail-dot" style={{ background: r.color || '#A8BF8C' }} />
-                    <div className="yc-rail-text">
-                      <div className="yc-rail-name">{r.name}</div>
-                      <div className="yc-mono yc-rail-cadence">{describeCadence(r.cadence)}</div>
-                    </div>
-                    <button
-                      className="yc-rail-action"
-                      title="edit"
-                      onClick={() => { setEditingRhythm(r); setComposerOpen(true); }}
-                    >✎</button>
-                    <button
-                      className="yc-rail-action yc-rail-danger"
-                      title="delete"
-                      onClick={() => handleDelete(r.id)}
-                    >×</button>
-                  </li>
-                ))}
+                {rhythms.map(r => {
+                  const conflictCount = conflictsByRhythm.get(r.id) || 0;
+                  return (
+                    <li key={r.id} className="yc-rail-item">
+                      <span className="yc-rail-dot" style={{ background: r.color || '#A8BF8C' }} />
+                      <div className="yc-rail-text">
+                        <div className="yc-rail-name">
+                          {r.name}
+                          {conflictCount > 0 && (
+                            <span
+                              title={`overlaps ${conflictCount} other rhythm${conflictCount === 1 ? '' : 's'}`}
+                              style={{
+                                marginLeft: 6,
+                                padding: '0 5px',
+                                fontSize: 10,
+                                color: 'var(--orange)',
+                                border: '1px solid var(--orange)',
+                                borderRadius: 4,
+                                fontFamily: 'JetBrains Mono, monospace',
+                              }}
+                            >
+                              ⚠ {conflictCount}
+                            </span>
+                          )}
+                        </div>
+                        <div className="yc-mono yc-rail-cadence">{describeCadence(r.cadence)}</div>
+                      </div>
+                      <button
+                        className="yc-rail-action"
+                        title="edit"
+                        onClick={() => { setEditingRhythm(r); setComposerOpen(true); }}
+                      >✎</button>
+                      <button
+                        className="yc-rail-action yc-rail-danger"
+                        title="delete"
+                        onClick={() => handleDelete(r.id)}
+                      >×</button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

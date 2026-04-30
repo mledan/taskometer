@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { addRhythm } from '../../services/rhythms.js';
+import React, { useEffect, useMemo, useState } from 'react';
+import { addRhythm, listRhythms, findRhythmConflicts } from '../../services/rhythms.js';
 
 /**
  * Focused modal for "Save selection as rhythm". Replaces the
@@ -48,6 +48,18 @@ export default function SaveAsRhythmModal({ dates = [], onClose, onSaved }) {
   }, [onClose]);
 
   const canSave = name.trim().length > 0 && dates.length > 0 && startTime < endTime;
+
+  const conflicts = useMemo(() => {
+    const candidate = {
+      cadence: { kind: 'custom', dates: dates.slice().sort() },
+      startTime,
+      endTime,
+    };
+    const peers = listRhythms();
+    const today = new Date();
+    const horizon = new Date(today); horizon.setDate(horizon.getDate() + 365);
+    return findRhythmConflicts(candidate, peers, today, horizon);
+  }, [dates, startTime, endTime]);
 
   const submit = (e) => {
     e?.preventDefault?.();
@@ -171,6 +183,37 @@ export default function SaveAsRhythmModal({ dates = [], onClose, onSaved }) {
             )}
           </div>
         </Section>
+
+        {conflicts.length > 0 && (
+          <div
+            role="alert"
+            style={{
+              marginTop: 14,
+              padding: '10px 12px',
+              border: '1.5px solid var(--orange)',
+              borderRadius: 8,
+              background: 'rgba(212, 102, 58, 0.08)',
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 12,
+              color: 'var(--ink)',
+            }}
+          >
+            <div style={{ marginBottom: 4, color: 'var(--orange)', fontWeight: 600 }}>
+              ⚠ overlaps {conflicts.length} other rhythm{conflicts.length === 1 ? '' : 's'}
+            </div>
+            {conflicts.slice(0, 3).map(c => (
+              <div key={c.rhythm.id} style={{ color: 'var(--ink-soft)' }}>
+                "{c.rhythm.name}" · {c.rhythm.startTime}–{c.rhythm.endTime}
+                {' · '}{c.dates.length} shared day{c.dates.length === 1 ? '' : 's'}
+              </div>
+            ))}
+            {conflicts.length > 3 && (
+              <div style={{ color: 'var(--ink-mute)', marginTop: 4 }}>
+                + {conflicts.length - 3} more
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{
           display: 'flex',
