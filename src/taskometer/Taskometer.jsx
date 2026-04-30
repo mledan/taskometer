@@ -15,7 +15,7 @@ import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
-import { listRhythms, listExceptions, dateIsExcepted } from '../services/rhythms.js';
+import { listRhythms, listExceptions, dateIsExcepted, addRhythm } from '../services/rhythms.js';
 import { pendingRhythmSlotsForDate } from '../services/rhythmsToSlots.js';
 import { findScheduleTarget } from '../services/scheduling.js';
 import useTaskNotifications from '../hooks/useTaskNotifications.js';
@@ -477,6 +477,28 @@ export default function Taskometer() {
     telemetryLog('multi-paint:applied', { wheelId, count: dates.length });
   };
 
+  // "Save selection as rhythm" from a calendar view. Capture the
+  // discrete day list as a custom-cadence rhythm so it can be edited /
+  // re-applied later from the year canvas.
+  const saveDaysAsRhythm = (dates) => {
+    if (!Array.isArray(dates) || dates.length === 0) return;
+    const suggestion = dates.length <= 3
+      ? `Custom (${dates.slice().sort().join(', ')})`
+      : `Custom (${dates.length} days)`;
+    const name = window.prompt('Name this rhythm:', suggestion);
+    if (!name?.trim()) return;
+    const palette = ['#D4663A', '#A8BF8C', '#D9C98C', '#C7BEDD', '#F2C4A6', '#6B46C1', '#3B82F6'];
+    const color = palette[Math.floor(Math.random() * palette.length)];
+    addRhythm({
+      name: name.trim(),
+      color,
+      cadence: { kind: 'custom', dates: dates.slice().sort() },
+      startTime: '09:00',
+      endTime: '10:00',
+    });
+    telemetryLog('rhythm:saved-from-selection', { count: dates.length });
+  };
+
   // Paint a wheel onto a closed date range with no day-of-week filter —
   // used by the lasso flow where the user has already picked their dates
   // visually. Honors the picker callback contract by taking wheelId.
@@ -821,6 +843,12 @@ export default function Taskometer() {
               setSelectedSlotId(match?.id || null);
             }}
           />
+          <ComposerPreview
+            taskType={selectedType}
+            state={state}
+            preferDate={viewKey}
+            preferSlotId={selectedSlot && selectedSlotIsForDay ? selectedSlot.id : null}
+          />
         </div>
       )}
 
@@ -911,6 +939,7 @@ export default function Taskometer() {
             setPendingDays(dates);
             setPickerOpen(true);
           }}
+          onSaveDaysAsRhythm={saveDaysAsRhythm}
         />
       )}
 
@@ -930,6 +959,7 @@ export default function Taskometer() {
             setPendingDays(dates);
             setPickerOpen(true);
           }}
+          onSaveDaysAsRhythm={saveDaysAsRhythm}
         />
       )}
 
@@ -949,6 +979,7 @@ export default function Taskometer() {
             setPendingDays(dates);
             setPickerOpen(true);
           }}
+          onSaveDaysAsRhythm={saveDaysAsRhythm}
         />
       )}
 
@@ -1366,6 +1397,53 @@ function OverflowItem({ children, onClick }) {
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Live preview under the composer showing where a 30-min task of the
+ * currently-selected type would actually land if the user hit Add right
+ * now. Reuses findScheduleTarget so the preview matches reality.
+ */
+function ComposerPreview({ taskType, state, preferDate, preferSlotId }) {
+  const target = useMemo(() => findScheduleTarget({
+    taskType,
+    duration: 30,
+    state,
+    preferDate,
+    preferSlotId,
+  }), [taskType, state, preferDate, preferSlotId]);
+
+  if (!target) {
+    return (
+      <div
+        className="tm-mono tm-sm"
+        style={{ marginTop: 6, color: 'var(--ink-mute)', fontStyle: 'italic' }}
+      >
+        no open block matches in the next 60 days
+      </div>
+    );
+  }
+
+  const onToday = target.date === preferDate;
+  const dateLabel = onToday ? 'today' : formatRolloverLabel(target.date);
+  const startLabel = minToHHMM(target.startMin);
+  const slotName = target.kind === 'rhythm'
+    ? target.rhythm?.name || 'rhythm'
+    : (target.slot?.label || target.slot?.slotType || 'block');
+
+  return (
+    <div
+      className="tm-mono tm-sm"
+      style={{
+        marginTop: 6,
+        color: onToday ? 'var(--ink-mute)' : 'var(--orange)',
+        fontWeight: onToday ? 400 : 600,
+      }}
+    >
+      → lands {dateLabel} at {startLabel} · {slotName}
+      {target.kind === 'rhythm' ? ' (will materialize from rhythm)' : ''}
+    </div>
   );
 }
 

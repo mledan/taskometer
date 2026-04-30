@@ -118,6 +118,29 @@ describe('project cadence', () => {
   });
 });
 
+describe('custom cadence', () => {
+  test('returns the explicit dates that fall in range', () => {
+    const r = {
+      id: 't-cust',
+      cadence: { kind: 'custom', dates: ['2026-04-07', '2026-04-15', '2026-05-01', '2026-06-30'] },
+    };
+    const out = occurrencesInRange(r, '2026-04-01', '2026-05-31');
+    expect(out).toEqual(['2026-04-07', '2026-04-15', '2026-05-01']);
+  });
+
+  test('out-of-range dates are filtered, even if specified', () => {
+    const r = { id: 't-cust2', cadence: { kind: 'custom', dates: ['2025-12-31', '2026-04-15'] } };
+    const out = occurrencesInRange(r, '2026-01-01', '2026-12-31');
+    expect(out).toEqual(['2026-04-15']);
+  });
+
+  test('empty dates list is harmless', () => {
+    const r = { id: 't-cust3', cadence: { kind: 'custom', dates: [] } };
+    const out = occurrencesInRange(r, '2026-01-01', '2026-12-31');
+    expect(out).toEqual([]);
+  });
+});
+
 describe('exceptions', () => {
   test('dateIsExcepted matches inclusive ranges', () => {
     const exceptions = [

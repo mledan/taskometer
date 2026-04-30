@@ -250,6 +250,21 @@ export function occurrencesInRange(rhythm, startDate, endDate) {
       break;
     }
 
+    case 'custom': {
+      // Explicit list of dates — used by "Save selection as rhythm" so
+      // a user can capture an ad-hoc set of days as a reusable rhythm.
+      // Filter to the requested range; sort for deterministic output.
+      const dates = Array.isArray(cad.dates) ? cad.dates : [];
+      for (const dk of dates) {
+        const d = parseYMD(dk);
+        if (d && d.getTime() >= start.getTime() && d.getTime() <= end.getTime()) {
+          out.push(dk);
+        }
+      }
+      out.sort();
+      break;
+    }
+
     default:
       break;
   }
@@ -282,6 +297,7 @@ function cadenceFingerprint(rhythm) {
     c.weekOfQuarter ?? '',
     c.anchor ?? '',
     c.end ?? '',
+    Array.isArray(c.dates) ? c.dates.slice().sort().join(',') : '',
   ].join('|');
 }
 

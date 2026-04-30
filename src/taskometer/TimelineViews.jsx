@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { resolveTypeColor } from './Composers.jsx';
 import { MiniWheel } from './WheelView.jsx';
+import { useMultiSelect } from '../hooks/useMultiSelect.js';
+import SelectionBar from '../components/SelectionBar.jsx';
 
 /**
  * New visualizations for non-day scopes. The mini-wheel grid reads as
@@ -629,7 +631,7 @@ function hexAlpha(hex, a) {
 
 /* ─────────────────── month / quarter / year wrappers ─────────────────── */
 
-export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays }) {
+export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays, onSaveDaysAsRhythm }) {
   const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
   const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
   const monthSlots = (slots || []).filter(s => {
@@ -656,14 +658,26 @@ export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPa
       />
       <SelectionBar
         selected={ms.selected}
-        onPaint={() => { onPaintDays?.([...ms.selected]); ms.clear(); }}
+        actions={[
+          {
+            label: 'Paint with wheel →',
+            primary: true,
+            title: 'Apply a wheel to every selected day',
+            onClick: () => { onPaintDays?.([...ms.selected]); ms.clear(); },
+          },
+          {
+            label: 'Save as rhythm',
+            title: 'Turn this exact list of days into a reusable rhythm',
+            onClick: () => { onSaveDaysAsRhythm?.([...ms.selected]); ms.clear(); },
+          },
+        ]}
         onClear={ms.clear}
       />
     </div>
   );
 }
 
-export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays }) {
+export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays, onSaveDaysAsRhythm }) {
   const q = Math.floor(selectedDate.getMonth() / 3);
   const year = selectedDate.getFullYear();
   const start = new Date(year, q * 3, 1);
@@ -696,14 +710,26 @@ export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, on
       </div>
       <SelectionBar
         selected={ms.selected}
-        onPaint={() => { onPaintDays?.([...ms.selected]); ms.clear(); }}
+        actions={[
+          {
+            label: 'Paint with wheel →',
+            primary: true,
+            title: 'Apply a wheel to every selected day',
+            onClick: () => { onPaintDays?.([...ms.selected]); ms.clear(); },
+          },
+          {
+            label: 'Save as rhythm',
+            title: 'Turn this exact list of days into a reusable rhythm',
+            onClick: () => { onSaveDaysAsRhythm?.([...ms.selected]); ms.clear(); },
+          },
+        ]}
         onClear={ms.clear}
       />
     </div>
   );
 }
 
-export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays }) {
+export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays, onSaveDaysAsRhythm }) {
   const y = selectedDate.getFullYear();
   const start = new Date(y, 0, 1);
   const end = new Date(y, 11, 31);
@@ -735,129 +761,21 @@ export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPai
       </div>
       <SelectionBar
         selected={ms.selected}
-        onPaint={() => { onPaintDays?.([...ms.selected]); ms.clear(); }}
+        actions={[
+          {
+            label: 'Paint with wheel →',
+            primary: true,
+            title: 'Apply a wheel to every selected day',
+            onClick: () => { onPaintDays?.([...ms.selected]); ms.clear(); },
+          },
+          {
+            label: 'Save as rhythm',
+            title: 'Turn this exact list of days into a reusable rhythm',
+            onClick: () => { onSaveDaysAsRhythm?.([...ms.selected]); ms.clear(); },
+          },
+        ]}
         onClear={ms.clear}
       />
-    </div>
-  );
-}
-
-/**
- * Multi-select hook used by MonthInsights / QuarterInsights /
- * YearInsights. Returns a Set of selected YMD keys plus the toggle /
- * extend / clear handlers wired into MonthCalendar's click logic.
- *
- * Esc clears the selection from anywhere on the page so users can bail
- * out without hunting for the Clear button.
- */
-function useMultiSelect() {
-  const [selected, setSelected] = useState(() => new Set());
-  const [lastKey, setLastKey] = useState(null);
-
-  const toggle = (key) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-    setLastKey(key);
-  };
-
-  const extend = (key) => {
-    if (!lastKey) { toggle(key); return; }
-    const a = new Date(`${lastKey}T00:00:00`);
-    const b = new Date(`${key}T00:00:00`);
-    const start = a.getTime() <= b.getTime() ? a : b;
-    const end   = a.getTime() <= b.getTime() ? b : a;
-    setSelected(prev => {
-      const next = new Set(prev);
-      const cur = new Date(start);
-      while (cur.getTime() <= end.getTime()) {
-        next.add(ymd(cur));
-        cur.setDate(cur.getDate() + 1);
-      }
-      return next;
-    });
-    setLastKey(key);
-  };
-
-  const clear = () => { setSelected(new Set()); setLastKey(null); };
-
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape' && selected.size > 0) clear();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [selected.size]);
-
-  return { selected, toggle, extend, clear };
-}
-
-/**
- * Sticky bar at the bottom of the screen while a multi-select is
- * active. Shows the count and offers Paint / Clear. Hidden when the
- * selection is empty.
- */
-function SelectionBar({ selected, onPaint, onClear }) {
-  if (!selected || selected.size === 0) return null;
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      style={{
-        position: 'fixed',
-        bottom: 24,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '10px 14px 10px 18px',
-        background: 'var(--ink)',
-        color: 'var(--paper)',
-        borderRadius: 999,
-        boxShadow: '0 6px 22px rgba(0, 0, 0, 0.22)',
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: 13,
-        zIndex: 200,
-      }}
-    >
-      <span>
-        <strong style={{ color: 'var(--orange)' }}>{selected.size}</strong>
-        {' '}day{selected.size === 1 ? '' : 's'} selected
-      </span>
-      <button
-        type="button"
-        onClick={onPaint}
-        style={{
-          all: 'unset',
-          cursor: 'pointer',
-          padding: '6px 14px',
-          background: 'var(--orange)',
-          color: 'var(--paper)',
-          borderRadius: 999,
-          fontWeight: 600,
-        }}
-      >
-        Paint with wheel →
-      </button>
-      <button
-        type="button"
-        onClick={onClear}
-        style={{
-          all: 'unset',
-          cursor: 'pointer',
-          padding: '6px 10px',
-          color: 'var(--paper)',
-          opacity: 0.7,
-          fontSize: 12,
-        }}
-        title="Esc"
-      >
-        Clear
-      </button>
     </div>
   );
 }

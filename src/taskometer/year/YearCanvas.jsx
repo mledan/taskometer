@@ -10,6 +10,9 @@ import {
 } from '../../services/rhythms.js';
 import RhythmComposer from './RhythmComposer.jsx';
 import ExceptionModal from './ExceptionModal.jsx';
+import { useMultiSelect } from '../../hooks/useMultiSelect.js';
+import SelectionBar from '../../components/SelectionBar.jsx';
+import { addRhythm } from '../../services/rhythms.js';
 import './year.css';
 
 /**
@@ -36,6 +39,8 @@ export default function YearCanvas() {
   // arrow keys move focus, Enter opens the day, Esc returns to chrome.
   const [focusedKey, setFocusedKey] = useState(null);
   const gridRef = useRef(null);
+  // Multi-select for bulk operations on selected days.
+  const ms = useMultiSelect();
 
   const reload = () => {
     setRhythms(listRhythms());
@@ -73,7 +78,10 @@ export default function YearCanvas() {
           '  E       — add exception\n' +
           '  T       — jump to today\n' +
           '  ← → ↑ ↓ — move between days (when a day is focused)\n' +
+          '  Space   — toggle the focused day in multi-selection\n' +
+          '  Shift+↑↓←→ — extend selection by one day\n' +
           '  Enter   — open the focused day\n' +
+          '  Esc     — clear selection\n' +
           '  ?       — show this help'
         );
       }
@@ -110,6 +118,66 @@ export default function YearCanvas() {
 
   const handleDeleteException = (id) => {
     removeException(id);
+    reload();
+  };
+
+  // "Save selection as rhythm" → quick-prompt for a name, then create a
+  // custom-cadence rhythm from the selected dates. The user can edit
+  // it later via the rail's edit (✎) button.
+  const handleSaveAsRhythm = () => {
+    const dates = [...ms.selected];
+    if (dates.length === 0) return;
+    const suggestion = dates.length <= 3
+      ? `Custom (${dates.join(', ')})`
+      : `Custom (${dates.length} days)`;
+    const name = window.prompt('Name this rhythm:', suggestion);
+    if (!name?.trim()) return;
+    const palette = ['#D4663A', '#A8BF8C', '#D9C98C', '#C7BEDD', '#F2C4A6', '#6B46C1', '#3B82F6', '#10B981'];
+    const color = palette[rhythms.length % palette.length];
+    addRhythm({
+      name: name.trim(),
+      color,
+      cadence: { kind: 'custom', dates: dates.slice().sort() },
+      startTime: '09:00',
+      endTime: '10:00',
+    });
+    ms.clear();
+    reload();
+  };
+
+  // Bulk-mark selected days as an exception range. Keeps it simple:
+  // adds one exception per contiguous run so the timeline doesn't
+  // collapse arbitrary picks into one big range.
+  const handleBlockOutSelection = () => {
+    const dates = [...ms.selected].sort();
+    if (dates.length === 0) return;
+    const type = window.prompt('Exception type (vacation, holiday, conference, sick, other):', 'vacation');
+    if (!type) return;
+    const allowed = new Set(['vacation', 'holiday', 'conference', 'sick', 'other']);
+    const t = allowed.has(type.trim().toLowerCase()) ? type.trim().toLowerCase() : 'other';
+    const colors = { vacation: '#8B5CF6', holiday: '#10B981', conference: '#F59E0B', sick: '#94A3B8', other: '#78716C' };
+    const labels = { vacation: 'Vacation', holiday: 'Holiday', conference: 'Conference', sick: 'Sick', other: 'Blocked' };
+    // Group contiguous dates into ranges.
+    const runs = [];
+    let runStart = dates[0], runEnd = dates[0];
+    for (let i = 1; i < dates.length; i++) {
+      const prev = new Date(`${runEnd}T00:00:00`);
+      const cur = new Date(`${dates[i]}T00:00:00`);
+      const diff = (cur.getTime() - prev.getTime()) / 86400000;
+      if (diff === 1) runEnd = dates[i];
+      else { runs.push([runStart, runEnd]); runStart = dates[i]; runEnd = dates[i]; }
+    }
+    runs.push([runStart, runEnd]);
+    for (const [s, e] of runs) {
+      addException({
+        type: t,
+        label: labels[t] || 'Blocked',
+        startDate: s,
+        endDate: e,
+        color: colors[t] || '#78716C',
+      });
+    }
+    ms.clear();
     reload();
   };
 
@@ -228,10 +296,29 @@ export default function YearCanvas() {
               focusedKey={focusedKey}
               onMoveFocus={moveFocus}
               onCellFocus={setFocusedKey}
+              ms={ms}
             />
           ))}
         </main>
       </div>
+
+      <SelectionBar
+        selected={ms.selected}
+        actions={[
+          {
+            label: 'Save as rhythm',
+            primary: true,
+            title: 'Capture this exact set of days as a reusable rhythm',
+            onClick: handleSaveAsRhythm,
+          },
+          {
+            label: 'Block out',
+            title: 'Mark the selected days as a vacation / holiday / conference',
+            onClick: handleBlockOutSelection,
+          },
+        ]}
+        onClear={ms.clear}
+      />
 
       {composerOpen && (
         <RhythmComposer
@@ -251,7 +338,7 @@ export default function YearCanvas() {
   );
 }
 
-function MonthBlock({ year, month, yearMap, focusedKey, onMoveFocus, onCellFocus }) {
+function MonthBlock({ year, month, yearMap, focusedKey, onMoveFocus, onCellFocus, ms }) {
   const monthName = useMemo(
     () => new Date(year, month, 1).toLocaleDateString('en', { month: 'long' }),
     [year, month],
@@ -295,17 +382,61 @@ function MonthBlock({ year, month, yearMap, focusedKey, onMoveFocus, onCellFocus
             ? hexAlpha(colors[0], 0.34)
             : `linear-gradient(135deg, ${colors.map((c, j) => `${hexAlpha(c, 0.34)} ${(j / colors.length) * 100}% ${(((j + 1) / colors.length) * 100)}%`).join(', ')})`;
           const isFocused = focusedKey === key;
+          const isMultiSelected = ms?.selected.has(key);
+          const cellBg = isMultiSelected ? 'var(--orange-pale, #FBE9DD)' : bg;
+          const cellBorder = isMultiSelected ? '2px solid var(--orange)' : undefined;
           return (
             <a
               key={i}
               href={`/app?date=${key}`}
               data-yc-day={key}
-              className={`yc-cell${isToday ? ' yc-cell-today' : ''}${isExcepted ? ' yc-cell-excepted' : ''}${isFocused ? ' yc-cell-focused' : ''}`}
-              style={{ background: bg }}
+              className={`yc-cell${isToday ? ' yc-cell-today' : ''}${isExcepted ? ' yc-cell-excepted' : ''}${isFocused ? ' yc-cell-focused' : ''}${isMultiSelected ? ' yc-cell-mselected' : ''}`}
+              style={{ background: cellBg, border: cellBorder }}
               title={describeCellTitle(key, entries)}
               aria-label={a11yLabelForCell(d, entries)}
+              aria-selected={isMultiSelected || undefined}
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey) {
+                  e.preventDefault();
+                  ms?.toggle(key);
+                  return;
+                }
+                if (e.shiftKey && ms?.selected.size > 0) {
+                  e.preventDefault();
+                  ms?.extend(key);
+                  return;
+                }
+                // Plain click → follow href as normal (open the day).
+              }}
               onFocus={() => onCellFocus?.(key)}
               onKeyDown={(e) => {
+                if (e.key === ' ') {
+                  e.preventDefault();
+                  ms?.toggle(key);
+                  return;
+                }
+                if (e.shiftKey) {
+                  // Shift+arrows extend the selection by one day. Stash
+                  // the new key so subsequent extends anchor on it.
+                  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' ||
+                      e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (ms?.selected.size === 0) ms?.toggle(key);
+                    const cur = new Date(`${key}T00:00:00`);
+                    const delta = e.key === 'ArrowRight' ? 1
+                                : e.key === 'ArrowLeft'  ? -1
+                                : e.key === 'ArrowDown'  ? 7
+                                : -7;
+                    cur.setDate(cur.getDate() + delta);
+                    const target = ymd(cur);
+                    ms?.extend(target);
+                    requestAnimationFrame(() => {
+                      const node = document.querySelector(`[data-yc-day="${target}"]`);
+                      if (node) node.focus();
+                    });
+                    return;
+                  }
+                }
                 if (e.key === 'ArrowRight') { e.preventDefault(); onMoveFocus?.(1); }
                 else if (e.key === 'ArrowLeft') { e.preventDefault(); onMoveFocus?.(-1); }
                 else if (e.key === 'ArrowDown') { e.preventDefault(); onMoveFocus?.(7); }
