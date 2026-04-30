@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-const STORAGE_KEY = 'smartcircle.onboarding.done';
+const STORAGE_KEY = 'taskometer.onboarding.done';
 
 export function hasSeenOnboarding() {
   try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch (_) { return false; }

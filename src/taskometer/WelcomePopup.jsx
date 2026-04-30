@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const STORAGE_KEY = 'smartcircle.auth';
+const STORAGE_KEY = 'taskometer.auth';
 
 export function readAuth() {
   try {
@@ -21,18 +21,15 @@ export function clearAuth() {
 
 export default function WelcomePopup({ onDone }) {
   const [view, setView] = useState('welcome');
+  // Local-only profile. We do not collect a password because we have no
+  // server to store it on. When auth ships for real, this form swaps to
+  // an OAuth handoff — no plaintext credentials in localStorage.
   const [form, setForm] = useState({
-    username: '',
     firstName: '',
-    lastName: '',
-    birthday: '',
     email: '',
-    password: '',
   });
 
   const pickGuest = () => {
-    // Intentionally NOT persisted — guest state is session-only, so refreshing
-    // re-prompts and resets the workspace.
     onDone?.();
   };
 
@@ -40,18 +37,12 @@ export default function WelcomePopup({ onDone }) {
 
   const submit = (e) => {
     e.preventDefault();
-    const required = ['username', 'firstName', 'lastName', 'birthday', 'email', 'password'];
-    for (const k of required) {
-      if (!form[k]?.trim()) return;
-    }
+    if (!form.firstName.trim()) return;
     writeAuth({
       mode: 'account',
       profile: {
-        username: form.username.trim(),
         firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        birthday: form.birthday,
-        email: form.email.trim(),
+        email: form.email.trim() || null,
       },
       createdAt: new Date().toISOString(),
     });
@@ -92,7 +83,7 @@ export default function WelcomePopup({ onDone }) {
         {view === 'signup' && (
           <form onSubmit={submit}>
             <div className="tm-modal-head">
-              <div className="tm-modal-title">Create Your Account</div>
+              <div className="tm-modal-title">Save your profile</div>
               <button
                 type="button"
                 className="tm-btn tm-sm"
@@ -102,23 +93,22 @@ export default function WelcomePopup({ onDone }) {
                 ← Back
               </button>
             </div>
-            <div style={{ fontSize: 16, color: 'var(--ink-mute)', marginBottom: 14 }}>
-              Tell us only the basics.
+            <div style={{ fontSize: 14, color: 'var(--ink-mute)', marginBottom: 14, lineHeight: 1.5 }}>
+              Just a name so the app feels like yours. Email is optional — we'll use it
+              if we ever ship cloud sync.
+              <br/>
+              <strong style={{ color: 'var(--ink)' }}>No password.</strong> Your data lives in this browser, on this device.
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Field label="Username" value={form.username} onChange={setField('username')} autoFocus />
-              <Field label="Email" type="email" value={form.email} onChange={setField('email')} />
-              <Field label="First Name" value={form.firstName} onChange={setField('firstName')} />
-              <Field label="Last Name" value={form.lastName} onChange={setField('lastName')} />
-              <Field label="Birthday" type="date" value={form.birthday} onChange={setField('birthday')} />
-              <Field label="Password" type="password" value={form.password} onChange={setField('password')} />
+              <Field label="First name" value={form.firstName} onChange={setField('firstName')} autoFocus />
+              <Field label="Email (optional)" type="email" value={form.email} onChange={setField('email')} />
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 18, justifyContent: 'flex-end' }}>
               <button type="button" className="tm-btn tm-ghost" onClick={pickGuest}>
-                Skip — Continue as Guest
+                Skip — continue as guest
               </button>
-              <button type="submit" className="tm-btn tm-primary">
-                Create Account
+              <button type="submit" className="tm-btn tm-primary" disabled={!form.firstName.trim()}>
+                Save profile
               </button>
             </div>
           </form>

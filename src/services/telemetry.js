@@ -21,6 +21,19 @@ const buffer = [];
 const STYLE_EVT = 'color:#D4663A;font-weight:600';
 const STYLE_MUTED = 'color:#8A8078';
 
+// Console output is a dev-only crutch. In production we keep the in-memory
+// ring buffer (so users can still grab __tm.dump() from devtools when
+// reporting bugs) but stop spamming the console on every event. Wire to
+// a real provider here when one exists.
+const VERBOSE_CONSOLE = (() => {
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      return import.meta.env.DEV === true;
+    }
+  } catch (_) {}
+  return typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
+})();
+
 function stamp() {
   const d = new Date();
   return d.toISOString().slice(11, 23); // HH:MM:SS.mmm
@@ -40,12 +53,14 @@ export function log(event, data) {
   const entry = { t: stamp(), event, data: data ?? null };
   buffer.push(entry);
   if (buffer.length > MAX_ENTRIES) buffer.shift();
-  if (data === undefined || data === null) {
-    // eslint-disable-next-line no-console
-    console.log(`%c[tm] ${event}`, STYLE_EVT);
-  } else {
-    // eslint-disable-next-line no-console
-    console.log(`%c[tm] ${event}`, STYLE_EVT, data);
+  if (VERBOSE_CONSOLE) {
+    if (data === undefined || data === null) {
+      // eslint-disable-next-line no-console
+      console.log(`%c[tm] ${event}`, STYLE_EVT);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log(`%c[tm] ${event}`, STYLE_EVT, data);
+    }
   }
   return entry;
 }
@@ -104,7 +119,7 @@ if (typeof window !== 'undefined') {
     clear: clearBuffer,
   };
   // Announce once so first-time users know it's there.
-  if (!window.__tm_announced) {
+  if (!window.__tm_announced && VERBOSE_CONSOLE) {
     // eslint-disable-next-line no-console
     console.log(
       '%c[tm] telemetry ready — run __tm.dump() in the console to copy the session log',

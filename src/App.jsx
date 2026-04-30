@@ -6,6 +6,8 @@ import { AppStateProvider, useAppState } from './AppContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import Landing from './marketing/Landing.jsx';
 import TeamsDemo from './marketing/TeamsDemo.jsx';
+import { Privacy, Terms } from './marketing/Legal.jsx';
+import { runStorageMigrations } from './storage-migrations.js';
 
 function AppContent() {
   const { isLoading, error } = useAppState();
@@ -66,6 +68,10 @@ function useRoute() {
 }
 
 function App() {
+  // Run on every mount — the migration is idempotent and gives tests
+  // (which clear localStorage between runs) a deterministic starting
+  // point that mirrors what main.jsx does in production.
+  runStorageMigrations();
   const path = useRoute();
 
   if (path.startsWith('/app')) {
@@ -84,6 +90,14 @@ function App() {
         <TeamsDemo />
       </ThemeProvider>
     );
+  }
+
+  if (path === '/privacy') {
+    return <ThemeProvider><Privacy /></ThemeProvider>;
+  }
+
+  if (path === '/terms') {
+    return <ThemeProvider><Terms /></ThemeProvider>;
   }
 
   return (

@@ -71,7 +71,18 @@ export default function Taskometer() {
   // "range mode" — the user picks a wheel and it paints the lassoed
   // range. Null = picker is in single-day mode (the default).
   const [pendingRange, setPendingRange] = useState(null); // { startDate, endDate } | null
-  const auth = (() => { try { return JSON.parse(localStorage.getItem('smartcircle.auth') || 'null'); } catch (_) { return null; } })();
+  const auth = (() => {
+    try {
+      // taskometer.auth is the current key; smartcircle.auth is the legacy
+      // location migrated by main.jsx on first load. Read both for the
+      // brief overlap window.
+      return JSON.parse(
+        localStorage.getItem('taskometer.auth')
+        || localStorage.getItem('smartcircle.auth')
+        || 'null'
+      );
+    } catch (_) { return null; }
+  })();
   const isLoggedIn = auth?.mode === 'account';
   const accountInitial = (auth?.profile?.firstName?.[0] || auth?.profile?.username?.[0] || 'G').toUpperCase();
   const [search, setSearch] = useState('');

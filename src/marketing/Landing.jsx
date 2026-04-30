@@ -165,7 +165,8 @@ export default function Landing() {
         <div className="mk-footer-links">
           <a href="/app">App</a>
           <a href="/teams">Teams</a>
-          <a href="https://github.com/mledan/taskometer" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
         </div>
       </footer>
     </div>

@@ -57,35 +57,43 @@ export default function TeamsDemo() {
           <a href="/">Home</a>
           <a href="#dashboard">Dashboard</a>
           <a href="#sync">Outlook sync</a>
-          <a href="#pricing">Pricing</a>
+          <a href="#waitlist">Waitlist</a>
           <a href="/app" className="tm-btn tm-primary tm-sm mk-cta-link">Open app →</a>
         </nav>
       </header>
 
+      {/* DEMO BANNER — visible above the fold so visitors know this isn't shipping yet */}
+      <div className="mk-demo-banner" role="status">
+        <strong>Concept preview.</strong> The team product isn't built yet.
+        The dashboard below is a static mockup — no backend, no real users,
+        no Outlook integration. We're sharing it to invite feedback. Like the
+        idea? <a href="#waitlist">Join the waitlist</a>.
+      </div>
+
       {/* HERO ──────────────────────────────────────────────────────────── */}
       <section className="mk-hero">
         <div className="mk-hero-text">
-          <div className="mk-mono mk-eyebrow">taskometer · teams</div>
+          <div className="mk-mono mk-eyebrow">taskometer · teams (concept)</div>
           <h1 className="mk-h1">
             Your team's day,<br />
             <span className="mk-h1-accent">in one wheel.</span>
           </h1>
           <p className="mk-lede">
-            Shared rhythms beat shared calendars. Paint a "no-meeting Tuesday"
-            once and the whole team sees it. Sync to Outlook so meetings
-            can't crash your focus blocks. See where the team's time actually
-            went — not where it was supposed to go.
+            Shared rhythms beat shared calendars. We want to ship this — pick
+            a "no-meeting Tuesday" once and have the whole team see it; sync
+            to Outlook so meetings can't crash focus blocks; see where the
+            team's time actually went, not where it was supposed to go.
           </p>
           <div className="mk-cta-row">
-            <a href="#pricing" className="tm-btn tm-primary mk-cta">
-              See pricing
+            <a href="#waitlist" className="tm-btn tm-primary mk-cta">
+              Join the waitlist
             </a>
             <a href="/app" className="tm-btn tm-ghost mk-cta">
-              Try the solo app first →
+              Try the free solo app →
             </a>
           </div>
           <div className="mk-mono mk-fineprint">
-            demo dashboard below — data is illustrative · live product coming soon
+            below: a static concept dashboard so you can see what we'd build
           </div>
         </div>
       </section>
@@ -207,62 +215,29 @@ export default function TeamsDemo() {
         </div>
       </section>
 
-      {/* PRICING ───────────────────────────────────────────────────────── */}
-      <section id="pricing" className="mk-section">
-        <h2 className="mk-h2">Pricing</h2>
-        <div className="mk-pricing">
-          <PriceCard
-            tier="Solo"
-            price="$0"
-            cadence="forever"
-            features={[
-              'Unlimited wheels',
-              'Day, week, month, quarter, year views',
-              'iCalendar export',
-              'Local-only — your data stays on your device',
-            ]}
-            cta="Try free"
-            href="/app"
-            ghost
-          />
-          <PriceCard
-            tier="Team"
-            price="$8"
-            cadence="per seat / month"
-            features={[
-              'Everything in Solo',
-              'Shared shapes across the team',
-              'Two-way Outlook & Google Calendar sync',
-              'Team rhythm dashboard',
-              'Admin controls',
-            ]}
-            cta="Coming soon — join waitlist"
-            href="mailto:hello@taskometer.app?subject=Team plan waitlist"
-            featured
-          />
-          <PriceCard
-            tier="Enterprise"
-            price="Custom"
-            cadence="annual contracts"
-            features={[
-              'Everything in Team',
-              'SSO (Okta, Azure AD)',
-              'SCIM provisioning',
-              'Audit logs & data residency',
-              'Dedicated success manager',
-            ]}
-            cta="Contact sales"
-            href="mailto:sales@taskometer.app?subject=Enterprise inquiry"
-          />
-        </div>
+      {/* WAITLIST ─────────────────────────────────────────────────────── */}
+      <section id="waitlist" className="mk-section">
+        <h2 className="mk-h2">Be first in line.</h2>
+        <p className="mk-lede" style={{ maxWidth: 640 }}>
+          We haven't built the team product yet — we want to talk to teams
+          who'd actually use it before we do. If that's you, drop your email.
+          We won't add you to a marketing list. We'll write back personally
+          to learn what you'd want first.
+        </p>
+        <Waitlist />
+        <p className="mk-mono mk-fineprint" style={{ marginTop: 18 }}>
+          The free solo app is real and works today —{' '}
+          <a href="/app" style={{ color: 'var(--orange)' }}>open it here</a>.
+        </p>
       </section>
 
       <footer className="mk-footer">
-        <div className="mk-mono">© taskometer · for teams that share a rhythm</div>
+        <div className="mk-mono">© taskometer · concept preview</div>
         <div className="mk-footer-links">
           <a href="/">Home</a>
           <a href="/app">App</a>
-          <a href="https://github.com/mledan/taskometer" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
         </div>
       </footer>
     </div>
@@ -278,21 +253,94 @@ function SyncCard({ title, body }) {
   );
 }
 
-function PriceCard({ tier, price, cadence, features, cta, href, featured, ghost }) {
+/**
+ * Waitlist form. POSTs to /api/waitlist (a Vercel serverless function
+ * that just logs the entry — see api/waitlist.js). Fail-soft: if the
+ * endpoint is unreachable we still show the thank-you and surface a
+ * mailto fallback.
+ */
+function Waitlist() {
+  const [email, setEmail] = React.useState('');
+  const [team, setTeam] = React.useState('');
+  const [status, setStatus] = React.useState('idle'); // idle | submitting | done | error
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!email.trim() || status === 'submitting') return;
+    setStatus('submitting');
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().slice(0, 200),
+          team: team.trim().slice(0, 200),
+          ts: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      setStatus('done');
+    } catch (_) {
+      setStatus('error');
+    }
+  };
+
+  if (status === 'done') {
+    return (
+      <div className="mk-card" style={{ maxWidth: 520, marginTop: 18 }}>
+        <div style={{ fontFamily: 'Caveat, cursive', fontSize: 28, color: 'var(--orange)', lineHeight: 1, marginBottom: 6 }}>
+          Got it — thank you.
+        </div>
+        <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>
+          We'll reach out personally within a week. No marketing emails, promise.
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`mk-price-card${featured ? ' mk-price-card-featured' : ''}`}>
-      <div className="mk-price-tier">{tier}</div>
-      <div className="mk-price-amount">{price}</div>
-      <div className="mk-mono mk-price-cadence">{cadence}</div>
-      <ul className="mk-price-features">
-        {features.map(f => <li key={f}>{f}</li>)}
-      </ul>
-      <a
-        href={href}
-        className={`tm-btn ${featured ? 'tm-primary' : ghost ? 'tm-ghost' : ''} mk-cta`}
-      >
-        {cta}
-      </a>
-    </div>
+    <form onSubmit={submit} className="mk-card" style={{ maxWidth: 520, marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span className="mk-mono">Work email</span>
+        <input
+          type="email"
+          required
+          className="tm-composer-input"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@yourcompany.com"
+          style={{ fontSize: 15, padding: '8px 10px' }}
+        />
+      </label>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span className="mk-mono">What's your team like? (optional)</span>
+        <input
+          type="text"
+          className="tm-composer-input"
+          value={team}
+          onChange={(e) => setTeam(e.target.value)}
+          placeholder="e.g. 12-person eng team using Outlook"
+          style={{ fontSize: 15, padding: '8px 10px' }}
+        />
+      </label>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
+        <button
+          type="submit"
+          className="tm-btn tm-primary mk-cta"
+          disabled={status === 'submitting' || !email.trim()}
+        >
+          {status === 'submitting' ? 'Sending…' : 'Add me to the waitlist'}
+        </button>
+        {status === 'error' && (
+          <span className="mk-mono" style={{ color: 'var(--orange)' }}>
+            Couldn't reach the server — email{' '}
+            <a href={`mailto:hello@taskometer.app?subject=Team waitlist&body=${encodeURIComponent(`Email: ${email}\nTeam: ${team}`)}`}>
+              hello@taskometer.app
+            </a>{' '}
+            instead.
+          </span>
+        )}
+      </div>
+    </form>
   );
 }

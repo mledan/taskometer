@@ -17,6 +17,21 @@
   color: var(--ink-mute);
 }
 
+/* ── Demo banner (shown on /teams) ───────────────────────────────── */
+.mk-demo-banner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 12px 48px;
+  background: rgba(212, 102, 58, 0.08);
+  border-bottom: 1px dashed var(--orange);
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+.mk-demo-banner strong { color: var(--orange); }
+.mk-demo-banner a { color: var(--orange); }
+@media (max-width: 760px) { .mk-demo-banner { padding: 12px 24px; } }
+
 /* ── Top nav ─────────────────────────────────────────────────────── */
 .mk-nav {
   display: flex;

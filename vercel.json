@@ -5,6 +5,6 @@
   "installCommand": "npm install",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/((?!assets|favicon\\.ico|manifest\\.json|robots\\.txt|logo128\\.png).*)", "destination": "/index.html" }
+    { "source": "/((?!api|assets|favicon\\.ico|manifest\\.json|robots\\.txt|logo128\\.png).*)", "destination": "/index.html" }
   ]
 }
