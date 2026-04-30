@@ -629,13 +629,14 @@ function hexAlpha(hex, a) {
 
 /* ─────────────────── month / quarter / year wrappers ─────────────────── */
 
-export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange }) {
+export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays }) {
   const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
   const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
   const monthSlots = (slots || []).filter(s => {
     const k = s.date;
     return k >= ymd(start) && k <= ymd(end);
   });
+  const ms = useMultiSelect();
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <CategoryBreakdownBar slots={monthSlots} taskTypes={taskTypes} label="month" />
@@ -647,19 +648,28 @@ export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPa
         onPickDate={onPickDate}
         onPaintDay={onPaintDay}
         onPaintRange={onPaintRange}
+        selectedKeys={ms.selected}
+        onToggleKey={ms.toggle}
+        onExtendKey={ms.extend}
         wheelSize={62}
         showHeader
+      />
+      <SelectionBar
+        selected={ms.selected}
+        onPaint={() => { onPaintDays?.([...ms.selected]); ms.clear(); }}
+        onClear={ms.clear}
       />
     </div>
   );
 }
 
-export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange }) {
+export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays }) {
   const q = Math.floor(selectedDate.getMonth() / 3);
   const year = selectedDate.getFullYear();
   const start = new Date(year, q * 3, 1);
   const end = new Date(year, q * 3 + 3, 0);
   const slice = (slots || []).filter(s => s.date >= ymd(start) && s.date <= ymd(end));
+  const ms = useMultiSelect();
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <CategoryBreakdownBar slots={slice} taskTypes={taskTypes} label="quarter" />
@@ -675,21 +685,30 @@ export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, on
             onPickDate={onPickDate}
             onPaintDay={onPaintDay}
             onPaintRange={onPaintRange}
+            selectedKeys={ms.selected}
+            onToggleKey={ms.toggle}
+            onExtendKey={ms.extend}
             wheelSize={28}
             compact
             showHeader
           />
         ))}
       </div>
+      <SelectionBar
+        selected={ms.selected}
+        onPaint={() => { onPaintDays?.([...ms.selected]); ms.clear(); }}
+        onClear={ms.clear}
+      />
     </div>
   );
 }
 
-export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange }) {
+export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPaintDay, onPaintRange, onPaintDays }) {
   const y = selectedDate.getFullYear();
   const start = new Date(y, 0, 1);
   const end = new Date(y, 11, 31);
   const slice = (slots || []).filter(s => s.date >= ymd(start) && s.date <= ymd(end));
+  const ms = useMultiSelect();
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <CategoryBreakdownBar slots={slice} taskTypes={taskTypes} label="year" />
@@ -705,12 +724,140 @@ export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPai
             onPickDate={onPickDate}
             onPaintDay={onPaintDay}
             onPaintRange={onPaintRange}
+            selectedKeys={ms.selected}
+            onToggleKey={ms.toggle}
+            onExtendKey={ms.extend}
             wheelSize={22}
             compact
             showHeader
           />
         ))}
       </div>
+      <SelectionBar
+        selected={ms.selected}
+        onPaint={() => { onPaintDays?.([...ms.selected]); ms.clear(); }}
+        onClear={ms.clear}
+      />
+    </div>
+  );
+}
+
+/**
+ * Multi-select hook used by MonthInsights / QuarterInsights /
+ * YearInsights. Returns a Set of selected YMD keys plus the toggle /
+ * extend / clear handlers wired into MonthCalendar's click logic.
+ *
+ * Esc clears the selection from anywhere on the page so users can bail
+ * out without hunting for the Clear button.
+ */
+function useMultiSelect() {
+  const [selected, setSelected] = useState(() => new Set());
+  const [lastKey, setLastKey] = useState(null);
+
+  const toggle = (key) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+    setLastKey(key);
+  };
+
+  const extend = (key) => {
+    if (!lastKey) { toggle(key); return; }
+    const a = new Date(`${lastKey}T00:00:00`);
+    const b = new Date(`${key}T00:00:00`);
+    const start = a.getTime() <= b.getTime() ? a : b;
+    const end   = a.getTime() <= b.getTime() ? b : a;
+    setSelected(prev => {
+      const next = new Set(prev);
+      const cur = new Date(start);
+      while (cur.getTime() <= end.getTime()) {
+        next.add(ymd(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+      return next;
+    });
+    setLastKey(key);
+  };
+
+  const clear = () => { setSelected(new Set()); setLastKey(null); };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape' && selected.size > 0) clear();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected.size]);
+
+  return { selected, toggle, extend, clear };
+}
+
+/**
+ * Sticky bar at the bottom of the screen while a multi-select is
+ * active. Shows the count and offers Paint / Clear. Hidden when the
+ * selection is empty.
+ */
+function SelectionBar({ selected, onPaint, onClear }) {
+  if (!selected || selected.size === 0) return null;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        position: 'fixed',
+        bottom: 24,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 14px 10px 18px',
+        background: 'var(--ink)',
+        color: 'var(--paper)',
+        borderRadius: 999,
+        boxShadow: '0 6px 22px rgba(0, 0, 0, 0.22)',
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: 13,
+        zIndex: 200,
+      }}
+    >
+      <span>
+        <strong style={{ color: 'var(--orange)' }}>{selected.size}</strong>
+        {' '}day{selected.size === 1 ? '' : 's'} selected
+      </span>
+      <button
+        type="button"
+        onClick={onPaint}
+        style={{
+          all: 'unset',
+          cursor: 'pointer',
+          padding: '6px 14px',
+          background: 'var(--orange)',
+          color: 'var(--paper)',
+          borderRadius: 999,
+          fontWeight: 600,
+        }}
+      >
+        Paint with wheel →
+      </button>
+      <button
+        type="button"
+        onClick={onClear}
+        style={{
+          all: 'unset',
+          cursor: 'pointer',
+          padding: '6px 10px',
+          color: 'var(--paper)',
+          opacity: 0.7,
+          fontSize: 12,
+        }}
+        title="Esc"
+      >
+        Clear
+      </button>
     </div>
   );
 }
@@ -731,6 +878,11 @@ function MonthCalendar({
   onPickDate,
   onPaintDay,
   onPaintRange,
+  // Multi-select hooks (Cmd/Ctrl+click toggles, Shift+click extends).
+  // When undefined, multi-select is disabled and clicks behave normally.
+  selectedKeys,
+  onToggleKey,
+  onExtendKey,
   wheelSize = 56,
   compact = false,
   showHeader = false,
@@ -849,9 +1001,11 @@ function MonthCalendar({
           const isToday = key === todayKey;
           const isDragOver = dragOverKey === key;
           const isInLasso = lassoSelection.has(key);
+          const isMultiSelected = !!(selectedKeys && selectedKeys.has(key));
 
           // Resolve background + border for the cell's current state.
-          // Drag-over wins, then lasso, then today, then default.
+          // Drag-over wins, then multi-select, then lasso, then today,
+          // then default.
           let background = 'var(--paper)';
           let borderStyle = 'dashed';
           let borderColor = 'var(--rule)';
@@ -861,6 +1015,11 @@ function MonthCalendar({
             borderColor = 'var(--orange)';
           }
           if (isInLasso) {
+            background = 'var(--orange-pale, #FBE9DD)';
+            borderStyle = 'solid';
+            borderColor = 'var(--orange)';
+          }
+          if (isMultiSelected) {
             background = 'var(--orange-pale, #FBE9DD)';
             borderStyle = 'solid';
             borderColor = 'var(--orange)';
@@ -876,17 +1035,30 @@ function MonthCalendar({
               key={i}
               role="button"
               tabIndex={0}
-              onClick={() => {
-                // Click-not-drag opens the day. We suppress this when a
-                // lasso just finished so the click that ended the drag
-                // doesn't ALSO open one of the lassoed days.
-                if (lassoAnchor) return;
+              onClick={(e) => {
+                // Multi-select gestures take priority over plain
+                // navigation. Cmd/Ctrl toggles a single day in the
+                // selection; Shift extends from the most recent. Plain
+                // click clears selection AND opens the day.
+                if (selectedKeys && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  onToggleKey?.(key);
+                  return;
+                }
+                if (selectedKeys && e.shiftKey && selectedKeys.size > 0) {
+                  e.preventDefault();
+                  onExtendKey?.(key);
+                  return;
+                }
+                if (lassoAnchor) return; // suppress click-end-of-drag
                 onPickDate?.(d);
               }}
               onKeyDown={(e) => { if (e.key === 'Enter') onPickDate?.(d); }}
               onMouseDown={(e) => {
-                // Left button only; leave middle/right for native menus.
                 if (e.button !== 0) return;
+                // Don't start a lasso when a modifier key is held — those
+                // are reserved for multi-select toggles.
+                if (e.metaKey || e.ctrlKey || e.shiftKey) return;
                 if (!onPaintRange) return;
                 setLassoAnchor(key);
                 setLassoEnd(key);
@@ -962,7 +1134,7 @@ function ScopeHeatmapHeader({ title }) {
         {title}
       </span>
       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--ink-mute)' }}>
-        click any day to open it
+        click to open · drag to lasso · ⌘/ctrl + click to multi-select · shift + click to extend
       </span>
     </div>
   );

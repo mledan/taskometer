@@ -88,6 +88,10 @@ export default function Taskometer() {
   // "range mode" — the user picks a wheel and it paints the lassoed
   // range. Null = picker is in single-day mode (the default).
   const [pendingRange, setPendingRange] = useState(null); // { startDate, endDate } | null
+  // When the user multi-selects days (Cmd/Ctrl-click) and hits Paint,
+  // we pass the explicit list to the picker. Mutually exclusive with
+  // pendingRange — only one is active at a time.
+  const [pendingDays, setPendingDays] = useState(null); // string[] | null
   const auth = (() => {
     try {
       // taskometer.auth is the current key; smartcircle.auth is the legacy
@@ -449,6 +453,28 @@ export default function Taskometer() {
     }
     await api.wheels.applyToDate(actualId, dateKey, { mode: 'replace' });
     telemetryLog('drag-paint:applied', { wheelId, date: dateKey });
+  };
+
+  // Paint a wheel onto an explicit list of dates — used by the
+  // multi-select flow where the user picks discrete (often
+  // non-contiguous) days and then opens the picker.
+  const paintWheelOverDays = async (wheelId, dates) => {
+    if (!wheelId || !Array.isArray(dates) || dates.length === 0) return;
+    const existing = userWheels.find(w => w.id === wheelId);
+    let actualId = existing?.id;
+    if (!actualId) {
+      const tmpl = [...STARTER_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
+      if (!tmpl) return;
+      const added = await api.wheels.add({
+        id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
+      });
+      actualId = added.id;
+    }
+    for (const dateKey of dates) {
+      // eslint-disable-next-line no-await-in-loop
+      await api.wheels.applyToDate(actualId, dateKey, { mode: 'replace' });
+    }
+    telemetryLog('multi-paint:applied', { wheelId, count: dates.length });
   };
 
   // Paint a wheel onto a closed date range with no day-of-week filter —
@@ -880,6 +906,11 @@ export default function Taskometer() {
             setPendingRange({ startDate, endDate });
             setPickerOpen(true);
           }}
+          onPaintDays={(dates) => {
+            if (!dates || dates.length === 0) return;
+            setPendingDays(dates);
+            setPickerOpen(true);
+          }}
         />
       )}
 
@@ -892,6 +923,11 @@ export default function Taskometer() {
           onPaintDay={paintWheelOnDate}
           onPaintRange={(startDate, endDate) => {
             setPendingRange({ startDate, endDate });
+            setPickerOpen(true);
+          }}
+          onPaintDays={(dates) => {
+            if (!dates || dates.length === 0) return;
+            setPendingDays(dates);
             setPickerOpen(true);
           }}
         />
@@ -908,6 +944,11 @@ export default function Taskometer() {
             setPendingRange({ startDate, endDate });
             setPickerOpen(true);
           }}
+          onPaintDays={(dates) => {
+            if (!dates || dates.length === 0) return;
+            setPendingDays(dates);
+            setPickerOpen(true);
+          }}
         />
       )}
 
@@ -916,8 +957,12 @@ export default function Taskometer() {
           wheels={[...userWheels, ...FAMOUS_WHEELS.filter(fw => !userWheels.some(uw => uw.id === fw.id))]}
           currentWheelId={activeWheelId}
           rangeContext={pendingRange}
+          paintingDays={pendingDays}
           onApply={async (wheelId) => {
-            if (pendingRange) {
+            if (pendingDays && pendingDays.length > 0) {
+              await paintWheelOverDays(wheelId, pendingDays);
+              setPendingDays(null);
+            } else if (pendingRange) {
               await paintWheelOverRange(wheelId, pendingRange.startDate, pendingRange.endDate);
               setPendingRange(null);
             } else {
@@ -928,6 +973,7 @@ export default function Taskometer() {
           onClose={() => {
             setPickerOpen(false);
             setPendingRange(null);
+            setPendingDays(null);
           }}
         />
       )}

@@ -49,6 +49,7 @@ export default function WheelPickerModal({
   onApply,
   onClose,
   rangeContext,
+  paintingDays,
 }) {
   const [query, setQuery] = useState('');
   const [activeCat, setActiveCat] = useState('All');
@@ -118,7 +119,9 @@ export default function WheelPickerModal({
       >
         <div className="tm-modal-head">
           <div className="tm-modal-title">
-            {rangeContext ? 'Pick a wheel to paint' : 'Choose a wheel'}
+            {rangeContext || (paintingDays && paintingDays.length)
+              ? 'Pick a wheel to paint'
+              : 'Choose a wheel'}
           </div>
           <button type="button" className="tm-btn tm-sm" onClick={onClose} aria-label="close">close</button>
         </div>
@@ -137,6 +140,34 @@ export default function WheelPickerModal({
             }}
           >
             painting {rangeContext.startDate} → {rangeContext.endDate} · click any wheel to apply
+          </div>
+        )}
+
+        {paintingDays && paintingDays.length > 0 && (
+          <div
+            className="tm-mono tm-md"
+            style={{
+              padding: '8px 12px',
+              marginBottom: 12,
+              border: '1.5px solid var(--orange)',
+              borderRadius: 8,
+              background: 'var(--orange-pale, #FBE9DD)',
+              color: 'var(--orange)',
+              fontWeight: 600,
+            }}
+          >
+            painting {paintingDays.length} selected day{paintingDays.length === 1 ? '' : 's'}
+            {paintingDays.length <= 4 && (
+              <span style={{ fontWeight: 400, marginLeft: 8 }}>
+                ({paintingDays.slice().sort().join(', ')})
+              </span>
+            )}
+            {paintingDays.length > 4 && (
+              <span style={{ fontWeight: 400, marginLeft: 8 }}>
+                ({paintingDays.slice().sort()[0]} … {paintingDays.slice().sort().slice(-1)[0]})
+              </span>
+            )}
+            {' · '}click any wheel to apply
           </div>
         )}
 
