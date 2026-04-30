@@ -17,6 +17,7 @@ import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
 import { listRhythms, listExceptions, dateIsExcepted } from '../services/rhythms.js';
 import { pendingRhythmSlotsForDate } from '../services/rhythmsToSlots.js';
+import { findScheduleTarget } from '../services/scheduling.js';
 import useTaskNotifications from '../hooks/useTaskNotifications.js';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts.js';
 import KeyboardShortcuts from '../components/KeyboardShortcuts.jsx';
@@ -219,87 +220,58 @@ export default function Taskometer() {
     if (!slot || slot.date !== viewKey) setSelectedSlotId(null);
   }, [viewKey, selectedSlotId, state.slots]);
 
-  const handleAddTask = (data) => {
+  const handleAddTask = async (data) => {
+    const duration = data?.duration || 30;
+    // Scheduler walks today → tomorrow → ... up to 60 days, looking for
+    // a real fit. If today's preferred block is full, the task rolls
+    // forward to the next matching slot — concrete or rhythm-projected.
+    const target = findScheduleTarget({
+      taskType: data?.primaryType,
+      duration,
+      state,
+      preferDate: viewKey,
+      preferSlotId: selectedSlot && selectedSlotIsForDay ? selectedSlot.id : null,
+    });
+
     let payload = data;
-    const daySlots = (state.slots || [])
-      .filter(s => s.date === viewKey)
-      .slice()
-      .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
-    // Resolve which slot to land in. Priority:
-    //   1. user explicitly clicked a wedge → selectedSlot
-    //   2. user picked a type that matches a slot today → first match
-    //   3. nothing matched → drop into the slot that covers "now" today,
-    //      or the first slot of the day if we're not on today.
-    let targetSlot = selectedSlot && selectedSlotIsForDay ? selectedSlot : null;
-    if (!targetSlot && data?.primaryType) {
-      targetSlot = daySlots.find(s => s.slotType === data.primaryType) || null;
-    }
-    if (!targetSlot && daySlots.length) {
-      const isToday = viewKey === formatYMD(new Date());
-      if (isToday) {
-        const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-        const inSpan = (s) => {
-          const [sh, sm] = (s.startTime || '00:00').split(':').map(Number);
-          const [eh, em] = (s.endTime || '00:00').split(':').map(Number);
-          const start = (sh || 0) * 60 + (sm || 0);
-          let end = (eh || 0) * 60 + (em || 0);
-          if (end <= start) end += 24 * 60;
-          return nowMin >= start && nowMin < end;
-        };
-        targetSlot = daySlots.find(inSpan) || daySlots[0];
+    if (target) {
+      let slotId;
+
+      if (target.kind === 'rhythm') {
+        // Rhythm projection — materialize the slot first so the task
+        // can attach by id. Once materialized it's a real slot like
+        // any other; the rhythm doesn't "own" it after this.
+        const created = await api.slots.add(target.slotShape);
+        slotId = created.id;
+        telemetryLog('rhythm:materialized-on-rollover', { rhythmId: target.rhythm.id, date: target.date });
       } else {
-        targetSlot = daySlots[0];
+        slotId = target.slot.id;
       }
-    }
 
-    if (targetSlot) {
-      // Find the next free minute inside this slot. New tasks line up
-      // after whatever is already scheduled in there so three Study tasks
-      // don't all stack at 1:00pm.
-      const [sh, sm] = (targetSlot.startTime || '09:00').split(':').map(Number);
-      const [eh, em] = (targetSlot.endTime || '17:00').split(':').map(Number);
-      const slotStartMin = (sh || 0) * 60 + (sm || 0);
-      let slotEndMin = (eh || 0) * 60 + (em || 0);
-      if (slotEndMin <= slotStartMin) slotEndMin += 24 * 60;
-
-      const existing = (state.tasks || []).filter(t => {
-        if (t.status === 'cancelled') return false;
-        if (t.scheduledSlotId === targetSlot.id) return true;
-        if (!t.scheduledTime) return false;
-        const ts = new Date(t.scheduledTime);
-        if (formatYMD(ts) !== targetSlot.date) return false;
-        const tMin = ts.getHours() * 60 + ts.getMinutes();
-        return tMin >= slotStartMin && tMin < slotEndMin;
-      });
-
-      let nextMin = slotStartMin;
-      for (const t of existing) {
-        const ts = new Date(t.scheduledTime);
-        const start = ts.getHours() * 60 + ts.getMinutes();
-        const end = start + (t.duration || 30);
-        if (end > nextMin) nextMin = end;
-      }
-      // Don't schedule past the slot end — clamp so the new task at least
-      // starts inside the slot. Overflow is handled by the existing
-      // overflow indicator.
-      if (nextMin >= slotEndMin) nextMin = Math.max(slotStartMin, slotEndMin - (data?.duration || 30));
-
-      const d = new Date(`${targetSlot.date}T00:00:00`);
-      d.setHours(Math.floor(nextMin / 60), nextMin % 60, 0, 0);
+      const d = new Date(`${target.date}T00:00:00`);
+      d.setHours(Math.floor(target.startMin / 60), target.startMin % 60, 0, 0);
       const iso = d.toISOString();
       payload = {
         ...data,
-        scheduledSlotId: targetSlot.id,
+        scheduledSlotId: slotId,
         scheduledTime: iso,
         scheduledFor: iso,
       };
+
+      // Rollover feedback: only surface a toast if the task moved off
+      // the day the user was looking at.
+      if (target.date !== viewKey) {
+        showRolloverToast(`Rolled over to ${formatRolloverLabel(target.date)} · ${minToHHMM(target.startMin)}`);
+      }
     } else {
-      // No slots on this day at all — still give the task a scheduledTime
-      // pinned to the day so it shows up in the day view's task list.
+      // No fit anywhere in the next 60 days. Give it a date but no slot
+      // so it shows up as a task without a home — the user can drag it
+      // into a slot manually.
       const d = new Date(`${viewKey}T09:00:00`);
       const iso = d.toISOString();
       payload = { ...data, scheduledTime: iso, scheduledFor: iso };
+      showRolloverToast(`No open block in the next 60 days — task is unscheduled`);
     }
 
     telemetryLog('task:add', {
@@ -308,9 +280,24 @@ export default function Taskometer() {
       duration: payload?.duration,
       priority: payload?.priority,
       slotId: payload?.scheduledSlotId || null,
+      rolledOver: target?.date !== viewKey,
+      kind: target?.kind || 'unscheduled',
     });
     return api.tasks.add(payload);
   };
+
+  // Rollover toast — a transient notification when a task lands on a
+  // future day. Stored in component state so React re-renders cleanly.
+  const [rolloverMsg, setRolloverMsg] = useState(null);
+  const rolloverTimerRef = useRef(null);
+  const showRolloverToast = (msg) => {
+    setRolloverMsg(msg);
+    if (rolloverTimerRef.current) clearTimeout(rolloverTimerRef.current);
+    rolloverTimerRef.current = setTimeout(() => setRolloverMsg(null), 4500);
+  };
+  useEffect(() => () => {
+    if (rolloverTimerRef.current) clearTimeout(rolloverTimerRef.current);
+  }, []);
 
   const handleSeriesComplete = (id) => api.tasks.completeSeries(id);
   const handleSeriesDelete = (id) => {
@@ -996,6 +983,29 @@ export default function Taskometer() {
         <KeyboardShortcuts isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       )}
 
+      {rolloverMsg && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--ink)',
+            color: 'var(--paper)',
+            padding: '10px 16px',
+            borderRadius: 999,
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 13,
+            boxShadow: '0 6px 20px rgba(0, 0, 0, 0.22)',
+            zIndex: 300,
+          }}
+        >
+          → {rolloverMsg}
+        </div>
+      )}
+
       {settingsOpen && (
         <SettingsPanel
           ui={ui}
@@ -1569,6 +1579,27 @@ function WheelRail({ userWheels, activeWheelId, onApply, onSchedule, onBrowseAll
       </button>
     </div>
   );
+}
+
+function formatRolloverLabel(dateKey) {
+  if (!dateKey) return '';
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const date = new Date(y, (m || 1) - 1, d || 1);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const cmp = new Date(date); cmp.setHours(0, 0, 0, 0);
+  const diff = Math.round((cmp.getTime() - today.getTime()) / 86400000);
+  if (diff === 1) return 'tomorrow';
+  if (diff > 1 && diff <= 6) return date.toLocaleDateString('en', { weekday: 'long' }).toLowerCase();
+  return date.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase();
+}
+
+function minToHHMM(mins) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const hLabel = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  const ampm = h < 12 ? 'a' : 'p';
+  return m === 0 ? `${hLabel}${ampm}` : `${hLabel}:${m < 10 ? '0' + m : m}${ampm}`;
 }
 
 function formatYMD(date) {
