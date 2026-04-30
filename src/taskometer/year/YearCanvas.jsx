@@ -10,9 +10,9 @@ import {
 } from '../../services/rhythms.js';
 import RhythmComposer from './RhythmComposer.jsx';
 import ExceptionModal from './ExceptionModal.jsx';
+import SaveAsRhythmModal from './SaveAsRhythmModal.jsx';
 import { useMultiSelect } from '../../hooks/useMultiSelect.js';
 import SelectionBar from '../../components/SelectionBar.jsx';
-import { addRhythm } from '../../services/rhythms.js';
 import './year.css';
 
 /**
@@ -35,6 +35,7 @@ export default function YearCanvas() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingRhythm, setEditingRhythm] = useState(null);
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
+  const [saveDaysModalDates, setSaveDaysModalDates] = useState(null);
   // Currently focused day in the grid. Drives keyboard navigation —
   // arrow keys move focus, Enter opens the day, Esc returns to chrome.
   const [focusedKey, setFocusedKey] = useState(null);
@@ -121,28 +122,12 @@ export default function YearCanvas() {
     reload();
   };
 
-  // "Save selection as rhythm" → quick-prompt for a name, then create a
-  // custom-cadence rhythm from the selected dates. The user can edit
-  // it later via the rail's edit (✎) button.
+  // "Save selection as rhythm" → open the focused modal so the user
+  // can name + color + time the new rhythm in one place.
   const handleSaveAsRhythm = () => {
     const dates = [...ms.selected];
     if (dates.length === 0) return;
-    const suggestion = dates.length <= 3
-      ? `Custom (${dates.join(', ')})`
-      : `Custom (${dates.length} days)`;
-    const name = window.prompt('Name this rhythm:', suggestion);
-    if (!name?.trim()) return;
-    const palette = ['#D4663A', '#A8BF8C', '#D9C98C', '#C7BEDD', '#F2C4A6', '#6B46C1', '#3B82F6', '#10B981'];
-    const color = palette[rhythms.length % palette.length];
-    addRhythm({
-      name: name.trim(),
-      color,
-      cadence: { kind: 'custom', dates: dates.slice().sort() },
-      startTime: '09:00',
-      endTime: '10:00',
-    });
-    ms.clear();
-    reload();
+    setSaveDaysModalDates(dates);
   };
 
   // Bulk-mark selected days as an exception range. Keeps it simple:
@@ -319,6 +304,14 @@ export default function YearCanvas() {
         ]}
         onClear={ms.clear}
       />
+
+      {saveDaysModalDates && (
+        <SaveAsRhythmModal
+          dates={saveDaysModalDates}
+          onClose={() => setSaveDaysModalDates(null)}
+          onSaved={() => { setSaveDaysModalDates(null); ms.clear(); reload(); }}
+        />
+      )}
 
       {composerOpen && (
         <RhythmComposer

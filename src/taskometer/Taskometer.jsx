@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import WheelView, { MiniWheel } from './WheelView.jsx';
 import WheelPickerModal from './WheelPickerModal.jsx';
 import WheelPainter from './WheelPainter.jsx';
+import SaveAsRhythmModal from './year/SaveAsRhythmModal.jsx';
 import CalendarView from './CalendarView.jsx';
 import { WeekTimeline, MonthInsights, QuarterInsights, YearInsights } from './TimelineViews.jsx';
 import DailyWrap from './DailyWrap.jsx';
@@ -92,6 +93,7 @@ export default function Taskometer() {
   // we pass the explicit list to the picker. Mutually exclusive with
   // pendingRange — only one is active at a time.
   const [pendingDays, setPendingDays] = useState(null); // string[] | null
+  const [saveDaysAsRhythmModal, setSaveDaysAsRhythmModal] = useState(null); // string[] | null
   const auth = (() => {
     try {
       // taskometer.auth is the current key; smartcircle.auth is the legacy
@@ -477,26 +479,11 @@ export default function Taskometer() {
     telemetryLog('multi-paint:applied', { wheelId, count: dates.length });
   };
 
-  // "Save selection as rhythm" from a calendar view. Capture the
-  // discrete day list as a custom-cadence rhythm so it can be edited /
-  // re-applied later from the year canvas.
+  // "Save selection as rhythm" from a calendar view. Open the focused
+  // modal so the user can name / color / time-of-day the new rhythm.
   const saveDaysAsRhythm = (dates) => {
     if (!Array.isArray(dates) || dates.length === 0) return;
-    const suggestion = dates.length <= 3
-      ? `Custom (${dates.slice().sort().join(', ')})`
-      : `Custom (${dates.length} days)`;
-    const name = window.prompt('Name this rhythm:', suggestion);
-    if (!name?.trim()) return;
-    const palette = ['#D4663A', '#A8BF8C', '#D9C98C', '#C7BEDD', '#F2C4A6', '#6B46C1', '#3B82F6'];
-    const color = palette[Math.floor(Math.random() * palette.length)];
-    addRhythm({
-      name: name.trim(),
-      color,
-      cadence: { kind: 'custom', dates: dates.slice().sort() },
-      startTime: '09:00',
-      endTime: '10:00',
-    });
-    telemetryLog('rhythm:saved-from-selection', { count: dates.length });
+    setSaveDaysAsRhythmModal(dates);
   };
 
   // Paint a wheel onto a closed date range with no day-of-week filter —
@@ -1005,6 +992,17 @@ export default function Taskometer() {
             setPickerOpen(false);
             setPendingRange(null);
             setPendingDays(null);
+          }}
+        />
+      )}
+
+      {saveDaysAsRhythmModal && (
+        <SaveAsRhythmModal
+          dates={saveDaysAsRhythmModal}
+          onClose={() => setSaveDaysAsRhythmModal(null)}
+          onSaved={() => {
+            setSaveDaysAsRhythmModal(null);
+            telemetryLog('rhythm:saved-from-selection', { count: saveDaysAsRhythmModal.length });
           }}
         />
       )}
