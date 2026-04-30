@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import WheelView, { MiniWheel } from './WheelView.jsx';
 import WheelPickerModal from './WheelPickerModal.jsx';
+import WheelPainter from './WheelPainter.jsx';
 import CalendarView from './CalendarView.jsx';
 import { WeekTimeline, MonthInsights, QuarterInsights, YearInsights } from './TimelineViews.jsx';
 import DailyWrap from './DailyWrap.jsx';
@@ -62,6 +63,10 @@ export default function Taskometer() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
+  // The wheel currently being painted across a range. Null = painter
+  // closed. Object = { wheel } where wheel may need to be added to the
+  // user's library before applyToRange can target it by ID.
+  const [painterTarget, setPainterTarget] = useState(null);
   const auth = (() => { try { return JSON.parse(localStorage.getItem('smartcircle.auth') || 'null'); } catch (_) { return null; } })();
   const isLoggedIn = auth?.mode === 'account';
   const accountInitial = (auth?.profile?.firstName?.[0] || auth?.profile?.username?.[0] || 'G').toUpperCase();
@@ -397,6 +402,73 @@ export default function Taskometer() {
     telemetryLog('rail:applied', { wheelId, date: viewKey });
   };
 
+  // Open the painter for a given wheel id. We resolve the wheel object
+  // (looking through user wheels first, then the famous catalog) so the
+  // modal can show a preview without having to add it to the library
+  // until the user actually applies.
+  const openPainter = (wheelId) => {
+    const w = userWheels.find(x => x.id === wheelId)
+      || FAMOUS_WHEELS.find(x => x.id === wheelId)
+      || null;
+    if (!w) return;
+    setPainterTarget({ wheel: w });
+  };
+
+  const paintWheelAcrossRange = async ({ startDate, endDate, weekdaysOnly, weekendsOnly, customDow, mode }) => {
+    if (!painterTarget?.wheel) return;
+    const target = painterTarget.wheel;
+    // Make sure the wheel is in the user's library so applyToRange can
+    // resolve it by id. Famous-only wheels get cloned in here on first
+    // use — same approach the rail-click path uses.
+    const existing = userWheels.find(w => w.id === target.id);
+    let actualId = existing?.id;
+    if (!actualId) {
+      const added = await api.wheels.add({
+        id: target.id, name: target.name, color: target.color, blocks: target.blocks,
+      });
+      actualId = added.id;
+    }
+
+    if (customDow && customDow.length > 0 && customDow.length < 7) {
+      // applyToRange only knows about weekdays/weekends. For an arbitrary
+      // weekday set we walk the dates ourselves and call applyToDate on
+      // the matching ones.
+      const set = new Set(customDow);
+      const out = [];
+      const cur = new Date(`${startDate}T00:00:00`);
+      const end = new Date(`${endDate}T00:00:00`);
+      while (cur.getTime() <= end.getTime()) {
+        const dow = (cur.getDay() + 6) % 7; // 0=Mon..6=Sun
+        if (set.has(dow)) {
+          const m = cur.getMonth() + 1;
+          const dd = cur.getDate();
+          const key = `${cur.getFullYear()}-${m < 10 ? '0' + m : m}-${dd < 10 ? '0' + dd : dd}`;
+          out.push(key);
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+      for (const dateKey of out) {
+        // eslint-disable-next-line no-await-in-loop
+        await api.wheels.applyToDate(actualId, dateKey, { mode });
+      }
+      telemetryLog('painter:applied', { wheelId: actualId, count: out.length, customDow });
+    } else {
+      const result = await api.wheels.applyToRange(actualId, startDate, endDate, {
+        weekdaysOnly,
+        weekendsOnly,
+        mode,
+      });
+      telemetryLog('painter:applied', {
+        wheelId: actualId,
+        count: result?.painted?.length || 0,
+        weekdaysOnly,
+        weekendsOnly,
+      });
+    }
+
+    setPainterTarget(null);
+  };
+
   return (
     <div id="tm-root-frame" className="tm-root tm-paper">
       <header
@@ -681,6 +753,7 @@ export default function Taskometer() {
               userWheels={userWheels}
               activeWheelId={activeWheelId}
               onApply={applyWheelToDay}
+              onSchedule={openPainter}
               onBrowseAll={() => setPickerOpen(true)}
               onSaveToday={() => setWheelsPanelOpen(true)}
             />
@@ -738,6 +811,15 @@ export default function Taskometer() {
             setPickerOpen(false);
           }}
           onClose={() => setPickerOpen(false)}
+        />
+      )}
+
+      {painterTarget && (
+        <WheelPainter
+          wheel={painterTarget.wheel}
+          anchorDate={selectedDate}
+          onClose={() => setPainterTarget(null)}
+          onApply={paintWheelAcrossRange}
         />
       )}
 
@@ -1100,7 +1182,7 @@ function OverflowItem({ children, onClick }) {
   );
 }
 
-function WheelRail({ userWheels, activeWheelId, onApply, onBrowseAll, onSaveToday }) {
+function WheelRail({ userWheels, activeWheelId, onApply, onSchedule, onBrowseAll, onSaveToday }) {
   // The rail is "shape this day fast" — your saved shapes plus a tiny
   // curated set so first-time users see something useful without the
   // 100-wheel dump. Everything else lives behind "Browse all".
@@ -1120,17 +1202,30 @@ function WheelRail({ userWheels, activeWheelId, onApply, onBrowseAll, onSaveToda
     }));
     const on = activeWheelId === w.id;
     return (
-      <button
+      <div
         key={w.id}
-        type="button"
         role="listitem"
         className={`tm-chip-wheel${on ? ' tm-chip-on' : ''}`}
-        onClick={() => onApply(w.id)}
-        title={`apply "${w.name}"`}
       >
-        <MiniWheel slots={slotsForMini} size={32} thickness={4} />
-        <span className="tm-chip-wheel-name">{w.name}</span>
-      </button>
+        <button
+          type="button"
+          className="tm-chip-wheel-main"
+          onClick={() => onApply(w.id)}
+          title={`apply "${w.name}" to this day`}
+        >
+          <MiniWheel slots={slotsForMini} size={32} thickness={4} />
+          <span className="tm-chip-wheel-name">{w.name}</span>
+        </button>
+        <button
+          type="button"
+          className="tm-chip-wheel-schedule"
+          onClick={(e) => { e.stopPropagation(); onSchedule(w.id); }}
+          title="schedule across a range — weekdays, this month, custom"
+          aria-label={`schedule ${w.name} across a range`}
+        >
+          📅
+        </button>
+      </div>
     );
   };
 
@@ -1141,6 +1236,9 @@ function WheelRail({ userWheels, activeWheelId, onApply, onBrowseAll, onSaveToda
         <button type="button" className="tm-btn tm-sm tm-ghost" onClick={onBrowseAll} title="open the full library">
           browse all →
         </button>
+      </div>
+      <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginTop: -8 }}>
+        Click to paint this day. Use 📅 to paint a range.
       </div>
 
       {userWheels.length > 0 && (

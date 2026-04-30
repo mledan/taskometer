@@ -118,27 +118,32 @@ body.tm-body {
   gap: 6px;
 }
 .tm-chip-wheel {
-  all: unset;
-  cursor: pointer;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
+  align-items: stretch;
+  gap: 0;
   border: 1px solid var(--rule);
   border-radius: 10px;
   background: var(--paper);
-  transition: background 0.12s, border-color 0.12s, transform 0.08s;
+  overflow: hidden;
+  transition: border-color 0.12s, background 0.12s;
 }
-.tm-chip-wheel:hover {
-  background: var(--paper-warm);
-  border-color: var(--ink-mute);
-}
-.tm-chip-wheel:active { transform: translateY(1px); }
+.tm-chip-wheel:hover { border-color: var(--ink-mute); }
 .tm-chip-wheel.tm-chip-on {
   border-color: var(--orange);
   background: var(--orange-pale, #FBE9DD);
   box-shadow: 0 1px 0 rgba(212, 102, 58, 0.18);
 }
+.tm-chip-wheel-main {
+  all: unset;
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  min-width: 0;
+}
+.tm-chip-wheel-main:hover { background: var(--paper-warm); }
 .tm-chip-wheel-name {
   flex: 1;
   min-width: 0;
@@ -147,6 +152,25 @@ body.tm-body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.tm-chip-wheel-schedule {
+  all: unset;
+  cursor: pointer;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px dashed var(--rule);
+  font-size: 14px;
+  color: var(--ink-mute);
+  opacity: 0.5;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+.tm-chip-wheel:hover .tm-chip-wheel-schedule { opacity: 1; }
+.tm-chip-wheel-schedule:hover {
+  background: var(--orange-pale, #FBE9DD);
+  color: var(--orange);
+  opacity: 1;
 }
 .tm-chip-wheel-count {
   font-family: 'JetBrains Mono', monospace;
