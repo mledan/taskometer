@@ -50,6 +50,13 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
   const [end, setEnd] = useState(rhythm?.cadence?.end || todayYMD());
   const [startTime, setStartTime] = useState(rhythm?.startTime || '09:00');
   const [endTime, setEndTime] = useState(rhythm?.endTime || '10:00');
+  // Custom cadence: an explicit list of YMD dates. Editable in-place
+  // for rhythms originally captured via "Save selection as rhythm."
+  const [customDates, setCustomDates] = useState(() => {
+    const init = Array.isArray(rhythm?.cadence?.dates) ? rhythm.cadence.dates : [];
+    return init.slice().sort();
+  });
+  const [newDate, setNewDate] = useState(todayYMD());
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -67,6 +74,7 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
     if (kind === 'quarterly_week') cadence.weekOfQuarter = weekOfQuarter;
     if (kind === 'project') { cadence.anchor = anchor; cadence.end = end; }
     if (kind === 'oneoff') cadence.anchor = anchor;
+    if (kind === 'custom') cadence.dates = customDates.slice().sort();
 
     const payload = {
       name: name.trim(),
@@ -126,6 +134,7 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
               ['quarterly_week', 'Quarterly'],
               ['project', 'Project'],
               ['oneoff', 'One-off'],
+              ['custom', 'Custom days'],
             ].map(([k, label]) => (
               <button
                 key={k}
@@ -232,6 +241,80 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
               </label>
             )}
           </div>
+
+          {kind === 'custom' && (
+            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                Explicit list of dates. Add a date with the input below or
+                remove one by clicking the × on a chip.
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  type="date"
+                  className="tm-composer-num"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  style={{ width: 160 }}
+                />
+                <button
+                  type="button"
+                  className="tm-btn tm-sm"
+                  onClick={() => {
+                    if (!newDate || customDates.includes(newDate)) return;
+                    setCustomDates(prev => prev.concat(newDate).slice().sort());
+                  }}
+                  disabled={!newDate || customDates.includes(newDate)}
+                >+ add date</button>
+                <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 'auto' }}>
+                  {customDates.length} date{customDates.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              {customDates.length === 0 ? (
+                <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', fontStyle: 'italic' }}>
+                  No dates yet — add one above, or close this and use the year canvas
+                  multi-select to capture a batch.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 160, overflowY: 'auto', padding: '2px 0' }}>
+                  {customDates.map(d => (
+                    <span
+                      key={d}
+                      className="tm-mono tm-sm"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '3px 4px 3px 8px',
+                        borderRadius: 4,
+                        background: 'var(--paper-warm, #FAF5EC)',
+                        border: `1px solid ${color}`,
+                      }}
+                    >
+                      {d}
+                      <button
+                        type="button"
+                        onClick={() => setCustomDates(prev => prev.filter(x => x !== d))}
+                        title={`remove ${d}`}
+                        style={{
+                          all: 'unset',
+                          cursor: 'pointer',
+                          width: 18,
+                          height: 18,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: 3,
+                          color: 'var(--ink-mute)',
+                          fontSize: 14,
+                          lineHeight: 1,
+                        }}
+                      >×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </Section>
 
         <Section title="Time of day">
@@ -267,7 +350,7 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
             type="button"
             className="tm-btn tm-primary"
             onClick={save}
-            disabled={!name.trim()}
+            disabled={!name.trim() || (kind === 'custom' && customDates.length === 0)}
           >
             {editing ? 'Save' : 'Add rhythm'}
           </button>

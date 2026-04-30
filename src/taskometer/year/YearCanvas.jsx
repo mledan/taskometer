@@ -487,6 +487,7 @@ function describeCadence(cad) {
     case 'quarterly_week': return `wk ${cad.weekOfQuarter} of each quarter`;
     case 'project':      return `project · ${cad.anchor} → ${cad.end}`;
     case 'oneoff':       return `one-off · ${cad.anchor}`;
+    case 'custom':       return `${(cad.dates || []).length} custom day${(cad.dates || []).length === 1 ? '' : 's'}`;
     default:             return cad.kind;
   }
 }
