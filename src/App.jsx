@@ -8,6 +8,8 @@ import Landing from './marketing/Landing.jsx';
 import TeamsDemo from './marketing/TeamsDemo.jsx';
 import { Privacy, Terms } from './marketing/Legal.jsx';
 import YearCanvas from './taskometer/year/YearCanvas.jsx';
+import CommandPalette from './components/CommandPalette.jsx';
+import './components/CommandPalette.css';
 import { runStorageMigrations } from './storage-migrations.js';
 
 function AppContent() {
@@ -74,14 +76,47 @@ function App() {
   // point that mirrors what main.jsx does in production.
   runStorageMigrations();
   const path = useRoute();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Cmd+K (or Ctrl+K on non-mac) toggles the palette globally.
+  // Bound at the App level so it works regardless of which route is
+  // active. Marketing routes get a smaller command set.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setPaletteOpen(p => !p);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const commands = [
+    { id: 'go-year',   label: 'Go to Year canvas',     hint: 'Plan the whole year', shortcut: 'G Y', run: () => { window.location.href = '/app/year'; } },
+    { id: 'go-day',    label: 'Go to Day view',        hint: 'See today',           shortcut: 'G D', run: () => { window.location.href = '/app'; } },
+    { id: 'go-today',  label: 'Jump to today',         hint: 'Day view, today',     shortcut: 'T',   run: () => { window.location.href = '/app'; } },
+    { id: 'go-home',   label: 'Go to landing page',    hint: 'Marketing',                            run: () => { window.location.href = '/'; } },
+    { id: 'go-teams',  label: 'Go to Teams (preview)', hint: 'Concept dashboard',                    run: () => { window.location.href = '/teams'; } },
+    { id: 'go-priv',   label: 'Privacy policy',        hint: 'How we handle data',                   run: () => { window.location.href = '/privacy'; } },
+    { id: 'go-terms',  label: 'Terms of service',                                                    run: () => { window.location.href = '/terms'; } },
+  ];
+
+  // Render the route + the palette together. The palette is a fixed
+  // overlay so it works the same on every page.
+  const palette = (
+    <CommandPalette
+      open={paletteOpen}
+      onClose={() => setPaletteOpen(false)}
+      commands={commands}
+    />
+  );
 
   if (path === '/app/year' || path.startsWith('/app/year/')) {
-    // The annual-first canvas — Story A from the design review. Doesn't
-    // need AppStateProvider because it reads rhythms directly from
-    // localStorage via the rhythms.js module.
     return (
       <ThemeProvider>
         <YearCanvas />
+        {palette}
       </ThemeProvider>
     );
   }
@@ -91,6 +126,7 @@ function App() {
       <ThemeProvider>
         <AppStateProvider>
           <AppContent />
+          {palette}
         </AppStateProvider>
       </ThemeProvider>
     );
@@ -100,21 +136,23 @@ function App() {
     return (
       <ThemeProvider>
         <TeamsDemo />
+        {palette}
       </ThemeProvider>
     );
   }
 
   if (path === '/privacy') {
-    return <ThemeProvider><Privacy /></ThemeProvider>;
+    return <ThemeProvider><Privacy />{palette}</ThemeProvider>;
   }
 
   if (path === '/terms') {
-    return <ThemeProvider><Terms /></ThemeProvider>;
+    return <ThemeProvider><Terms />{palette}</ThemeProvider>;
   }
 
   return (
     <ThemeProvider>
       <Landing />
+      {palette}
     </ThemeProvider>
   );
 }

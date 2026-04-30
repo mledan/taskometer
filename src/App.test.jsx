@@ -73,13 +73,28 @@ describe('routing', () => {
   test('/app/year renders the annual canvas', () => {
     setPath('/app/year');
     render(<App />);
-    // Year title shows the current year
     expect(screen.getByText(String(new Date().getFullYear()))).toBeInTheDocument();
-    // Rail headers
     expect(screen.getByText(/^Rhythms$/)).toBeInTheDocument();
     expect(screen.getByText(/^Exceptions$/)).toBeInTheDocument();
-    // Empty-state copy
     expect(screen.getByText(/No rhythms yet/i)).toBeInTheDocument();
+  });
+
+  test('/app accepts a ?date= deep link', () => {
+    setPath('/app?date=2026-04-15');
+    render(<App />);
+    // April 15 2026 is a Wednesday — its label appears in multiple
+    // places (header date nav, daily wrap card, etc). One match is
+    // enough to confirm the deep link took effect.
+    const matches = screen.getAllByText(/wed.*apr.*15/i);
+    expect(matches.length).toBeGreaterThan(0);
+  });
+
+  test('Cmd+K opens the command palette', () => {
+    setPath('/');
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    expect(screen.getByPlaceholderText(/Type a command/i)).toBeInTheDocument();
+    expect(screen.getByText(/Go to Year canvas/i)).toBeInTheDocument();
   });
 });
 

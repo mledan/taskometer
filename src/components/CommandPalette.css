@@ -1,0 +1,96 @@
+/* Command palette — Cmd+K. Floats above the entire app. */
+
+.cp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  animation: cp-fade 0.12s ease-out;
+}
+@keyframes cp-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .cp-backdrop { animation: none; }
+}
+
+.cp-modal {
+  width: min(560px, 92vw);
+  background: var(--paper, #FAF3EB);
+  border: 1.5px solid var(--ink, #1F1A14);
+  border-radius: 14px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-input {
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 18px;
+  padding: 16px 20px;
+  background: transparent;
+  color: var(--ink);
+  border-bottom: 1px dashed var(--rule);
+}
+.cp-input::placeholder { color: var(--ink-mute); }
+
+.cp-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.cp-item {
+  padding: 9px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--ink);
+}
+.cp-item-active {
+  background: var(--orange-pale, #FBE9DD);
+  outline: 1.5px solid var(--orange, #D4663A);
+}
+.cp-item-label { flex: 1; }
+.cp-item-hint {
+  color: var(--ink-mute);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+.cp-item-shortcut {
+  margin-left: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  color: var(--ink-mute);
+}
+
+.cp-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--ink-mute);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+}
+
+.cp-foot {
+  display: flex;
+  gap: 16px;
+  padding: 8px 14px;
+  border-top: 1px dashed var(--rule);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-mute);
+}

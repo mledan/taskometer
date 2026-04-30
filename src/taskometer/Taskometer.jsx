@@ -15,6 +15,8 @@ import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
+import { listRhythms, listExceptions, dateIsExcepted } from '../services/rhythms.js';
+import { pendingRhythmSlotsForDate } from '../services/rhythmsToSlots.js';
 import useTaskNotifications from '../hooks/useTaskNotifications.js';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts.js';
 import KeyboardShortcuts from '../components/KeyboardShortcuts.jsx';
@@ -52,7 +54,21 @@ export default function Taskometer() {
     const saved = localStorage.getItem('tm.scale');
     return SCALES.includes(saved) ? saved : 'day';
   });
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => {
+    // Allow deep-links from the year canvas: /app?date=YYYY-MM-DD
+    // lands the user on that day instead of today. Falls back to today
+    // for malformed or absent params.
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const d = params.get('date');
+      if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        const [y, m, day] = d.split('-').map(Number);
+        const parsed = new Date(y, m - 1, day);
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
+    } catch (_) { /* SSR or restricted env */ }
+    return new Date();
+  });
   const [ui, setUI] = useState(readStoredUI);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -703,6 +719,16 @@ export default function Taskometer() {
           localStorage. */}
       <YearPromoBanner />
 
+      {/* When rhythms fire on the selected day but haven't been
+          materialized as concrete slots yet, surface them so the user
+          can apply with one click. This is the bridge that makes the
+          year canvas feel "real" in the day view. */}
+      <RhythmsForToday
+        dateKey={viewKey}
+        existingSlots={state.slots || []}
+        api={api}
+      />
+
       {showQuickStart && (
         <QuickStart
           onPick={handleQuickStart}
@@ -1284,6 +1310,132 @@ function OverflowItem({ children, onClick }) {
     >
       {children}
     </button>
+  );
+}
+
+function RhythmsForToday({ dateKey, existingSlots, api }) {
+  // Re-fetch rhythms whenever the date changes (cheap — localStorage).
+  // We can't put rhythms in state because they live outside AppContext;
+  // this component effectively syncs that boundary.
+  const [rhythms, setRhythms] = useState(() => listRhythms());
+  const [exceptions, setExceptions] = useState(() => listExceptions());
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setRhythms(listRhythms());
+    setExceptions(listExceptions());
+  }, [dateKey]);
+
+  // Refresh on window focus too — handles the "open year canvas in
+  // another tab, add a rhythm, come back" workflow.
+  useEffect(() => {
+    const onFocus = () => { setRhythms(listRhythms()); setExceptions(listExceptions()); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
+  const exception = useMemo(
+    () => dateIsExcepted(dateKey, exceptions),
+    [dateKey, exceptions],
+  );
+
+  const pending = useMemo(
+    () => exception ? [] : pendingRhythmSlotsForDate(rhythms, existingSlots, dateKey),
+    [rhythms, existingSlots, dateKey, exception],
+  );
+
+  if (exception) {
+    return (
+      <div
+        role="status"
+        style={{
+          marginBottom: 18,
+          padding: '10px 14px',
+          border: `1.5px solid ${exception.color || 'var(--ink-mute)'}`,
+          borderRadius: 10,
+          background: 'rgba(0,0,0,0.04)',
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 13,
+          color: 'var(--ink-soft)',
+        }}
+      >
+        <strong style={{ color: exception.color || 'var(--ink)' }}>
+          {(exception.label || exception.type || 'exception').toUpperCase()}
+        </strong>
+        {' · '}rhythms suppressed on this day. You can still add tasks.
+      </div>
+    );
+  }
+
+  if (pending.length === 0) return null;
+
+  const applyAll = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      for (const proj of pending) {
+        // eslint-disable-next-line no-await-in-loop
+        await api.slots.add({
+          date: proj.date,
+          startTime: proj.startTime,
+          endTime: proj.endTime,
+          slotType: proj.slotType,
+          label: proj.label,
+          color: proj.color,
+        });
+      }
+      telemetryLog('rhythms:applied-day', { count: pending.length, date: dateKey });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        marginBottom: 18,
+        padding: '12px 16px',
+        border: '1.5px solid var(--orange)',
+        borderRadius: 12,
+        background: 'var(--paper-warm, #FAF5EC)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        flexWrap: 'wrap',
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div className="tm-mono tm-sm" style={{ color: 'var(--orange)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+          {pending.length} rhythm{pending.length === 1 ? '' : 's'} fire today
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {pending.map(p => (
+            <span
+              key={p._rhythmId}
+              style={{
+                fontSize: 12,
+                padding: '2px 8px',
+                borderRadius: 4,
+                border: `1px solid ${p.color}`,
+                background: 'var(--paper)',
+                color: 'var(--ink)',
+                fontFamily: 'JetBrains Mono, monospace',
+              }}
+            >
+              {p.startTime} {p._rhythmName}
+            </span>
+          ))}
+        </div>
+      </div>
+      <button
+        type="button"
+        className="tm-btn tm-primary"
+        onClick={applyAll}
+        disabled={busy}
+      >
+        {busy ? 'applying…' : `Apply ${pending.length} →`}
+      </button>
+    </div>
   );
 }
 

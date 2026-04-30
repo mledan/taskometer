@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   listRhythms,
   listExceptions,
@@ -32,6 +32,10 @@ export default function YearCanvas() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingRhythm, setEditingRhythm] = useState(null);
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
+  // Currently focused day in the grid. Drives keyboard navigation —
+  // arrow keys move focus, Enter opens the day, Esc returns to chrome.
+  const [focusedKey, setFocusedKey] = useState(null);
+  const gridRef = useRef(null);
 
   const reload = () => {
     setRhythms(listRhythms());
@@ -39,6 +43,59 @@ export default function YearCanvas() {
   };
 
   useEffect(() => { reload(); }, []);
+
+  // Global keyboard shortcuts on the canvas. Captures only when no
+  // input/textarea has focus so we don't steal typing from modals.
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = (document.activeElement?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (composerOpen || exceptionModalOpen) return;
+
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        setEditingRhythm(null);
+        setComposerOpen(true);
+      } else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        setExceptionModalOpen(true);
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        const today = new Date();
+        setYear(today.getFullYear());
+        setFocusedKey(ymd(today));
+      } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        window.alert(
+          'Year canvas keyboard shortcuts:\n' +
+          '\n' +
+          '  R       — add rhythm\n' +
+          '  E       — add exception\n' +
+          '  T       — jump to today\n' +
+          '  ← → ↑ ↓ — move between days (when a day is focused)\n' +
+          '  Enter   — open the focused day\n' +
+          '  ?       — show this help'
+        );
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [composerOpen, exceptionModalOpen]);
+
+  // Move focus by a day delta. Wraps across months and even years —
+  // a power user can hold the right arrow and scroll all the way
+  // through the calendar without lifting a finger.
+  const moveFocus = (delta) => {
+    const cur = focusedKey ? new Date(`${focusedKey}T00:00:00`) : new Date(year, 0, 1);
+    cur.setDate(cur.getDate() + delta);
+    setYear(cur.getFullYear());
+    setFocusedKey(ymd(cur));
+    // Defer so the cell renders before we focus it.
+    requestAnimationFrame(() => {
+      const node = document.querySelector(`[data-yc-day="${ymd(cur)}"]`);
+      if (node) node.focus();
+    });
+  };
 
   const yearMap = useMemo(
     () => buildYearMap(year, rhythms, exceptions),
@@ -58,6 +115,10 @@ export default function YearCanvas() {
 
   return (
     <div className="yc-root tm-paper">
+      {/* Skip link — only visible when keyboard-focused. Lets screen
+          reader and keyboard-only users jump past the rail to the
+          12-month grid. */}
+      <a href="#yc-grid-main" className="yc-skiplink">Skip to year grid</a>
       <header className="yc-header">
         <div className="yc-header-left">
           <a href="/app" className="yc-back" title="day view">
@@ -157,13 +218,16 @@ export default function YearCanvas() {
           </div>
         </aside>
 
-        <main className="yc-grid">
+        <main id="yc-grid-main" className="yc-grid" ref={gridRef} aria-label={`Year ${year} calendar`}>
           {Array.from({ length: 12 }, (_, m) => (
             <MonthBlock
               key={m}
               year={year}
               month={m}
               yearMap={yearMap}
+              focusedKey={focusedKey}
+              onMoveFocus={moveFocus}
+              onCellFocus={setFocusedKey}
             />
           ))}
         </main>
@@ -187,7 +251,7 @@ export default function YearCanvas() {
   );
 }
 
-function MonthBlock({ year, month, yearMap }) {
+function MonthBlock({ year, month, yearMap, focusedKey, onMoveFocus, onCellFocus }) {
   const monthName = useMemo(
     () => new Date(year, month, 1).toLocaleDateString('en', { month: 'long' }),
     [year, month],
@@ -230,13 +294,25 @@ function MonthBlock({ year, month, yearMap }) {
             : colors.length === 1
             ? hexAlpha(colors[0], 0.34)
             : `linear-gradient(135deg, ${colors.map((c, j) => `${hexAlpha(c, 0.34)} ${(j / colors.length) * 100}% ${(((j + 1) / colors.length) * 100)}%`).join(', ')})`;
+          const isFocused = focusedKey === key;
           return (
             <a
               key={i}
               href={`/app?date=${key}`}
-              className={`yc-cell${isToday ? ' yc-cell-today' : ''}${isExcepted ? ' yc-cell-excepted' : ''}`}
+              data-yc-day={key}
+              className={`yc-cell${isToday ? ' yc-cell-today' : ''}${isExcepted ? ' yc-cell-excepted' : ''}${isFocused ? ' yc-cell-focused' : ''}`}
               style={{ background: bg }}
               title={describeCellTitle(key, entries)}
+              aria-label={a11yLabelForCell(d, entries)}
+              onFocus={() => onCellFocus?.(key)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowRight') { e.preventDefault(); onMoveFocus?.(1); }
+                else if (e.key === 'ArrowLeft') { e.preventDefault(); onMoveFocus?.(-1); }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); onMoveFocus?.(7); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); onMoveFocus?.(-7); }
+                else if (e.key === 'PageDown') { e.preventDefault(); onMoveFocus?.(30); }
+                else if (e.key === 'PageUp') { e.preventDefault(); onMoveFocus?.(-30); }
+              }}
             >
               <span className="yc-cell-num">{d.getDate()}</span>
               {entries.length > 0 && !isExcepted && (
@@ -252,6 +328,18 @@ function MonthBlock({ year, month, yearMap }) {
       </div>
     </div>
   );
+}
+
+function a11yLabelForCell(date, entries) {
+  const base = date.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  if (!entries.length) return `${base}, no rhythms — open day`;
+  const active = entries.filter(e => !e.suppressed);
+  const supp = entries.filter(e => e.suppressed);
+  const parts = [base];
+  if (active.length) parts.push(`${active.length} rhythm${active.length === 1 ? '' : 's'}: ${active.map(e => e.rhythm.name).join(', ')}`);
+  if (supp.length) parts.push(`${supp.length} suppressed by ${supp[0].suppressed.label || supp[0].suppressed.type}`);
+  parts.push('open day');
+  return parts.join(', ');
 }
 
 function describeCellTitle(dateKey, entries) {

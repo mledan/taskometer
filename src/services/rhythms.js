@@ -267,19 +267,51 @@ export function dateIsExcepted(dateKey, exceptions) {
   return null;
 }
 
+// Per-rhythm occurrence cache. Keyed by `${year}|${cadenceFingerprint}`
+// so editing a rhythm's name/color doesn't invalidate the cache. The
+// fingerprint covers every cadence-relevant field.
+const _occurrenceCache = new Map();
+
+function cadenceFingerprint(rhythm) {
+  const c = rhythm?.cadence || {};
+  return [
+    c.kind,
+    c.dayOfWeek ?? '',
+    c.nth ?? '',
+    c.monthDate ?? '',
+    c.weekOfQuarter ?? '',
+    c.anchor ?? '',
+    c.end ?? '',
+  ].join('|');
+}
+
 /**
  * Compute a derived map of date → array of rhythm occurrences across a
  * year, honoring exceptions. The shape is:
  *   { 'YYYY-MM-DD': [{ rhythm, suppressed }, ...] }
  * `suppressed` is the exception object if the rhythm was suppressed
  * that day, else null.
+ *
+ * Per-rhythm occurrence dates are cached, so changing a rhythm's name
+ * or color is free; changing its cadence invalidates only that
+ * rhythm's slot in the cache.
  */
 export function buildYearMap(year, rhythms, exceptions) {
   const start = new Date(year, 0, 1);
   const end = new Date(year, 11, 31);
   const map = new Map();
   for (const r of rhythms || []) {
-    const dates = occurrencesInRange(r, start, end);
+    const cacheKey = `${year}|${cadenceFingerprint(r)}`;
+    let dates = _occurrenceCache.get(cacheKey);
+    if (!dates) {
+      dates = occurrencesInRange(r, start, end);
+      _occurrenceCache.set(cacheKey, dates);
+      // Prevent unbounded growth on long-lived sessions.
+      if (_occurrenceCache.size > 500) {
+        const firstKey = _occurrenceCache.keys().next().value;
+        _occurrenceCache.delete(firstKey);
+      }
+    }
     for (const dk of dates) {
       const exc = dateIsExcepted(dk, exceptions);
       if (!map.has(dk)) map.set(dk, []);
@@ -288,3 +320,6 @@ export function buildYearMap(year, rhythms, exceptions) {
   }
   return map;
 }
+
+/** Test-only — clear the per-rhythm occurrence cache. */
+export function _clearOccurrenceCache() { _occurrenceCache.clear(); }

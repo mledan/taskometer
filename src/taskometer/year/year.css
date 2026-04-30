@@ -10,6 +10,23 @@
   color: var(--ink);
 }
 
+/* Skip link — invisible until keyboard focus moves to it. Keyboard /
+   screen-reader users can hit Tab once and jump past the rail. */
+.yc-skiplink {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  padding: 8px 14px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  text-decoration: none;
+  border-radius: 6px;
+  z-index: 100;
+}
+.yc-skiplink:focus { left: 8px; outline: 3px solid var(--orange); }
+
 .yc-mono {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
@@ -225,7 +242,17 @@
   cursor: pointer;
   overflow: hidden;
 }
-.yc-cell:hover { border-color: var(--ink); transform: translateY(-1px); }
+.yc-cell:hover, .yc-cell:focus-visible { border-color: var(--ink); transform: translateY(-1px); }
+.yc-cell:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 2px;
+  z-index: 2;
+}
+.yc-cell-focused { border-color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .yc-cell, .yc-rail-item, .yc-cell:hover { transition: none !important; transform: none !important; }
+}
 .yc-cell-empty { background: transparent; border: none; cursor: default; }
 .yc-cell-empty:hover { transform: none; }
 .yc-cell-num {
