@@ -80,6 +80,35 @@ cd infra/bootstrap/backend
 TF_VAR_env=dev terraform destroy
 ```
 
+## Stripe environment variables
+
+Billing is handled by Stripe. Nothing about Stripe is provisioned in
+Terragrunt (Stripe is its own SaaS), but the API endpoints in
+`api/checkout-session.js` and `api/stripe-webhook.js` require these
+variables in the Vercel project settings:
+
+| Variable | Where | Notes |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | Vercel runtime env (server) | `sk_live_...` or `sk_test_...` |
+| `STRIPE_WEBHOOK_SECRET` | Vercel runtime env (server) | `whsec_...` from the Stripe webhook config |
+| `STRIPE_PRICE_PRO` | Vercel runtime env (server) | `price_...` for the monthly Pro plan |
+| `STRIPE_PRICE_TEAM` | Vercel runtime env (server) | `price_...` for the seat-priced Team plan |
+| `VITE_STRIPE_PRICE_PRO` | Vercel runtime env (build) | Same as above; surfaced to the SPA so it knows checkout is wired |
+| `VITE_STRIPE_PRICE_TEAM` | Vercel runtime env (build) | Same |
+| `PUBLIC_BASE_URL` | Vercel runtime env (server) | e.g. `https://taskometer.vercel.app` — used in checkout success/cancel URLs |
+
+Webhook configuration in the Stripe dashboard:
+
+1. Add an endpoint pointing at `https://<your-host>/api/stripe-webhook`.
+2. Subscribe to: `checkout.session.completed`,
+   `customer.subscription.updated`, `customer.subscription.deleted`,
+   `invoice.payment_failed`.
+3. Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
+
+If none of these are set the pricing page falls back to a friendly
+"email us when you launch this" mailto on the paid CTAs. Production
+won't have dead buttons.
+
 ## Conventions
 
 - Subscription ids are never committed. They're passed via

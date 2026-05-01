@@ -7,6 +7,7 @@ import { ThemeProvider } from './context/ThemeContext.jsx';
 import Landing from './marketing/Landing.jsx';
 import TeamsDemo from './marketing/TeamsDemo.jsx';
 import { Privacy, Terms } from './marketing/Legal.jsx';
+import Pricing from './marketing/Pricing.jsx';
 import YearCanvas from './taskometer/year/YearCanvas.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
 import './components/CommandPalette.css';
@@ -98,6 +99,7 @@ function App() {
     { id: 'go-today',  label: 'Jump to today',         hint: 'Day view, today',     shortcut: 'T',   run: () => { window.location.href = '/app'; } },
     { id: 'go-home',   label: 'Go to landing page',    hint: 'Marketing',                            run: () => { window.location.href = '/'; } },
     { id: 'go-teams',  label: 'Go to Teams (preview)', hint: 'Concept dashboard',                    run: () => { window.location.href = '/teams'; } },
+    { id: 'go-pricing', label: 'Pricing',                                                            run: () => { window.location.href = '/pricing'; } },
     { id: 'go-priv',   label: 'Privacy policy',        hint: 'How we handle data',                   run: () => { window.location.href = '/privacy'; } },
     { id: 'go-terms',  label: 'Terms of service',                                                    run: () => { window.location.href = '/terms'; } },
   ];
@@ -147,6 +149,10 @@ function App() {
 
   if (path === '/terms') {
     return <ThemeProvider><Terms />{palette}</ThemeProvider>;
+  }
+
+  if (path === '/pricing') {
+    return <ThemeProvider><Pricing />{palette}</ThemeProvider>;
   }
 
   return (

@@ -64,6 +64,19 @@ describe('routing', () => {
     expect(screen.getByText(/Acceptable use/i)).toBeInTheDocument();
   });
 
+  test('/pricing renders the three plan cards', () => {
+    setPath('/pricing');
+    render(<App />);
+    expect(screen.getByText(/Simple, honest pricing/i)).toBeInTheDocument();
+    // "Free" appears as both a tier name and the price-of-free; getAllBy
+    // is the right matcher. Pro and Team only appear once each.
+    expect(screen.getAllByText('Free').length).toBeGreaterThan(0);
+    expect(screen.getByText('Pro')).toBeInTheDocument();
+    expect(screen.getByText('Team')).toBeInTheDocument();
+    // The "why we charge" section should also be on the page.
+    expect(screen.getByText(/Why we charge/i)).toBeInTheDocument();
+  });
+
   test('/app renders the actual product (welcome modal on first load)', () => {
     setPath('/app');
     render(<App />);
