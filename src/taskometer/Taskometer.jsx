@@ -320,6 +320,57 @@ export default function Taskometer() {
   };
   const handleSeriesBump = (id, days) => api.tasks.bumpSeries(id, days);
 
+  // Drag a task from one slot to another (within or across days). The
+  // task lands at the next free minute of the destination slot, picking
+  // the earliest start time after any existing tasks. If the slot is
+  // already saturated we fall back to slot-start so the task is at
+  // least visible — the rollover logic only kicks in for fresh adds.
+  const handleTaskMoveToSlot = async (taskId, slotId) => {
+    if (!taskId || !slotId) return;
+    const slot = (state.slots || []).find(s => s.id === slotId);
+    const task = (state.tasks || []).find(t => t.id === taskId);
+    if (!slot || !task) return;
+    if (task.scheduledSlotId === slotId) return; // no-op
+
+    const [sh, sm] = (slot.startTime || '09:00').split(':').map(Number);
+    const [eh, em] = (slot.endTime || '17:00').split(':').map(Number);
+    const slotStartMin = (sh || 0) * 60 + (sm || 0);
+    let slotEndMin = (eh || 0) * 60 + (em || 0);
+    if (slotEndMin <= slotStartMin) slotEndMin += 24 * 60;
+    const duration = task.duration || 30;
+
+    const existing = (state.tasks || []).filter(t => {
+      if (t.id === taskId) return false;
+      if (t.status === 'cancelled') return false;
+      if (t.scheduledSlotId === slotId) return true;
+      if (!t.scheduledTime) return false;
+      const ts = new Date(t.scheduledTime);
+      if (formatYMD(ts) !== slot.date) return false;
+      const m = ts.getHours() * 60 + ts.getMinutes();
+      return m >= slotStartMin && m < slotEndMin;
+    });
+
+    let nextMin = slotStartMin;
+    for (const t of existing) {
+      const ts = new Date(t.scheduledTime);
+      const start = ts.getHours() * 60 + ts.getMinutes();
+      const end = start + (t.duration || 30);
+      if (end > nextMin) nextMin = end;
+    }
+    if (nextMin + duration > slotEndMin) nextMin = slotStartMin; // saturated → drop at top
+
+    const d = new Date(`${slot.date}T00:00:00`);
+    d.setHours(Math.floor(nextMin / 60), nextMin % 60, 0, 0);
+    const iso = d.toISOString();
+
+    await api.tasks.update(taskId, {
+      scheduledSlotId: slotId,
+      scheduledTime: iso,
+      scheduledFor: iso,
+    });
+    telemetryLog('task:drag-move', { id: taskId, toSlot: slotId, date: slot.date });
+  };
+
   const rowHandlers = {
     onToggle: handleToggle,
     onDelete: handleDelete,
@@ -328,6 +379,7 @@ export default function Taskometer() {
     onSeriesComplete: handleSeriesComplete,
     onSeriesDelete: handleSeriesDelete,
     onSeriesBump: handleSeriesBump,
+    onTaskMoveTo: handleTaskMoveToSlot,
     editingTaskId,
   };
 

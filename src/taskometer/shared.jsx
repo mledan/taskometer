@@ -175,7 +175,15 @@ export function TaskRow({
     <div
       className={cls}
       onClick={onClick}
-      style={{ cursor: onClick ? 'pointer' : 'default' }}
+      draggable
+      onDragStart={(e) => {
+        // Stash the task id on the dataTransfer payload so drop targets
+        // (wedges in the wheel, slot headers in the expansion panel)
+        // can identify what was dropped without prop drilling.
+        e.dataTransfer.setData('text/task-id', task.id);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      style={{ cursor: onClick ? 'pointer' : 'grab' }}
     >
       <Check checked={!!task.done} onToggle={() => onToggle && onToggle(task.id)} />
       <div style={{ flex: 1, minWidth: 0 }}>

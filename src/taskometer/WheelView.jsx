@@ -336,6 +336,7 @@ export default function WheelView({
           onNudgeEdge={handleNudgeEdge}
           selectedSlotId={selectedSlotId}
           editingSlotId={editingSlotId}
+          onTaskMoveTo={rowHandlers?.onTaskMoveTo}
         />
         </div>
         {viewSlots.length === 0 && (
@@ -460,6 +461,7 @@ export default function WheelView({
               setComposerOpen(false);
               setDraftSlot(null);
             }}
+            onTaskMoveTo={rowHandlers?.onTaskMoveTo}
           />
         );
       })()}
@@ -637,7 +639,12 @@ function ExpandedWedgePanel({
   renderTaskEntry,
   onCollapse,
   onEditSlot,
+  onTaskMoveTo,
 }) {
+  // Track which slot card is currently being hovered with a task drag,
+  // so we can highlight it as the active drop target. Mirrors the
+  // wedge-level visual we already have on the SVG.
+  const [dropOverId, setDropOverId] = useState(null);
   if (!slots || slots.length === 0) return null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -645,6 +652,7 @@ function ExpandedWedgePanel({
         const color = s.color || resolveTypeColor(taskTypes, s.slotType) || 'var(--ink)';
         const overnight = isOvernightSlot(s);
         const slotTasks = tasksBySlotId?.get?.(s.id) || [];
+        const isDropTarget = dropOverId === s.id;
         return (
           <div
             key={s.id}
@@ -652,6 +660,30 @@ function ExpandedWedgePanel({
             style={{
               padding: '12px 14px',
               borderLeft: `4px solid ${color}`,
+              outline: isDropTarget ? '2px dashed var(--orange)' : 'none',
+              outlineOffset: isDropTarget ? '2px' : '0',
+              transition: 'outline 0.06s',
+            }}
+            onDragOver={(ev) => {
+              if (!ev.dataTransfer.types.includes('text/task-id')) return;
+              ev.preventDefault();
+              ev.dataTransfer.dropEffect = 'move';
+              if (dropOverId !== s.id) setDropOverId(s.id);
+            }}
+            onDragLeave={(ev) => {
+              // Only clear when leaving the card itself, not internal
+              // children — relatedTarget tells us where the cursor went.
+              if (!ev.currentTarget.contains(ev.relatedTarget)) {
+                if (dropOverId === s.id) setDropOverId(null);
+              }
+            }}
+            onDrop={(ev) => {
+              const taskId = ev.dataTransfer.getData('text/task-id');
+              setDropOverId(null);
+              if (taskId && onTaskMoveTo) {
+                ev.preventDefault();
+                onTaskMoveTo(taskId, s.id);
+              }
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -936,6 +968,7 @@ function WheelSvg({
   onNudgeEdge,
   editingSlotId,
   selectedSlotId,
+  onTaskMoveTo,
 }) {
   const cx = 320, cy = 320, rOuter = 295, rInner = 110;
   const labelR = (rOuter + rInner) / 2;
@@ -946,6 +979,9 @@ function WheelSvg({
   useEffect(() => { dragRef.current = drag; }, [drag]);
 
   const [hoverHandle, setHoverHandle] = useState(null); // {slotId, which}
+  // Wedge currently being hovered with a task-drag — used to highlight
+  // the drop target while the user is dragging a task between slots.
+  const [dropHoverSlotId, setDropHoverSlotId] = useState(null);
 
   const wedgeById = (id) => wedges.find(w => w.id === id);
 
@@ -1217,15 +1253,35 @@ function WheelSvg({
     return raw.map((seg, i) => {
       const path = wedgePath(seg[0], seg[1]);
       if (!path) return null;
+      const isHovered = dropHoverSlotId === slotId;
       return (
         <path
           key={`${slotId}-seg${i}`}
           d={path}
           fill={fill}
-          stroke={stroke}
-          strokeWidth={strokeW}
+          stroke={isHovered ? 'var(--orange)' : stroke}
+          strokeWidth={isHovered ? 3 : strokeW}
           onPointerDown={onDown}
           onClick={onClick}
+          onDragOver={(ev) => {
+            // Accept task-row drops. The dataTransfer is read on drop;
+            // here we only need to indicate the wedge is willing.
+            if (!ev.dataTransfer.types.includes('text/task-id')) return;
+            ev.preventDefault();
+            ev.dataTransfer.dropEffect = 'move';
+            if (dropHoverSlotId !== slotId) setDropHoverSlotId(slotId);
+          }}
+          onDragLeave={() => {
+            if (dropHoverSlotId === slotId) setDropHoverSlotId(null);
+          }}
+          onDrop={(ev) => {
+            const taskId = ev.dataTransfer.getData('text/task-id');
+            setDropHoverSlotId(null);
+            if (taskId && onTaskMoveTo) {
+              ev.preventDefault();
+              onTaskMoveTo(taskId, slotId);
+            }
+          }}
           style={{ cursor: drag ? 'grabbing' : 'grab' }}
         />
       );
