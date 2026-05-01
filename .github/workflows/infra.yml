@@ -1,0 +1,122 @@
+name: Infra
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra.yml'
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Environment to apply'
+        type: choice
+        required: true
+        default: dev
+        options: [dev, prod]
+      action:
+        description: 'plan | apply'
+        type: choice
+        required: true
+        default: plan
+        options: [plan, apply]
+
+# OIDC federated identity to Azure — no long-lived service principal
+# secrets in GitHub. Set up the federation once per env in the Azure
+# portal: App Registration → Federated credentials → GitHub Actions.
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: infra-${{ github.event.inputs.env || 'pr' }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Setup Terragrunt
+        run: |
+          curl -sLo /usr/local/bin/terragrunt \
+            https://github.com/gruntwork-io/terragrunt/releases/download/v0.55.18/terragrunt_linux_amd64
+          chmod +x /usr/local/bin/terragrunt
+          terragrunt --version
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terragrunt plan
+        working-directory: infra/envs/${{ matrix.env }}/community
+        env:
+          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC: "true"
+        run: |
+          terragrunt init -input=false
+          terragrunt plan -input=false -no-color | tee plan.txt
+
+      - name: Comment plan on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = `infra/envs/${{ matrix.env }}/community/plan.txt`;
+            if (!fs.existsSync(path)) return;
+            const plan = fs.readFileSync(path, 'utf8').slice(0, 60000);
+            const body = `### Terragrunt plan — \`${{ matrix.env }}/community\`\n\n<details><summary>Plan output</summary>\n\n\`\`\`\n${plan}\n\`\`\`\n</details>`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+  apply:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.env }} # uses GH Environment protection rules
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Setup Terragrunt
+        run: |
+          curl -sLo /usr/local/bin/terragrunt \
+            https://github.com/gruntwork-io/terragrunt/releases/download/v0.55.18/terragrunt_linux_amd64
+          chmod +x /usr/local/bin/terragrunt
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terragrunt ${{ github.event.inputs.action }}
+        working-directory: infra/envs/${{ github.event.inputs.env }}/community
+        env:
+          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC: "true"
+        run: |
+          terragrunt init -input=false
+          terragrunt ${{ github.event.inputs.action }} -input=false -auto-approve

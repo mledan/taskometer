@@ -3,6 +3,18 @@
 /.pnp
 .pnp.js
 
+# Terraform / Terragrunt — state, plans, and the .terragrunt-cache
+# subdirectory each leaf creates on first init. Never commit these;
+# state lives in the Azure backend, plans are ephemeral.
+**/.terraform/
+**/.terragrunt-cache/
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/.terraform.lock.hcl
+**/plan.txt
+*.tfvars
+!**/*.example.tfvars
+
 # testing
 /coverage
 
