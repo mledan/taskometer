@@ -96,10 +96,10 @@ export default function Taskometer() {
   const [pendingDays, setPendingDays] = useState(null); // string[] | null
   const [saveDaysAsRhythmModal, setSaveDaysAsRhythmModal] = useState(null); // string[] | null
   // Single multi-select instance shared across the calendar scope tabs
-  // so switching from month → quarter → year keeps the selection. Was
-  // previously per-Insights-component, which destroyed selection on
-  // every scope change.
-  const multiSelect = useMultiSelect();
+  // so switching from month → quarter → year keeps the selection. The
+  // 'app-calendar' storage key mirrors selection into sessionStorage so
+  // an accidental refresh doesn't lose what the user just picked.
+  const multiSelect = useMultiSelect('app-calendar');
   const auth = (() => {
     try {
       // taskometer.auth is the current key; smartcircle.auth is the legacy

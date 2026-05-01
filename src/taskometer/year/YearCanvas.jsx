@@ -41,8 +41,10 @@ export default function YearCanvas() {
   // arrow keys move focus, Enter opens the day, Esc returns to chrome.
   const [focusedKey, setFocusedKey] = useState(null);
   const gridRef = useRef(null);
-  // Multi-select for bulk operations on selected days.
-  const ms = useMultiSelect();
+  // Multi-select for bulk operations on selected days. Persisted across
+  // refreshes via sessionStorage so a long picking session survives an
+  // accidental reload.
+  const ms = useMultiSelect('year-canvas');
 
   const reload = () => {
     setRhythms(listRhythms());

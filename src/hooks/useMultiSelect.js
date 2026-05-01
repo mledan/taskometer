@@ -5,11 +5,16 @@ import { useEffect, useState } from 'react';
  * YMD keys plus the most recently selected key (used for shift-extend
  * range selection). Wires Esc to clear from anywhere.
  *
- *   const ms = useMultiSelect();
+ *   const ms = useMultiSelect('myKey'); // optional sessionStorage key
  *   ms.selected     // Set<string>  – currently selected YMD keys
  *   ms.toggle(key)  // toggle one
  *   ms.extend(key)  // extend range from last toggled to key
  *   ms.clear()      // empty the selection
+ *
+ * When `storageKey` is provided the selection is mirrored into
+ * sessionStorage so an accidental refresh doesn't lose the picks.
+ * sessionStorage (vs localStorage) is intentional — selections are
+ * ephemeral by nature and shouldn't outlive the tab.
  */
 function ymd(d) {
   const m = d.getMonth() + 1;
@@ -17,9 +22,41 @@ function ymd(d) {
   return `${d.getFullYear()}-${m < 10 ? '0' + m : m}-${day < 10 ? '0' + day : day}`;
 }
 
-export function useMultiSelect() {
-  const [selected, setSelected] = useState(() => new Set());
+const SESSION_PREFIX = 'taskometer.multiselect.';
+
+function readSession(key) {
+  try {
+    if (typeof sessionStorage === 'undefined') return null;
+    const raw = sessionStorage.getItem(SESSION_PREFIX + key);
+    if (!raw) return null;
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : null;
+  } catch (_) { return null; }
+}
+
+function writeSession(key, set) {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    if (!set || set.size === 0) {
+      sessionStorage.removeItem(SESSION_PREFIX + key);
+    } else {
+      sessionStorage.setItem(SESSION_PREFIX + key, JSON.stringify([...set]));
+    }
+  } catch (_) { /* quota or restricted env */ }
+}
+
+export function useMultiSelect(storageKey = null) {
+  const [selected, setSelected] = useState(() => {
+    if (!storageKey) return new Set();
+    const restored = readSession(storageKey);
+    return restored ? new Set(restored) : new Set();
+  });
   const [lastKey, setLastKey] = useState(null);
+
+  // Mirror to sessionStorage on every change.
+  useEffect(() => {
+    if (storageKey) writeSession(storageKey, selected);
+  }, [selected, storageKey]);
 
   const toggle = (key) => {
     setSelected(prev => {
