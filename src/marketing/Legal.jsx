@@ -30,19 +30,34 @@ export function Privacy() {
       <Section heading="What we don't collect">
         <ul>
           <li>No accounts, no passwords, no email lists.</li>
-          <li>No analytics scripts. No Google, Meta, or third-party trackers.</li>
+          <li>No third-party analytics scripts. No Google, Meta, Mixpanel, etc.</li>
           <li>No cookies (other than what your browser may set on its own).</li>
           <li>No advertising, no ad targeting, ever.</li>
+          <li>No content of your wheels, rhythms, or tasks — those stay in your browser.</li>
+          <li>No IP-address logging, no user agents stored.</li>
         </ul>
       </Section>
 
-      <Section heading="Console telemetry">
+      <Section heading="What we collect — feature-usage telemetry">
         <p>
-          The app keeps a small in-memory log of UI events (wheels applied,
-          blocks edited, etc.) to help us debug. This log lives only in your
-          browser tab and disappears when you close it. You can dump it from
-          the DevTools console with <code>__tm.dump()</code> if you want to
-          attach it to a bug report.
+          When you use the app on the deployed site, we log a small set
+          of <strong>feature-usage events</strong> to our server logs:
+          which feature was triggered (e.g. <code>rhythm:added</code>,
+          <code>wheel:applied</code>, <code>task:add</code>), a timestamp,
+          and a per-tab session id that lives only in your browser's
+          <code>sessionStorage</code>.
+        </p>
+        <p>
+          We do <strong>not</strong> log the contents of your wheels,
+          rhythms, or tasks. We don't log your IP address, user agent,
+          or any personal identifier. Logs are written to Vercel function
+          logs and rotate automatically.
+        </p>
+        <p>
+          The same in-memory ring buffer is still available in DevTools
+          via <code>__tm.dump()</code> for bug reports. In local
+          development (<code>localhost</code>) nothing leaves your
+          machine.
         </p>
       </Section>
 

@@ -53,7 +53,7 @@ describe('routing', () => {
   test('/privacy renders the privacy policy', () => {
     setPath('/privacy');
     render(<App />);
-    expect(screen.getByText(/Console telemetry/i)).toBeInTheDocument();
+    expect(screen.getByText(/feature-usage telemetry/i)).toBeInTheDocument();
     expect(screen.getByText(/nothing leaves your browser/i)).toBeInTheDocument();
   });
 

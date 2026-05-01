@@ -23,8 +23,7 @@ const STYLE_MUTED = 'color:#8A8078';
 
 // Console output is a dev-only crutch. In production we keep the in-memory
 // ring buffer (so users can still grab __tm.dump() from devtools when
-// reporting bugs) but stop spamming the console on every event. Wire to
-// a real provider here when one exists.
+// reporting bugs) but stop spamming the console on every event.
 const VERBOSE_CONSOLE = (() => {
   try {
     if (typeof import.meta !== 'undefined' && import.meta.env) {
@@ -33,6 +32,57 @@ const VERBOSE_CONSOLE = (() => {
   } catch (_) {}
   return typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
 })();
+
+// Send events to /api/telemetry when running on a deployed host. Dev
+// stays local-only. The endpoint logs structured JSON to Vercel
+// function logs — no third-party services, no personal data.
+const REMOTE_ENABLED = (() => {
+  try {
+    if (typeof window === 'undefined') return false;
+    const host = window.location.hostname || '';
+    if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) return false;
+    return true;
+  } catch (_) { return false; }
+})();
+
+// Per-tab session id, stored in sessionStorage so it survives reloads
+// but doesn't outlive the browser tab. No personal identifiers.
+const SESSION_ID = (() => {
+  try {
+    if (typeof sessionStorage === 'undefined') return null;
+    let id = sessionStorage.getItem('taskometer.telemetry.session');
+    if (!id) {
+      id = `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      sessionStorage.setItem('taskometer.telemetry.session', id);
+    }
+    return id;
+  } catch (_) { return null; }
+})();
+
+function sendToEndpoint(entry) {
+  if (!REMOTE_ENABLED) return;
+  try {
+    const payload = JSON.stringify({
+      event: entry.event,
+      data: entry.data,
+      ts: new Date().toISOString(),
+      sessionId: SESSION_ID,
+    });
+    // sendBeacon is fire-and-forget; survives page unload. Falls back
+    // to fetch with keepalive if the API is missing.
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      const blob = new Blob([payload], { type: 'application/json' });
+      navigator.sendBeacon('/api/telemetry', blob);
+    } else if (typeof fetch === 'function') {
+      fetch('/api/telemetry', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      }).catch(() => { /* swallow */ });
+    }
+  } catch (_) { /* never let telemetry break the app */ }
+}
 
 function stamp() {
   const d = new Date();
@@ -62,6 +112,7 @@ export function log(event, data) {
       console.log(`%c[tm] ${event}`, STYLE_EVT, data);
     }
   }
+  sendToEndpoint(entry);
   return entry;
 }
 
