@@ -10,48 +10,45 @@ function markSeen() {
   try { localStorage.setItem(STORAGE_KEY, '1'); } catch (_) {}
 }
 
+// Tour script — keep it short. Five steps that match the current
+// product: pick a wheel, click a wedge, add a task, see the year
+// canvas, done. Each step optionally watches a signal so the tour
+// auto-advances when the user actually performs the action.
 const STEPS = [
   {
-    title: 'Welcome to your day',
-    body: 'Smart Circle turns your day into a 24-hour wheel. Each colored block is a chunk of time — sleep, work, meals, whatever you want.',
+    title: 'Welcome to taskometer',
+    body: 'Your day is a 24-hour wheel. You shape recurring rhythms once and let them paint the year — then drop tasks on top.',
     target: null,
   },
   {
-    title: '1. Pick a wheel',
-    body: 'Try the dropdown — pick any of the famous schedules or a starter. The whole day repaints to match.',
+    title: '1. Pick a shape',
+    body: 'The chip in the header opens a library of day shapes — from a basic Workday to famous routines like Buffett or Pomodoro. Pick one and the wheel repaints.',
     target: '[data-onboard="wheel-picker"]',
     awaitSignal: 'wheelPicked',
-    progressHint: "go ahead — change the dropdown",
+    progressHint: 'click the chip and pick any wheel',
   },
   {
-    title: '2. Click a block',
-    body: 'Tap any colored wedge. It stays highlighted and the task-type dropdown below auto-matches.',
+    title: '2. Click a wedge',
+    body: 'Tap any colored wedge. It expands below the wheel so you can see what\'s scheduled, and the composer auto-targets that block.',
     target: '[data-onboard="wheel"]',
     awaitSignal: 'blockClicked',
-    progressHint: "click a wedge on the wheel",
+    progressHint: 'click any wedge on the wheel',
   },
   {
     title: '3. Add a task',
-    body: 'Type something into the orange box and hit Add. It lands inside the block you selected.',
+    body: 'Type a task and hit Add. It lands in the highlighted block automatically. If today\'s block is full, the task rolls forward to the next matching block — even tomorrow.',
     target: '[data-onboard="composer"]',
     awaitSignal: 'taskAdded',
-    progressHint: "add any task to continue",
+    progressHint: 'type something and hit Add',
   },
   {
-    title: '4. Reshape your day',
-    body: 'Click a wedge then hit the ⚙ gear to edit its label, color, or time. Drag the wedge edges to resize.',
-    target: '[data-onboard="wheel"]',
+    title: '4. Plan the year',
+    body: 'Click "Open year canvas" to define rhythms (weekly all-hands, biweekly retro, monthly review) that paint themselves across the whole year. Multi-select days with ⌘+click to bulk-paint or save as a custom rhythm.',
+    target: '[data-onboard="year-canvas"]',
   },
   {
-    title: '5. Your account',
-    body: 'Open the account button in the top-right to view your profile or sign out. Guest sessions reset on refresh.',
-    target: '[data-onboard="account"]',
-    awaitSignal: 'accountOpened',
-    progressHint: "click the account button",
-  },
-  {
-    title: "You're all set",
-    body: 'Click the ? icon in the top right anytime to replay this tour. Have fun!',
+    title: "You're set",
+    body: 'Hit Cmd+K anywhere for the command palette. Hit ? in the top-right to replay this tour. Have fun.',
     target: null,
   },
 ];

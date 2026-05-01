@@ -1102,7 +1102,6 @@ export default function Taskometer() {
             wheelPicked: derived.dayAssignments?.[formatYMD(selectedDate)] || '',
             blockClicked: selectedSlotId || '',
             taskAdded: (state.tasks || []).length,
-            accountOpened: accountOpen ? 1 : 0,
           }}
         />
       )}
@@ -1644,6 +1643,7 @@ function YearPromoBanner() {
   };
   return (
     <div
+      data-onboard="year-canvas"
       style={{
         marginBottom: 18,
         padding: '14px 18px',
