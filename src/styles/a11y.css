@@ -1,0 +1,54 @@
+/* ─────────────────────────────────────────────────────────────────────
+   App-wide accessibility styles. Imported once from main.jsx so both
+   marketing and product surfaces honor user preferences.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* High-contrast mode — when the user has prefers-contrast: more set
+   in their OS, lift the ink darker, push the rule lines closer to
+   black, and bump every focus ring's width and offset so it's
+   unmissable. The orange accent stays orange but gets paired with a
+   darker outline on focus to clear AA on top of paper. */
+@media (prefers-contrast: more) {
+  :root {
+    --ink: #000000;
+    --ink-soft: #1A1A1A;
+    --ink-mute: #4A4A4A;
+    --rule: #6E6055;
+    --rule-soft: #8E8278;
+    --orange: #B5390F;
+  }
+  *:focus-visible {
+    outline: 3px solid var(--ink) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 5px var(--orange) !important;
+  }
+  .tm-task-row, .yc-cell, .yc-rail-item, .mk-grid-card, .mk-team-card {
+    border-color: var(--ink) !important;
+  }
+}
+
+/* Reduced motion — disable every transition/animation app-wide. The
+   per-component rules in year.css and CommandPalette.css remain as
+   safety nets, but this catches anything we forgot. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Always show a focus ring on keyboard navigation. The standard
+   :focus-visible covers most cases; the orange ring matches the brand
+   and stays visible against the paper background. */
+:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+
+/* Buttons that handle their own focus styling can opt out by setting
+   :focus-visible { outline: none } on themselves; the global rule is
+   a sensible default. */
