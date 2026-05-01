@@ -253,6 +253,65 @@
 @media (prefers-reduced-motion: reduce) {
   .yc-cell, .yc-rail-item, .yc-cell:hover { transition: none !important; transform: none !important; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Mobile (<= 720px) — collapse 12-month grid to a single column,
+   give cells a minimum tappable size, soften the sticky behaviors so
+   the screen can actually scroll cleanly on a phone.
+   ───────────────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .yc-header {
+    padding: 14px 16px;
+    gap: 10px;
+  }
+  .yc-title { font-size: 38px; }
+  .yc-back { font-size: 11px; }
+
+  .yc-body {
+    padding: 16px 16px 0;
+    gap: 14px;
+  }
+
+  .yc-rail {
+    /* On phone the rail sits above the grid; sticky just gets in the
+       way of scrolling, so unstick it. */
+    position: static !important;
+    max-height: none;
+    padding-right: 0;
+  }
+  .yc-rail-section { gap: 6px; }
+  .yc-rail-empty { padding: 10px 12px; font-size: 13px; }
+
+  /* Months: one per row, each one filling the available width. */
+  .yc-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .yc-month {
+    padding: 12px 12px 8px;
+  }
+  .yc-month-head { font-size: 22px; }
+
+  /* Cells: ditch aspect-ratio to give a 44px tappable minimum height
+     without making them oversized squares on a wide tablet. */
+  .yc-cell {
+    aspect-ratio: auto;
+    min-height: 44px;
+    padding: 6px 2px 4px;
+  }
+  .yc-cell-num { font-size: 13px; }
+  .yc-cell-dots { gap: 3px; margin-top: 4px; }
+  .yc-cell-dot { width: 5px; height: 5px; }
+}
+
+/* Tighten further for small phones. */
+@media (max-width: 380px) {
+  .yc-cell { min-height: 40px; padding: 4px 1px 2px; }
+  .yc-month-dows > div { font-size: 8px !important; }
+  .yc-rail-item { padding: 6px 8px; }
+  .yc-rail-name { font-size: 13px; }
+}
 .yc-cell-empty { background: transparent; border: none; cursor: default; }
 .yc-cell-empty:hover { transform: none; }
 .yc-cell-num {

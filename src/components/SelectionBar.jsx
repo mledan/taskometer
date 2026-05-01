@@ -17,28 +17,34 @@ import React from 'react';
 export default function SelectionBar({ selected, actions = [], onClear, label = 'day' }) {
   if (!selected || selected.size === 0) return null;
   const n = selected.size;
+  // On phones we drop the pill shape and stretch the bar so action
+  // buttons stay visible and tappable. On wider screens the floating
+  // pill version is friendlier.
+  const isNarrow = typeof window !== 'undefined' && window.innerWidth < 600;
   return (
     <div
       role="status"
       aria-live="polite"
       style={{
         position: 'fixed',
-        bottom: 24,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        bottom: isNarrow ? 12 : 24,
+        left: isNarrow ? 12 : '50%',
+        right: isNarrow ? 12 : 'auto',
+        transform: isNarrow ? 'none' : 'translateX(-50%)',
         display: 'flex',
         alignItems: 'center',
+        justifyContent: isNarrow ? 'space-between' : 'flex-start',
         gap: 10,
-        padding: '10px 14px 10px 18px',
+        padding: isNarrow ? '10px 12px' : '10px 14px 10px 18px',
         background: 'var(--ink)',
         color: 'var(--paper)',
-        borderRadius: 999,
+        borderRadius: isNarrow ? 14 : 999,
         boxShadow: '0 6px 22px rgba(0, 0, 0, 0.22)',
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: 13,
         zIndex: 200,
         flexWrap: 'wrap',
-        maxWidth: '92vw',
+        maxWidth: isNarrow ? 'auto' : '92vw',
       }}
     >
       <span>
