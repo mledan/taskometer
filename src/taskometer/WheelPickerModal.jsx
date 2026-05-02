@@ -1,26 +1,42 @@
 import React, { useMemo, useState } from 'react';
 import { MiniWheel } from './WheelView.jsx';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
+import { ARCHETYPES, ARCHETYPE_WHEELS } from '../defaults/scheduleArchetypes';
 
 const CATEGORY_BY_ID = (() => {
   const m = {};
   for (const w of FAMOUS_WHEELS) m[w.id] = w.category;
+  for (const w of ARCHETYPE_WHEELS) m[w.id] = w.category;
   return m;
 })();
 
-const CATEGORY_ORDER = [
-  'My Wheels',
-  'Productivity Systems',
+// Wheels owned by an archetype — surfaced via the archetype rail
+// instead of in the category list, so we don't double up.
+const ARCHETYPE_WHEEL_IDS = new Set(ARCHETYPES.map(a => a.wheelId));
+
+// Categories that count as "Famous routines" — collapsed into the
+// easter-egg section so the main picker focuses on archetypes and
+// the user's own shapes.
+const FAMOUS_CATEGORIES = new Set([
   'Tech & CEOs',
   'Modern',
   'Athletes',
   'Writers & Artists',
   'Historical',
   'Lifestyles',
+  'Productivity Systems',
+]);
+
+const CATEGORY_ORDER = [
+  'My Wheels',
 ];
 
 function categoryOf(w) {
   return w.category || CATEGORY_BY_ID[w.id] || 'My Wheels';
+}
+
+function isFamousWheel(w) {
+  return FAMOUS_CATEGORIES.has(categoryOf(w));
 }
 
 /**
@@ -55,6 +71,21 @@ export default function WheelPickerModal({
   const [activeCat, setActiveCat] = useState('All');
   const [describe, setDescribe] = useState('');
   const [suggested, setSuggested] = useState(null);
+  // The famous-routines collection (Buffett, Mozart, Kafka…) is
+  // collapsed by default. Surfaces only when the user explicitly
+  // expands it — keeps the main picker focused on archetypes and
+  // their own saved shapes.
+  const [famousOpen, setFamousOpen] = useState(false);
+
+  // Build a Map<wheelId, wheel> from BOTH the user's wheels and the
+  // archetype catalog so an archetype card can render its preview
+  // even if the user hasn't saved that wheel yet.
+  const wheelById = useMemo(() => {
+    const m = new Map();
+    for (const w of wheels) m.set(w.id, w);
+    for (const w of ARCHETYPE_WHEELS) if (!m.has(w.id)) m.set(w.id, w);
+    return m;
+  }, [wheels]);
 
   const grouped = useMemo(() => {
     const m = new Map();
@@ -76,8 +107,28 @@ export default function WheelPickerModal({
     return ['All', ...cats];
   }, [grouped]);
 
+  // Three pools:
+  //   archetypeWheels — surfaced as a friendly chooser at the top.
+  //   regularWheels   — the user's saved shapes + non-famous extras.
+  //   famousWheels    — collapsed easter-egg section.
+  // Search & category filters apply to the regular grid; archetypes
+  // and famous routines stay where they are when filtering.
+  const archetypePool = useMemo(() => {
+    return ARCHETYPES
+      .map(a => ({ archetype: a, wheel: wheelById.get(a.wheelId) }))
+      .filter(x => x.wheel);
+  }, [wheelById]);
+
+  const regularPool = useMemo(() => {
+    return wheels.filter(w => !ARCHETYPE_WHEEL_IDS.has(w.id) && !isFamousWheel(w));
+  }, [wheels]);
+
+  const famousPool = useMemo(() => {
+    return wheels.filter(isFamousWheel);
+  }, [wheels]);
+
   const filtered = useMemo(() => {
-    let pool = wheels;
+    let pool = regularPool;
     if (activeCat !== 'All') pool = pool.filter(w => categoryOf(w) === activeCat);
     if (query.trim()) {
       const q = query.toLowerCase();
@@ -87,7 +138,18 @@ export default function WheelPickerModal({
       });
     }
     return pool;
-  }, [wheels, activeCat, query]);
+  }, [regularPool, activeCat, query]);
+
+  // When the user types a search, expand famous routines so matches
+  // surface. Otherwise stay collapsed.
+  const filteredFamous = useMemo(() => {
+    if (!query.trim()) return famousPool;
+    const q = query.toLowerCase();
+    return famousPool.filter(w => {
+      const blob = `${w.name} ${categoryOf(w)} ${(w.blocks || []).map(b => b.label).join(' ')}`.toLowerCase();
+      return blob.includes(q);
+    });
+  }, [famousPool, query]);
 
   const suggestFromDescription = () => {
     const tokens = describe.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -238,45 +300,179 @@ export default function WheelPickerModal({
           </span>
         </div>
 
-        <div className="tm-seg" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
-          {categories.map(c => (
-            <button
-              key={c}
-              type="button"
-              className={activeCat === c ? 'tm-on' : ''}
-              onClick={() => setActiveCat(c)}
-              style={{ fontSize: 12 }}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
         <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-              gap: 12,
-            }}
-          >
-            {filtered.map(w => (
-              <WheelCard
-                key={w.id}
-                wheel={w}
-                isCurrent={currentWheelId === w.id}
-                onApply={() => onApply?.(w.id)}
-              />
-            ))}
-            {filtered.length === 0 && (
-              <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--ink-mute)', padding: 32 }}>
-                no wheels match — try a different search.
+          {/* Archetype chooser — front and center. The social pivot:
+              users self-identify by archetype rather than picking a
+              celebrity. Each card shows the prototype wheel + blurb. */}
+          {!query.trim() && archetypePool.length > 0 && (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 11,
+                color: 'var(--ink-mute)',
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}>
+                What kind of day are you?
               </div>
-            )}
-          </div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                gap: 10,
+              }}>
+                {archetypePool.map(({ archetype, wheel }) => (
+                  <ArchetypeCard
+                    key={archetype.id}
+                    archetype={archetype}
+                    wheel={wheel}
+                    isCurrent={currentWheelId === wheel.id}
+                    onApply={() => onApply?.(wheel.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* The user's own saved shapes + anything else categorized. */}
+          {filtered.length > 0 && (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 11,
+                color: 'var(--ink-mute)',
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}>
+                Your shapes
+              </div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                gap: 12,
+              }}>
+                {filtered.map(w => (
+                  <WheelCard
+                    key={w.id}
+                    wheel={w}
+                    isCurrent={currentWheelId === w.id}
+                    onApply={() => onApply?.(w.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Famous routines — easter-egg section, collapsed by default.
+              Auto-expands when the user types a search to surface matches.
+              We're keeping these as curiosities, not the main offering. */}
+          {filteredFamous.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={() => setFamousOpen(o => !o)}
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: 11,
+                  color: 'var(--ink-mute)',
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  marginBottom: 8,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+                aria-expanded={famousOpen || !!query.trim()}
+              >
+                <span>{(famousOpen || query.trim()) ? '▼' : '▶'}</span>
+                Famous routines · {filteredFamous.length}
+                <span style={{ marginLeft: 6, fontSize: 16 }}>🥚</span>
+              </button>
+              {(famousOpen || query.trim()) && (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                  gap: 12,
+                  marginTop: 6,
+                }}>
+                  {filteredFamous.map(w => (
+                    <WheelCard
+                      key={w.id}
+                      wheel={w}
+                      isCurrent={currentWheelId === w.id}
+                      onApply={() => onApply?.(w.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {filtered.length === 0 && filteredFamous.length === 0 && !query.trim() === false && (
+            <div style={{ textAlign: 'center', color: 'var(--ink-mute)', padding: 32 }}>
+              no wheels match — try a different search.
+            </div>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Archetype card — what kind of day are you? Shows the prototype
+ * wheel preview plus the archetype's name + blurb.
+ */
+function ArchetypeCard({ archetype, wheel, isCurrent, onApply }) {
+  return (
+    <button
+      type="button"
+      onClick={onApply}
+      style={{
+        all: 'unset',
+        cursor: 'pointer',
+        border: `${isCurrent ? '2px solid var(--orange)' : '1.5px solid var(--rule)'}`,
+        borderRadius: 12,
+        padding: '12px 14px',
+        background: 'var(--paper)',
+        display: 'flex',
+        gap: 12,
+        alignItems: 'center',
+        transition: 'border-color 0.12s, transform 0.08s',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = archetype.color; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isCurrent ? 'var(--orange)' : 'var(--rule)'; }}
+      title={archetype.blurb}
+    >
+      <MiniWheel slots={wheel.blocks || []} size={64} thickness={8} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+          <span aria-hidden style={{ fontSize: 18 }}>{archetype.icon}</span>
+          <span style={{
+            fontFamily: 'Caveat, cursive',
+            fontSize: 22,
+            color: 'var(--ink)',
+            lineHeight: 1.1,
+          }}>
+            {archetype.name}
+          </span>
+        </div>
+        <div style={{
+          fontSize: 12,
+          color: 'var(--ink-mute)',
+          lineHeight: 1.35,
+          overflow: 'hidden',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+        }}>
+          {archetype.blurb}
+        </div>
+      </div>
+    </button>
   );
 }
 

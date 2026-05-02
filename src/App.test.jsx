@@ -30,8 +30,8 @@ describe('routing', () => {
   test('/ renders the landing page (not the app)', () => {
     setPath('/');
     render(<App />);
-    // New annual-first hero copy.
-    expect(screen.getByText(/Lay out your year\./i)).toBeInTheDocument();
+    // Archetype-focused hero copy.
+    expect(screen.getByText(/Find your rhythm/i)).toBeInTheDocument();
     // The active-wheel chip ("pick a wheel") only renders inside /app —
     // its absence confirms we're on marketing.
     expect(screen.queryByText(/pick a wheel/i)).not.toBeInTheDocument();

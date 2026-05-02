@@ -32,14 +32,14 @@ export default function Landing() {
       <section className="mk-hero">
         <div className="mk-hero-text">
           <h1 className="mk-h1">
-            Lay out your year.<br/>
-            <span className="mk-h1-accent">Live the days.</span>
+            Find your rhythm.<br/>
+            <span className="mk-h1-accent">Find your people.</span>
           </h1>
           <p className="mk-lede">
-            Most calendars start at "today" and ask you to fill it in.
-            Taskometer starts at "your year" and asks what repeats. Define
-            your rhythms once — weekly standups, monthly reviews, quarterly
-            planning — and the year paints itself. Then drop tasks on top.
+            Pick the archetype that sounds like you — Early Bird, Night
+            Owl, Parent, Freelancer — and start with a day-shape that
+            already makes sense. Tweak it. Share it. See how others on
+            the same rhythm structure their days.
           </p>
           <div className="mk-cta-row">
             <a href="/app/year" className="tm-btn tm-primary mk-cta">
