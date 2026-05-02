@@ -12,6 +12,8 @@ import YearCanvas from './taskometer/year/YearCanvas.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
 import './components/CommandPalette.css';
 import { runStorageMigrations } from './storage-migrations.js';
+import { ClerkProvider } from '@clerk/clerk-react';
+import { CLERK_ENABLED, CLERK_PUBLISHABLE_KEY } from './services/auth.js';
 
 function AppContent() {
   const { isLoading, error } = useAppState();
@@ -114,17 +116,20 @@ function App() {
     />
   );
 
+  // Resolve the route once; ClerkProvider wraps the whole tree below
+  // so every page (including the SPA's /app routes) shares one auth
+  // session.
+  let body;
+
   if (path === '/app/year' || path.startsWith('/app/year/')) {
-    return (
+    body = (
       <ThemeProvider>
         <YearCanvas />
         {palette}
       </ThemeProvider>
     );
-  }
-
-  if (path.startsWith('/app')) {
-    return (
+  } else if (path.startsWith('/app')) {
+    body = (
       <ThemeProvider>
         <AppStateProvider>
           <AppContent />
@@ -132,34 +137,35 @@ function App() {
         </AppStateProvider>
       </ThemeProvider>
     );
+  } else if (path === '/teams' || path.startsWith('/teams/')) {
+    body = <ThemeProvider><TeamsDemo />{palette}</ThemeProvider>;
+  } else if (path === '/privacy') {
+    body = <ThemeProvider><Privacy />{palette}</ThemeProvider>;
+  } else if (path === '/terms') {
+    body = <ThemeProvider><Terms />{palette}</ThemeProvider>;
+  } else if (path === '/pricing') {
+    body = <ThemeProvider><Pricing />{palette}</ThemeProvider>;
+  } else {
+    body = <ThemeProvider><Landing />{palette}</ThemeProvider>;
   }
 
-  if (path === '/teams' || path.startsWith('/teams/')) {
-    return (
-      <ThemeProvider>
-        <TeamsDemo />
-        {palette}
-      </ThemeProvider>
-    );
-  }
+  return wrap(body);
+}
 
-  if (path === '/privacy') {
-    return <ThemeProvider><Privacy />{palette}</ThemeProvider>;
-  }
-
-  if (path === '/terms') {
-    return <ThemeProvider><Terms />{palette}</ThemeProvider>;
-  }
-
-  if (path === '/pricing') {
-    return <ThemeProvider><Pricing />{palette}</ThemeProvider>;
-  }
-
+/**
+ * Wrap the route in <ClerkProvider> when a publishable key is set;
+ * otherwise pass through. This way builds without VITE_CLERK_PUBLISHABLE_KEY
+ * keep working — the rest of the app is auth-optional.
+ *
+ * Wrapping happens at the leaf so each route's own ThemeProvider /
+ * AppStateProvider can sit inside Clerk and read user state.
+ */
+function wrap(node) {
+  if (!CLERK_ENABLED) return node;
   return (
-    <ThemeProvider>
-      <Landing />
-      {palette}
-    </ThemeProvider>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} afterSignOutUrl="/">
+      {node}
+    </ClerkProvider>
   );
 }
 

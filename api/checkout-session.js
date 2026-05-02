@@ -2,6 +2,8 @@
  * POST /api/checkout-session
  *
  * Body: { planId: 'pro' | 'team' }
+ * Headers: Authorization: Bearer <Clerk session token> (required when
+ *   CLERK_SECRET_KEY is configured)
  * Returns: { url: string } — Stripe-hosted checkout URL
  *
  * Env vars (set in Vercel):
@@ -9,12 +11,18 @@
  *   STRIPE_PRICE_PRO      — price_xxx for the Pro plan
  *   STRIPE_PRICE_TEAM     — price_xxx for the Team plan (if used here)
  *   PUBLIC_BASE_URL       — e.g. https://taskometer.vercel.app
+ *   CLERK_SECRET_KEY      — server-only, when auth is wired up
  *
- * If STRIPE_SECRET_KEY is not configured the endpoint returns 503 so
- * the client can fall back to a mailto. The pricing page checks
- * VITE_STRIPE_PRICE_PRO at build time and won't even POST if it's
- * missing — but the server check guards against a partial config.
+ * Auth contract:
+ *   - Without Clerk configured, anonymous checkout still works (the
+ *     session has no client_reference_id; the webhook can't tie the
+ *     subscription back to a user). Useful for very early stages and
+ *     for the case where the operator hasn't wired Clerk yet.
+ *   - With Clerk configured, we REQUIRE a verified token. Otherwise
+ *     payments would arrive without an attribution path.
  */
+import { isClerkConfigured, verifyAuth } from './_lib/clerk.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -24,6 +32,14 @@ export default async function handler(req, res) {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) {
     return res.status(503).json({ error: 'billing not configured' });
+  }
+
+  // Require Clerk auth when it's configured. Anonymous checkout is
+  // only allowed in the auth-off mode.
+  let identity = null;
+  if (isClerkConfigured()) {
+    identity = await verifyAuth(req);
+    if (!identity) return res.status(401).json({ error: 'sign-in required' });
   }
 
   const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -41,26 +57,33 @@ export default async function handler(req, res) {
   const baseUrl = process.env.PUBLIC_BASE_URL
     || `https://${req.headers.host || 'taskometer.vercel.app'}`;
 
-  // Lazy-load the Stripe SDK so unconfigured deployments don't pay
-  // the cold-start cost of importing it.
   const Stripe = (await import('stripe')).default;
   const stripe = new Stripe(secret, { apiVersion: '2024-06-20' });
 
   try {
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/app?checkout=success`,
       cancel_url:  `${baseUrl}/pricing?checkout=cancelled`,
       allow_promotion_codes: true,
-      // Capture an email so the webhook can attach the subscription
-      // to a user record once accounts ship.
       customer_creation: 'always',
       billing_address_collection: 'auto',
-      metadata: { planId },
-    });
+      metadata: { planId, ...(identity ? { clerkUserId: identity.userId } : {}) },
+    };
+    // When we know the email up-front, pre-fill it so the customer
+    // doesn't have to retype it. Stripe still verifies it.
+    if (identity?.email) sessionParams.customer_email = identity.email;
+    if (identity?.userId) sessionParams.client_reference_id = identity.userId;
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
     // eslint-disable-next-line no-console
-    console.log(JSON.stringify({ kind: 'checkout', planId, sessionId: session.id }));
+    console.log(JSON.stringify({
+      kind: 'checkout',
+      planId,
+      sessionId: session.id,
+      clerkUserId: identity?.userId || null,
+    }));
     return res.status(200).json({ url: session.url });
   } catch (err) {
     // eslint-disable-next-line no-console

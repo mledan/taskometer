@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
 import { PLANS, PLAN_ORDER, planIsCheckoutReady, formatPrice } from '../config/plans.js';
+import { CLERK_ENABLED } from '../services/auth.js';
 import '../taskometer/taskometer.css';
 import './marketing.css';
+// These imports are tree-shaken when CLERK_ENABLED is false at runtime,
+// but the static import is required so the bundle compiles either way.
+// Only the components that actually render touch the Clerk runtime.
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  useAuth as useClerkAuth,
+} from '@clerk/clerk-react';
 
 /**
  * Public pricing page at /pricing.
@@ -75,42 +85,50 @@ export default function Pricing() {
 }
 
 function PlanCard({ plan, featured }) {
-  const [busy, setBusy] = useState(false);
   const ready = planIsCheckoutReady(plan.id);
   const isPaid = plan.monthlyUSD > 0;
 
-  const handleClick = async (e) => {
-    if (!isPaid) return; // Free / Team — let the href take over
-    e.preventDefault();
-    if (busy) return;
+  // Free → renders an <a> to /app, no special handling.
+  if (!isPaid) {
+    return <CardShell plan={plan} featured={featured}>
+      <a href={plan.href} className="tm-btn tm-ghost mk-cta">{plan.cta}</a>
+    </CardShell>;
+  }
 
-    if (!ready) {
-      // Stripe price id not wired in this build — fall back to mailto
-      // so the CTA isn't a dead link.
-      window.location.href = `mailto:hello@taskometer.app?subject=Notify%20me%20when%20${encodeURIComponent(plan.name)}%20launches`;
-      return;
-    }
+  // Team → mailto, no checkout flow yet.
+  if (plan.id === 'team') {
+    return <CardShell plan={plan} featured={featured}>
+      <a href={plan.href} className="tm-btn mk-cta">{plan.cta}</a>
+    </CardShell>;
+  }
 
-    setBusy(true);
-    try {
-      const res = await fetch('/api/checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId: plan.id }),
-      });
-      if (!res.ok) throw new Error(`checkout failed: ${res.status}`);
-      const { url } = await res.json();
-      if (url) window.location.href = url;
-    } catch (err) {
-      // Last-resort fallback so users aren't stranded.
-      // eslint-disable-next-line no-alert
-      window.alert(
-        'We couldn\'t start the checkout. Email hello@taskometer.app and we\'ll set you up manually.',
-      );
-      setBusy(false);
-    }
-  };
+  // Pro path. Auth gate when Clerk is on; otherwise checkout-or-mailto.
+  return <CardShell plan={plan} featured={featured}>
+    {CLERK_ENABLED ? (
+      <>
+        <SignedIn>
+          <ProCheckoutButton plan={plan} ready={ready} featured={featured} />
+        </SignedIn>
+        <SignedOut>
+          <SignInButton mode="modal" forceRedirectUrl="/pricing">
+            <button type="button" className={`tm-btn ${featured ? 'tm-primary' : ''} mk-cta`}>
+              Sign in to upgrade
+            </button>
+          </SignInButton>
+        </SignedOut>
+      </>
+    ) : (
+      <ProCheckoutButton plan={plan} ready={ready} featured={featured} />
+    )}
+    {!ready && (
+      <div className="mk-mono" style={{ marginTop: 8, fontSize: 11, color: 'var(--ink-mute)' }}>
+        (early access — email us to start a subscription)
+      </div>
+    )}
+  </CardShell>;
+}
 
+function CardShell({ plan, featured, children }) {
   return (
     <div className={`mk-price-card${featured ? ' mk-price-card-featured' : ''}`}>
       <div className="mk-price-tier">{plan.name}</div>
@@ -122,30 +140,65 @@ function PlanCard({ plan, featured }) {
       <ul className="mk-price-features">
         {plan.features.map(f => <li key={f}>{f}</li>)}
       </ul>
-
-      {plan.id === 'team' ? (
-        <a href={plan.href} className="tm-btn mk-cta">{plan.cta}</a>
-      ) : isPaid ? (
-        <button
-          type="button"
-          onClick={handleClick}
-          className={`tm-btn ${featured ? 'tm-primary' : ''} mk-cta`}
-          disabled={busy}
-        >
-          {busy ? 'redirecting…' : plan.cta}
-        </button>
-      ) : (
-        <a href={plan.href} className="tm-btn tm-ghost mk-cta">{plan.cta}</a>
-      )}
-
-      {isPaid && !ready && (
-        <div
-          className="mk-mono"
-          style={{ marginTop: 8, fontSize: 11, color: 'var(--ink-mute)' }}
-        >
-          (early access — email us to start a subscription)
-        </div>
-      )}
+      {children}
     </div>
+  );
+}
+
+/**
+ * Authenticated checkout starter. When Clerk is wired, we POST to
+ * /api/checkout-session with the user's session token in the
+ * Authorization header so the server can attach userId to Stripe
+ * metadata. Falls back to a mailto when STRIPE_PRICE_PRO isn't set.
+ */
+function ProCheckoutButton({ plan, ready, featured }) {
+  const [busy, setBusy] = useState(false);
+  // useClerkAuth is only safe when ClerkProvider is mounted. The
+  // <SignedIn> wrapper above guarantees that; the non-Clerk branch
+  // calls this component without a wrapper, so we guard here too.
+  const clerkAuth = CLERK_ENABLED ? useClerkAuth() : null;
+
+  const handleClick = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+
+    if (!ready) {
+      window.location.href = `mailto:hello@taskometer.app?subject=Notify%20me%20when%20${encodeURIComponent(plan.name)}%20launches`;
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (clerkAuth?.getToken) {
+        const token = await clerkAuth.getToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+      }
+      const res = await fetch('/api/checkout-session', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ planId: plan.id }),
+      });
+      if (!res.ok) throw new Error(`checkout failed: ${res.status}`);
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      window.alert(
+        'We couldn\'t start the checkout. Email hello@taskometer.app and we\'ll set you up manually.',
+      );
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`tm-btn ${featured ? 'tm-primary' : ''} mk-cta`}
+      disabled={busy}
+    >
+      {busy ? 'redirecting…' : plan.cta}
+    </button>
   );
 }

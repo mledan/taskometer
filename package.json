@@ -20,6 +20,8 @@
 		"setup:stripe": "node scripts/setup-stripe.js"
 	},
 	"dependencies": {
+		"@clerk/backend": "^3.4.4",
+		"@clerk/clerk-react": "^5.61.6",
 		"@reach/accordion": "^0.8.0",
 		"date-fns": "^2.9.0",
 		"dotenv": "^17.2.3",

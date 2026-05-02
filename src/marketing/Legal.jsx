@@ -61,13 +61,27 @@ export function Privacy() {
         </p>
       </Section>
 
-      <Section heading="Hosting">
+      <Section heading="Hosting and processors">
         <p>
           The site is hosted on Vercel. Vercel sees standard request
           metadata (IP address, user agent) for HTTP requests, governed by{' '}
           <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">
             Vercel's privacy policy
           </a>.
+        </p>
+        <p>
+          When you sign in to a paid plan we use{' '}
+          <a href="https://clerk.com/legal/privacy" target="_blank" rel="noopener noreferrer">
+            Clerk
+          </a>{' '}
+          to manage authentication and{' '}
+          <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer">
+            Stripe
+          </a>{' '}
+          to handle payments. They store the data they need (your email
+          address with Clerk; your payment method with Stripe) and we
+          store only the minimum identifiers needed to associate your
+          plan with your account.
         </p>
       </Section>
 

@@ -80,6 +80,34 @@ cd infra/bootstrap/backend
 TF_VAR_env=dev terraform destroy
 ```
 
+## Clerk (auth) environment variables
+
+Auth is provided by Clerk. Like Stripe, it's a SaaS — nothing about
+Clerk lives in Terragrunt. Set these in Vercel project settings:
+
+| Variable | Where | Notes |
+|---|---|---|
+| `CLERK_SECRET_KEY` | Vercel runtime env (server) | `sk_live_...` or `sk_test_...` — verifies session tokens |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Vercel runtime env (build) | `pk_live_...` or `pk_test_...` — surfaced to the SPA so it knows auth is wired |
+
+When neither is set, the app behaves as before: no sign-in UI, no
+auth-gated checkout, the rest of the app works as normal.
+
+When the publishable key alone is set on the client but the secret
+isn't on the server, `/api/checkout-session` returns 401 to any
+authenticated request — better to fail closed than charge a card you
+can't attribute.
+
+To enable:
+1. Sign up at https://clerk.com.
+2. Create an application; pick "Email link / Magic link" as the
+   primary auth method.
+3. Add `https://taskometer.vercel.app` and `http://localhost:3000` to
+   the allowed origins.
+4. Copy the publishable + secret keys into Vercel.
+5. Redeploy. The "Sign in to upgrade" button on /pricing now opens
+   the Clerk modal.
+
 ## Stripe environment variables
 
 Billing is handled by Stripe. Nothing about Stripe is provisioned in

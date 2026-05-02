@@ -79,10 +79,22 @@ export default async function handler(req, res) {
 
   switch (event.type) {
     case 'checkout.session.completed': {
-      // const session = event.data.object;
-      // TODO: when accounts ship — look up user by session.customer_email,
-      // set users.plan = session.metadata.planId, users.stripeCustomerId =
-      // session.customer.
+      const session = event.data.object;
+      const clerkUserId = session?.metadata?.clerkUserId
+        || session?.client_reference_id
+        || null;
+      const planId = session?.metadata?.planId || null;
+      // eslint-disable-next-line no-console
+      console.log(JSON.stringify({
+        kind: 'plan-upgrade',
+        clerkUserId,
+        planId,
+        stripeCustomerId: session?.customer || null,
+        subscriptionId: session?.subscription || null,
+      }));
+      // TODO: when the user store ships, attach planId to the user
+      // identified by clerkUserId here. Until then this log line is
+      // the source of truth.
       break;
     }
 
