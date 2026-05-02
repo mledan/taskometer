@@ -31,6 +31,13 @@ export default async function handler(req, res) {
 
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) {
+    // eslint-disable-next-line no-console
+    console.warn(JSON.stringify({
+      kind: 'config-missing',
+      route: '/api/checkout-session',
+      missing: ['STRIPE_SECRET_KEY'],
+      doc: 'SETUP.md §1c — set STRIPE_SECRET_KEY in Vercel project env',
+    }));
     return res.status(503).json({ error: 'billing not configured' });
   }
 

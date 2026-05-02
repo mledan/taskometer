@@ -64,6 +64,13 @@ describe('routing', () => {
     expect(screen.getByText(/Acceptable use/i)).toBeInTheDocument();
   });
 
+  test('/share renders the share landing page', () => {
+    setPath('/share');
+    render(<App />);
+    // Without a #w= fragment we show the empty/error state.
+    expect(screen.getByText(/someone shared a wheel/i)).toBeInTheDocument();
+  });
+
   test('/pricing renders the three plan cards', () => {
     setPath('/pricing');
     render(<App />);

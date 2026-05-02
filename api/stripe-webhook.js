@@ -45,6 +45,16 @@ export default async function handler(req, res) {
   const secret = process.env.STRIPE_SECRET_KEY;
   const whSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret || !whSecret) {
+    const missing = [];
+    if (!secret) missing.push('STRIPE_SECRET_KEY');
+    if (!whSecret) missing.push('STRIPE_WEBHOOK_SECRET');
+    // eslint-disable-next-line no-console
+    console.warn(JSON.stringify({
+      kind: 'config-missing',
+      route: '/api/stripe-webhook',
+      missing,
+      doc: 'SETUP.md §1b–1c — create the webhook in Stripe and set STRIPE_WEBHOOK_SECRET',
+    }));
     return res.status(503).end();
   }
 

@@ -20,6 +20,7 @@ import { listRhythms, listExceptions, dateIsExcepted, addRhythm } from '../servi
 import { useMultiSelect } from '../hooks/useMultiSelect.js';
 import { pendingRhythmSlotsForDate } from '../services/rhythmsToSlots.js';
 import { findScheduleTarget } from '../services/scheduling.js';
+import { buildShareURL } from '../services/wheelShare.js';
 import useTaskNotifications from '../hooks/useTaskNotifications.js';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts.js';
 import KeyboardShortcuts from '../components/KeyboardShortcuts.jsx';
@@ -1674,6 +1675,24 @@ function YearPromoBanner() {
 }
 
 function WheelRail({ userWheels, activeWheelId, onApply, onSchedule, onBrowseAll, onSaveToday }) {
+  const [shareToast, setShareToast] = useState(null);
+  const handleShare = async (wheel) => {
+    const url = buildShareURL(wheel);
+    if (!url) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setShareToast(`copied · ${wheel.name}`);
+      } else {
+        // Fallback: open the URL itself so the user can copy from address bar.
+        window.prompt('Copy this share link:', url);
+      }
+      telemetryLog('wheel:share', { name: wheel.name, length: url.length });
+    } catch (_) {
+      window.prompt('Copy this share link:', url);
+    }
+    setTimeout(() => setShareToast(null), 2000);
+  };
   // The rail is "shape this day fast" — your saved shapes plus a tiny
   // curated set so first-time users see something useful without the
   // 100-wheel dump. Everything else lives behind "Browse all".
@@ -1721,6 +1740,15 @@ function WheelRail({ userWheels, activeWheelId, onApply, onSchedule, onBrowseAll
         >
           📅
         </button>
+        <button
+          type="button"
+          className="tm-chip-wheel-schedule"
+          onClick={(e) => { e.stopPropagation(); handleShare(w); }}
+          title="copy a share link for this wheel"
+          aria-label={`share ${w.name}`}
+        >
+          ↗
+        </button>
       </div>
     );
   };
@@ -1760,6 +1788,24 @@ function WheelRail({ userWheels, activeWheelId, onApply, onSchedule, onBrowseAll
       >
         + save today as shape
       </button>
+
+      {shareToast && (
+        <div
+          role="status"
+          className="tm-mono tm-sm"
+          style={{
+            marginTop: 4,
+            padding: '4px 10px',
+            background: 'var(--ink)',
+            color: 'var(--paper)',
+            borderRadius: 999,
+            alignSelf: 'flex-start',
+            fontSize: 11,
+          }}
+        >
+          ✓ {shareToast}
+        </div>
+      )}
     </div>
   );
 }

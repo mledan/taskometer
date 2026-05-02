@@ -8,6 +8,7 @@ import Landing from './marketing/Landing.jsx';
 import TeamsDemo from './marketing/TeamsDemo.jsx';
 import { Privacy, Terms } from './marketing/Legal.jsx';
 import Pricing from './marketing/Pricing.jsx';
+import SharePage from './marketing/SharePage.jsx';
 import YearCanvas from './taskometer/year/YearCanvas.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
 import './components/CommandPalette.css';
@@ -145,6 +146,8 @@ function App() {
     body = <ThemeProvider><Terms />{palette}</ThemeProvider>;
   } else if (path === '/pricing') {
     body = <ThemeProvider><Pricing />{palette}</ThemeProvider>;
+  } else if (path === '/share') {
+    body = <ThemeProvider><SharePage />{palette}</ThemeProvider>;
   } else {
     body = <ThemeProvider><Landing />{palette}</ThemeProvider>;
   }
