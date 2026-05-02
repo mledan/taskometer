@@ -16,7 +16,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"test": "vitest",
-		"clean": "rm -rf dist"
+		"clean": "rm -rf dist",
+		"setup:stripe": "node scripts/setup-stripe.js"
 	},
 	"dependencies": {
 		"@reach/accordion": "^0.8.0",
