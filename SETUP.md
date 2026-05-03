@@ -192,6 +192,102 @@ manual dispatch.
 
 ---
 
+## 5 · Azure Cosmos for community comments (cheapest cloud path)
+
+This is the minimum cloud you need to make `/share` comments public.
+No Functions, no Key Vault, no App Insights. Just one serverless
+Cosmos account that the Vercel API routes talk to directly.
+
+Cost at v1: **< $1/mo**. Cosmos serverless = $0 idle, ~$0.25 per 1M
+RUs. Each comment write is ~5 RUs.
+
+### 5a. Pick your subscription
+
+```bash
+az account set --subscription "Subscription 2"
+# or by id:
+az account set --subscription "5810fa50-29f6-46ec-a775-980b7437a275"
+```
+
+### 5b. Create the resource group + Cosmos
+
+Cosmos account names are globally unique. The example uses
+`taskometer-comments-<initials>`; pick something unique to you.
+
+```bash
+# 1. resource group
+az group create \
+  --name taskometer-comments-rg \
+  --location eastus
+
+# 2. cosmos account (serverless, single region, session consistency)
+COSMOS_NAME="taskometer-comments-mle"   # change suffix to anything unique
+az cosmosdb create \
+  --name "$COSMOS_NAME" \
+  --resource-group taskometer-comments-rg \
+  --kind GlobalDocumentDB \
+  --capabilities EnableServerless \
+  --default-consistency-level Session \
+  --locations regionName=eastus failoverPriority=0 isZoneRedundant=False
+
+# 3. database
+az cosmosdb sql database create \
+  --account-name "$COSMOS_NAME" \
+  --resource-group taskometer-comments-rg \
+  --name taskometer
+
+# 4. container, partitioned by /threadKey so each wheel's comments
+#    live on one partition (cheap reads, cheap writes)
+az cosmosdb sql container create \
+  --account-name "$COSMOS_NAME" \
+  --resource-group taskometer-comments-rg \
+  --database-name taskometer \
+  --name comments \
+  --partition-key-path /threadKey
+```
+
+### 5c. Grab the credentials
+
+```bash
+# Endpoint
+az cosmosdb show \
+  --name "$COSMOS_NAME" \
+  --resource-group taskometer-comments-rg \
+  --query documentEndpoint -o tsv
+
+# Primary key
+az cosmosdb keys list \
+  --name "$COSMOS_NAME" \
+  --resource-group taskometer-comments-rg \
+  --query primaryMasterKey -o tsv
+```
+
+### 5d. Vercel env vars
+
+Project Settings → Environment Variables:
+
+| Variable | Value |
+|---|---|
+| `COSMOS_ENDPOINT` | from step 5c (looks like `https://....documents.azure.com:443/`) |
+| `COSMOS_KEY` | from step 5c (long base64 string) |
+| `COSMOS_DATABASE` | `taskometer` (or whatever you called it) |
+| `COSMOS_CONTAINER` | `comments` |
+
+Redeploy.
+
+### 5e. Verify
+
+1. Open `/share#w=anything-decodable-for-the-test`
+2. Comments section banner should read **"Comments are public — anyone with this share link sees the same thread."**
+3. Post a comment. Open the same URL in a private window — your comment should appear.
+4. Vercel → Functions → /api/comments logs show `comment-created` lines.
+
+### 5f. Set the budget alert
+
+Azure Portal → **Cost Management → Budgets → Add**. $10/month with
+80% email alert. Cosmos serverless can't surprise-bill you anywhere
+near that at v1, but the alert is cheap insurance.
+
 ## 4 · Custom domain (optional)
 
 Once Vercel deploy is stable:

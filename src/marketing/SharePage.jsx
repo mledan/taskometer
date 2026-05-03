@@ -6,24 +6,31 @@ import './marketing.css';
 
 /**
  * Per-wheel comment thread. The thread key is the share-fragment hash
- * itself — same wheel link → same thread. Today comments are stored
- * locally; when the community backend ships the same UI flips to
- * real persistence by swapping the readThread/writeThread functions.
+ * itself — same wheel link → same thread.
+ *
+ * Backend strategy: try the real API at /api/comments first. If it
+ * returns 503 (Cosmos not configured) we silently fall back to a
+ * localStorage thread so the UI still works in dev / pre-deploy.
+ * That fallback is keyed identically so flipping the env vars
+ * "lights up" the cloud thread without needing a code change.
  */
 const COMMENT_KEY_PREFIX = 'taskometer.comments.';
 
 function threadKeyFromHash() {
   if (typeof window === 'undefined') return null;
   const m = window.location.hash.match(/[#&]w=([A-Za-z0-9_-]+)/);
-  return m ? m[1].slice(0, 32) : null;
+  // Cap at 40 chars (matches the API's THREAD_KEY_RE) so an unusually
+  // long fragment doesn't break the API's input validation.
+  return m ? m[1].slice(0, 40) : null;
 }
-function readThread(key) {
+
+function readLocalThread(key) {
   try {
     const raw = localStorage.getItem(COMMENT_KEY_PREFIX + key);
     return raw ? JSON.parse(raw) : [];
   } catch (_) { return []; }
 }
-function writeThread(key, list) {
+function writeLocalThread(key, list) {
   try { localStorage.setItem(COMMENT_KEY_PREFIX + key, JSON.stringify(list)); } catch (_) {}
 }
 
@@ -210,37 +217,101 @@ function Comments() {
     try { return localStorage.getItem('taskometer.comments.name') || ''; } catch (_) { return ''; }
   });
   const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
+  // 'api' | 'local' | 'loading' — drives the disclosure copy at the
+  // top so the user knows whether comments are global or just on
+  // their device.
+  const [mode, setMode] = useState('loading');
   const key = useMemo(threadKeyFromHash, []);
 
+  // Initial load: try the API; if it 503s (Cosmos unconfigured) fall
+  // back to the localStorage thread. Any other error → also local.
   useEffect(() => {
-    if (key) setThread(readThread(key));
+    if (!key) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/comments?thread=${encodeURIComponent(key)}`);
+        if (cancelled) return;
+        if (res.ok) {
+          const json = await res.json();
+          setThread(Array.isArray(json.comments) ? json.comments : []);
+          setMode('api');
+          return;
+        }
+        // 503 = backend not configured; anything else = transient.
+        // Either way we stay usable with local fallback.
+        setThread(readLocalThread(key));
+        setMode('local');
+      } catch (_) {
+        if (!cancelled) {
+          setThread(readLocalThread(key));
+          setMode('local');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
   }, [key]);
 
   if (!key) return null;
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    if (!body.trim()) return;
-    const entry = {
-      id: `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-      name: (name || 'Anonymous').trim().slice(0, 40),
+    if (!body.trim() || busy) return;
+    setBusy(true);
+    const trimmedName = (name || '').trim().slice(0, 40);
+
+    // Optimistic insert so the UI never feels laggy.
+    const optimistic = {
+      id: `c_local_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+      name: trimmedName || 'Anonymous',
       body: body.trim().slice(0, 1000),
       ts: new Date().toISOString(),
     };
-    const next = [...thread, entry];
-    setThread(next);
-    writeThread(key, next);
-    try { localStorage.setItem('taskometer.comments.name', entry.name); } catch (_) {}
+    setThread(prev => [...prev, optimistic]);
     setBody('');
+
+    try { localStorage.setItem('taskometer.comments.name', optimistic.name); } catch (_) {}
+
+    if (mode === 'api') {
+      try {
+        const res = await fetch('/api/comments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            threadKey: key,
+            name: trimmedName,
+            body: optimistic.body,
+          }),
+        });
+        if (!res.ok) throw new Error(`status ${res.status}`);
+        const { comment } = await res.json();
+        // Replace the optimistic row with the server one.
+        setThread(prev => prev.map(c => c.id === optimistic.id ? comment : c));
+      } catch (err) {
+        // Roll back the optimistic insert and surface a gentle error.
+        setThread(prev => prev.filter(c => c.id !== optimistic.id));
+        // eslint-disable-next-line no-alert
+        window.alert("Couldn't post that — try again in a moment.");
+      } finally {
+        setBusy(false);
+      }
+    } else {
+      // Local-only mode: persist to localStorage.
+      writeLocalThread(key, [...thread, optimistic]);
+      setBusy(false);
+    }
   };
 
   return (
     <div style={{ maxWidth: 720 }}>
       <h2 className="mk-h2" style={{ marginBottom: 6 }}>What do you think?</h2>
       <p className="mk-mono mk-fineprint" style={{ marginBottom: 18 }}>
-        Comments scaffold — stored on this device only for now. When the
-        community feature ships these become a real shared thread per
-        wheel link.
+        {mode === 'api'
+          ? 'Comments are public — anyone with this share link sees the same thread.'
+          : mode === 'local'
+            ? "Comments backend isn't reachable right now — your post stays on this device until it is."
+            : 'Loading…'}
       </p>
 
       <form onSubmit={submit} style={{

@@ -36,6 +36,10 @@ const CHECKS = [
     present: () => !!env.VITE_STRIPE_PRICE_TEAM,
     severity: 'info', // expected for now
   },
+  // The comments backend is detected at request time, not at build,
+  // so we can't hard-check it from the SPA. We rely on /api/comments
+  // returning 503 to flip SharePage into local-only mode and show
+  // the disclosure copy there. No frontend env var needed.
 ];
 
 const STYLE_HEAD = 'color:#D4663A;font-weight:700;font-size:13px';
