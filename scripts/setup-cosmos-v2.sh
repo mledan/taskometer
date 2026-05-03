@@ -22,6 +22,11 @@
 
 set -euo pipefail
 
+# Disable MSYS/Git-Bash path conversion on Windows — it rewrites
+# /ownerId into "C:/Program Files/Git/ownerId" before az sees it.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL='*'
+
 : "${COSMOS_NAME:?Set COSMOS_NAME (e.g. taskometer-comments-mle)}"
 : "${COSMOS_RG:?Set COSMOS_RG (e.g. taskometer-comments-rg)}"
 COSMOS_DB="${COSMOS_DB:-taskometer}"

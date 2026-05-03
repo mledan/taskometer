@@ -36,6 +36,13 @@ function genId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** Strip Cosmos system fields (_rid, _self, _etag, _attachments, _ts) from a doc. */
+function clean(doc) {
+  if (!doc) return doc;
+  const { _rid, _self, _etag, _attachments, _ts, ...rest } = doc;
+  return rest;
+}
+
 /**
  * Build a Cosmos-backed CRUD store. The container name and id prefix
  * come in at construction time; everything else mirrors memory.js.
@@ -55,15 +62,15 @@ function makeStore(containerName, idPrefix) {
           { partitionKey: ownerId },
         )
         .fetchAll();
-      if (!where) return resources;
-      return resources.filter(where);
+      const filtered = where ? resources.filter(where) : resources;
+      return filtered.map(clean);
     },
 
     async get({ ownerId, id }) {
       try {
         const { resource } = await container().item(id, ownerId).read();
         if (!resource || resource.ownerId !== ownerId) return null;
-        return resource;
+        return clean(resource);
       } catch (err) {
         if (err?.code === 404) return null;
         throw err;
@@ -75,7 +82,7 @@ function makeStore(containerName, idPrefix) {
       const now = new Date().toISOString();
       const doc = { ...data, id, ownerId, ts: data.ts || now, updated: now };
       const { resource } = await container().items.create(doc);
-      return resource;
+      return clean(resource);
     },
 
     async update({ ownerId, id, patch }) {
@@ -88,9 +95,9 @@ function makeStore(containerName, idPrefix) {
         throw err;
       }
       if (!existing || existing.ownerId !== ownerId) return null;
-      const next = { ...existing, ...patch, id, ownerId, updated: new Date().toISOString() };
+      const next = { ...clean(existing), ...patch, id, ownerId, updated: new Date().toISOString() };
       const { resource } = await container().item(id, ownerId).replace(next);
-      return resource;
+      return clean(resource);
     },
 
     async remove({ ownerId, id }) {
