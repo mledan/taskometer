@@ -1,5 +1,12 @@
 /**
- * /api/v2/[[...path]] — single-function dispatcher for the v2 surface.
+ * /api/v2/[...path] — single-function dispatcher for the v2 surface.
+ *
+ * Required catchall (single brackets). Double-bracket optional
+ * catchall ([[...path]].js) is Next.js syntax and does NOT populate
+ * req.query.path in plain Vercel serverless functions — every request
+ * comes in with path: undefined and the dispatcher 404s for "no
+ * resource". Single-bracket required catchall is the supported
+ * Vercel pattern and fills req.query.path correctly.
  *
  * Vercel's Hobby tier caps a deployment at ~12 serverless functions.
  * Each api/*.js file counts as one. Rather than ship one function per
