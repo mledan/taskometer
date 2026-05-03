@@ -17,6 +17,7 @@ import { emit, EVENTS } from './services/events.js';
 import { runStorageMigrations } from './storage-migrations.js';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { CLERK_ENABLED, CLERK_PUBLISHABLE_KEY } from './services/auth.js';
+import AuthBoot from './auth/AuthBoot.jsx';
 
 function AppContent() {
   const { isLoading, error } = useAppState();
@@ -203,6 +204,7 @@ function wrap(node) {
   if (!CLERK_ENABLED) return node;
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} afterSignOutUrl="/">
+      <AuthBoot />
       {node}
     </ClerkProvider>
   );
