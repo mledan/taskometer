@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { EVENTS } from '../services/events.js';
 
 const DONE_KEY = 'taskometer.onboarding.done';
 const LIVE_KEY = 'taskometer.onboarding.live';
@@ -53,36 +54,38 @@ const STEPS = [
   },
   {
     title: '1. Pick a shape',
-    body: 'The chip in the header opens a library of day shapes — from a basic Workday to famous routines like Buffett or Pomodoro. Pick one and the wheel repaints.',
+    body: 'The chip in the header opens a library of day shapes — archetypes like Night Owl, Office 9-to-5, Parent. Pick the one that sounds like you.',
     target: '[data-onboard="wheel-picker"]',
-    awaitSignal: 'wheelPicked',
-    progressHint: 'click the chip and pick any wheel',
+    awaitEvent: EVENTS.WHEEL_APPLIED,
+    progressHint: 'click the chip and pick any wheel · or hit Next',
   },
   {
     title: '2. Click a wedge',
     body: 'Tap any colored wedge. It expands below the wheel so you can see what\'s scheduled, and the composer auto-targets that block.',
     target: '[data-onboard="wheel"]',
-    awaitSignal: 'blockClicked',
-    progressHint: 'click any wedge on the wheel',
+    awaitEvent: EVENTS.SLOT_SELECTED,
+    progressHint: 'click any wedge · or hit Next',
   },
   {
     title: '3. Add a task',
     body: 'Type a task and hit Add. It lands in the highlighted block automatically. If today\'s block is full, the task rolls forward to the next matching block — even tomorrow.',
     target: '[data-onboard="composer"]',
-    awaitSignal: 'taskAdded',
-    progressHint: 'type something and hit Add',
+    awaitEvent: EVENTS.TASK_ADDED,
+    progressHint: 'add a task · or hit Next',
   },
   {
     title: '4. Plan the year',
     body: 'Click "Open year canvas" — the orange button below — to start defining rhythms that paint themselves across the whole year.',
     target: '[data-onboard="year-canvas"]',
-    awaitSignal: 'navigatedToYearCanvas',
-    progressHint: 'click "Open year canvas" to continue',
+    awaitEvent: EVENTS.NAVIGATED_TO_YEAR,
+    progressHint: 'click the year canvas link · or hit Next',
   },
   {
     title: '5. Add a rhythm',
     body: "Hit '+ Rhythm' in the top right. Try a Weekly Mon/Wed/Fri at 9am — pick multiple days at once. Watch your year fill in.",
     target: '[data-onboard="rhythm-add"]',
+    awaitEvent: EVENTS.RHYTHM_ADDED,
+    progressHint: 'add your first rhythm · or hit Next',
   },
   {
     title: "You're set",
@@ -172,7 +175,28 @@ export default function Onboarding({ onClose, signals = {} }) {
   const isLast = i === STEPS.length - 1;
   const rect = useTargetRect(step.target, i);
 
-  // Snapshot signal values when a step opens; auto-advance when they change.
+  // Auto-advance when the step's awaitEvent fires anywhere in the
+  // app. Manual Next/Back buttons still work — events and clicks are
+  // both first-class. We use a generation counter so re-mounting the
+  // listener (when i changes) starts a fresh subscription.
+  React.useEffect(() => {
+    if (!step.awaitEvent) return;
+    const handler = () => {
+      // small delay so the user sees the action register visually
+      // before the spotlight jumps to the next step.
+      const t = setTimeout(() => setI((cur) => (cur === i ? cur + 1 : cur)), 450);
+      // store the timer on the listener so cleanup can clear it
+      handler._t = t;
+    };
+    window.addEventListener(step.awaitEvent, handler);
+    return () => {
+      if (handler._t) clearTimeout(handler._t);
+      window.removeEventListener(step.awaitEvent, handler);
+    };
+  }, [step.awaitEvent, i]);
+
+  // Legacy signals path kept as a fallback for any caller still
+  // passing the old prop. New code should emit events instead.
   const baselineRef = React.useRef({});
   React.useEffect(() => {
     baselineRef.current = { ...signals };
@@ -183,7 +207,6 @@ export default function Onboarding({ onClose, signals = {} }) {
     const baseline = baselineRef.current[step.awaitSignal];
     const current = signals[step.awaitSignal];
     if (current !== undefined && current !== baseline) {
-      // small delay so the user sees their action register before advancing
       const t = setTimeout(() => setI((cur) => (cur === i ? cur + 1 : cur)), 450);
       return () => clearTimeout(t);
     }

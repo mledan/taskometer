@@ -13,6 +13,7 @@ import YearCanvas from './taskometer/year/YearCanvas.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
 import './components/CommandPalette.css';
 import Onboarding, { isOnboardingLive } from './taskometer/Onboarding.jsx';
+import { emit, EVENTS } from './services/events.js';
 import { runStorageMigrations } from './storage-migrations.js';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { CLERK_ENABLED, CLERK_PUBLISHABLE_KEY } from './services/auth.js';
@@ -126,6 +127,12 @@ function App() {
     // Re-check when the path changes — the welcome flow may have
     // started the tour after the App's initial mount.
     setOnboardLive(isOnboardingLive());
+    // Emit a year-canvas-arrival event so any onboarding step waiting
+    // on it auto-advances. Cheap to fire on every path change; the
+    // listener only acts when the active step is awaiting it.
+    if (path.startsWith('/app/year')) {
+      emit(EVENTS.NAVIGATED_TO_YEAR, { path });
+    }
   }, [path]);
   // Welcome flow dispatches this when the user closes the popup so
   // we don't have to wait for a route change to mount the tour.

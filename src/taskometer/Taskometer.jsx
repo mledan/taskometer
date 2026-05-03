@@ -22,6 +22,7 @@ import { useMultiSelect } from '../hooks/useMultiSelect.js';
 import { pendingRhythmSlotsForDate } from '../services/rhythmsToSlots.js';
 import { findScheduleTarget } from '../services/scheduling.js';
 import { buildShareURL } from '../services/wheelShare.js';
+import { emit, EVENTS } from '../services/events.js';
 import useTaskNotifications from '../hooks/useTaskNotifications.js';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts.js';
 import KeyboardShortcuts from '../components/KeyboardShortcuts.jsx';
@@ -276,6 +277,7 @@ export default function Taskometer() {
       rolledOver: target?.date !== viewKey,
       kind: target?.kind || 'unscheduled',
     });
+    emit(EVENTS.TASK_ADDED, { slotId: payload?.scheduledSlotId || null });
     return api.tasks.add(payload);
   };
 
@@ -463,6 +465,7 @@ export default function Taskometer() {
     }
     await api.wheels.applyToDate(actualId, viewKey, { mode: 'replace' });
     telemetryLog('rail:applied', { wheelId, date: viewKey });
+    emit(EVENTS.WHEEL_APPLIED, { wheelId, date: viewKey });
   };
 
   // Open the painter for a given wheel id. We resolve the wheel object
@@ -494,6 +497,7 @@ export default function Taskometer() {
     }
     await api.wheels.applyToDate(actualId, dateKey, { mode: 'replace' });
     telemetryLog('drag-paint:applied', { wheelId, date: dateKey });
+    emit(EVENTS.WHEEL_APPLIED, { wheelId, date: dateKey });
   };
 
   // Paint a wheel onto an explicit list of dates — used by the
@@ -516,6 +520,7 @@ export default function Taskometer() {
       await api.wheels.applyToDate(actualId, dateKey, { mode: 'replace' });
     }
     telemetryLog('multi-paint:applied', { wheelId, count: dates.length });
+    emit(EVENTS.WHEEL_APPLIED, { wheelId, count: dates.length });
   };
 
   // "Save selection as rhythm" from a calendar view. Open the focused
@@ -542,6 +547,7 @@ export default function Taskometer() {
     }
     const result = await api.wheels.applyToRange(actualId, startDate, endDate, { mode: 'replace' });
     telemetryLog('lasso-paint:applied', { wheelId, count: result?.painted?.length || 0, startDate, endDate });
+    emit(EVENTS.WHEEL_APPLIED, { wheelId, startDate, endDate });
   };
 
   // Save today's blocks as a new shape, then chain into the painter so
@@ -914,6 +920,7 @@ export default function Taskometer() {
               onSelectWedge={(slot) => {
                 setSelectedSlotId(slot?.id || null);
                 if (slot?.slotType) setSelectedType(slot.slotType);
+                if (slot) emit(EVENTS.SLOT_SELECTED, { slotId: slot.id });
               }}
             />
             <DailyWrap

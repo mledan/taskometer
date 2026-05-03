@@ -14,6 +14,7 @@ import ExceptionModal from './ExceptionModal.jsx';
 import SaveAsRhythmModal from './SaveAsRhythmModal.jsx';
 import { useMultiSelect } from '../../hooks/useMultiSelect.js';
 import SelectionBar from '../../components/SelectionBar.jsx';
+import { emit, EVENTS } from '../../services/events.js';
 import './year.css';
 
 /**
@@ -349,7 +350,7 @@ export default function YearCanvas() {
         <SaveAsRhythmModal
           dates={saveDaysModalDates}
           onClose={() => setSaveDaysModalDates(null)}
-          onSaved={() => { setSaveDaysModalDates(null); ms.clear(); reload(); }}
+          onSaved={() => { setSaveDaysModalDates(null); ms.clear(); reload(); emit(EVENTS.RHYTHM_ADDED, { source: 'save-as-rhythm' }); }}
         />
       )}
 
@@ -357,7 +358,7 @@ export default function YearCanvas() {
         <RhythmComposer
           rhythm={editingRhythm}
           onClose={() => { setComposerOpen(false); setEditingRhythm(null); }}
-          onSaved={() => { setComposerOpen(false); setEditingRhythm(null); reload(); }}
+          onSaved={() => { setComposerOpen(false); setEditingRhythm(null); reload(); emit(EVENTS.RHYTHM_ADDED, { source: 'composer' }); }}
         />
       )}
 
