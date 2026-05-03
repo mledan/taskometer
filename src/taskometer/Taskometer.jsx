@@ -16,6 +16,7 @@ import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
+import { ARCHETYPES, ARCHETYPE_WHEELS } from '../defaults/scheduleArchetypes';
 import { listRhythms, listExceptions, dateIsExcepted, addRhythm } from '../services/rhythms.js';
 import { useMultiSelect } from '../hooks/useMultiSelect.js';
 import { pendingRhythmSlotsForDate } from '../services/rhythmsToSlots.js';
@@ -139,34 +140,11 @@ export default function Taskometer() {
     loggedReadyRef.current = true;
     telemetryLog('app:ready', { scale, ...snapshotState(state) });
 
-    // First-run: paint the Weekday (Typical) wheel onto today so a brand-new
-    // user lands on the colorful circle with the default wheel pre-selected.
-    const hasSlots = (state.slots?.length || 0) > 0;
-    if (!hasSlots) {
-      (async () => {
-        try {
-          const existing = (state.settings?.wheels || []).find(w => w.id === DEFAULT_DAY_WHEEL_ID);
-          let wheelId = existing?.id;
-          if (!wheelId) {
-            const tmpl = STARTER_WHEELS.find(w => w.id === DEFAULT_DAY_WHEEL_ID);
-            if (!tmpl) return;
-            const added = await api.wheels.add({
-              id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
-            });
-            wheelId = added.id;
-          }
-          const today = (() => {
-            const d = new Date();
-            const m = d.getMonth() + 1, day = d.getDate();
-            return `${d.getFullYear()}-${m<10?'0'+m:m}-${day<10?'0'+day:day}`;
-          })();
-          await api.wheels.applyToDate(wheelId, today);
-          telemetryLog('autopaint:applied', { wheelId, date: today });
-        } catch (err) {
-          telemetryLog('autopaint:error', { message: err?.message });
-        }
-      })();
-    }
+    // First-run used to silently paint a default weekday wheel here.
+    // We removed that — picking a shape is now an explicit step. New
+    // users land on an empty wheel + the QuickStart card prompting
+    // them to pick an archetype, which gives the user (and us) a clear
+    // signal about what kind of day they're trying to plan.
   }, [state, scale, api]);
 
   // Paper backdrop
@@ -474,7 +452,7 @@ export default function Taskometer() {
     const existing = userWheels.find(w => w.id === wheelId);
     let actualId = existing?.id;
     if (!actualId) {
-      const tmpl = [...STARTER_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
+      const tmpl = [...STARTER_WHEELS, ...ARCHETYPE_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
       if (!tmpl) return;
       const added = await api.wheels.add({
         id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
@@ -505,7 +483,7 @@ export default function Taskometer() {
     const existing = userWheels.find(w => w.id === wheelId);
     let actualId = existing?.id;
     if (!actualId) {
-      const tmpl = [...STARTER_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
+      const tmpl = [...STARTER_WHEELS, ...ARCHETYPE_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
       if (!tmpl) return;
       const added = await api.wheels.add({
         id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
@@ -524,7 +502,7 @@ export default function Taskometer() {
     const existing = userWheels.find(w => w.id === wheelId);
     let actualId = existing?.id;
     if (!actualId) {
-      const tmpl = [...STARTER_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
+      const tmpl = [...STARTER_WHEELS, ...ARCHETYPE_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
       if (!tmpl) return;
       const added = await api.wheels.add({
         id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
@@ -553,7 +531,7 @@ export default function Taskometer() {
     const existing = userWheels.find(w => w.id === wheelId);
     let actualId = existing?.id;
     if (!actualId) {
-      const tmpl = [...STARTER_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
+      const tmpl = [...STARTER_WHEELS, ...ARCHETYPE_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
       if (!tmpl) return;
       const added = await api.wheels.add({
         id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
@@ -811,10 +789,7 @@ export default function Taskometer() {
       />
 
       {showQuickStart && (
-        <QuickStart
-          onPick={handleQuickStart}
-          wheels={state.settings?.wheels || STARTER_WHEELS}
-        />
+        <QuickStart onPick={handleQuickStart} />
       )}
 
       {hasSlots && (
@@ -1158,27 +1133,89 @@ export default function Taskometer() {
 
 // -------- subcomponents --------
 
-function QuickStart({ onPick, wheels }) {
-  const options = Array.isArray(wheels) && wheels.length > 0 ? wheels : STARTER_WHEELS;
+function QuickStart({ onPick }) {
+  // First-run picker: pick the archetype that sounds like you. Each
+  // tile resolves the archetype's wheel from ARCHETYPE_WHEELS or
+  // FAMOUS_WHEELS so we can show a MiniWheel preview alongside the
+  // icon + name + blurb.
+  const options = useMemo(() => {
+    const map = new Map();
+    for (const w of ARCHETYPE_WHEELS) map.set(w.id, w);
+    for (const w of FAMOUS_WHEELS) if (!map.has(w.id)) map.set(w.id, w);
+    return ARCHETYPES
+      .map(a => ({ archetype: a, wheel: map.get(a.wheelId) }))
+      .filter(x => !!x.wheel);
+  }, []);
+
   return (
-    <div className="tm-card tm-dashed" style={{ padding: '18px 22px', marginBottom: 18 }}>
-      <div style={{ fontSize: 24, marginBottom: 2 }}>pick a day to start with</div>
-      <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginBottom: 14 }}>
-        one click paints a set of time blocks onto today. edit or reshape it any time from the day view.
+    <div className="tm-card tm-dashed" style={{ padding: '20px 22px', marginBottom: 18 }}>
+      <div style={{ fontSize: 26, fontFamily: 'Caveat, cursive', lineHeight: 1, marginBottom: 4 }}>
+        What kind of day are you?
       </div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {options.map(s => (
+      <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginBottom: 14 }}>
+        Pick the archetype that sounds closest. We'll paint a starting day-shape for you.
+        Tweak everything afterwards.
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: 10,
+        }}
+      >
+        {options.map(({ archetype, wheel }) => (
           <button
-            key={s.id}
-            className="tm-btn tm-primary"
-            onClick={() => onPick(s)}
-            title={(s.blocks || []).map(b => `${b.startTime}–${b.endTime} ${b.label}`).join(' · ')}
+            key={archetype.id}
+            type="button"
+            onClick={() => onPick(wheel)}
+            title={archetype.blurb}
+            style={{
+              all: 'unset',
+              cursor: 'pointer',
+              padding: '12px 14px',
+              border: `1.5px solid ${archetype.color}`,
+              borderRadius: 12,
+              background: 'var(--paper)',
+              display: 'flex',
+              gap: 12,
+              alignItems: 'center',
+              transition: 'background 0.12s, transform 0.08s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-warm, #FAF5EC)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--paper)'; }}
           >
-            {s.name}
+            <MiniWheel slots={wheel.blocks || []} size={56} thickness={7} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span aria-hidden style={{ fontSize: 18 }}>{archetype.icon}</span>
+                <span style={{
+                  fontFamily: 'Caveat, cursive',
+                  fontSize: 22,
+                  color: archetype.color,
+                  lineHeight: 1.1,
+                }}>
+                  {archetype.name}
+                </span>
+              </div>
+              <div style={{
+                fontSize: 12,
+                color: 'var(--ink-mute)',
+                lineHeight: 1.35,
+                marginTop: 2,
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+              }}>
+                {archetype.blurb}
+              </div>
+            </div>
           </button>
         ))}
-        <button className="tm-btn tm-ghost" onClick={() => onPick(null)}>
-          build my own →
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <button className="tm-btn tm-ghost tm-sm" onClick={() => onPick(null)}>
+          build my own day from scratch →
         </button>
       </div>
     </div>
@@ -1426,16 +1463,8 @@ function WeekView({ selectedDate, slots, tasks, wheels = [], dayAssignments = {}
   );
 }
 
-// IDs we surface in the rail's "Featured" group — a small, opinionated
-// taste of the library. Users hit "Browse all" for the rest.
-const RAIL_FEATURED_IDS = [
-  'system_early_bird',
-  'system_night_owl',
-  'system_pomodoro',
-  'famous_buffett',
-  'famous_cook',
-  'famous_franklin',
-];
+// (the Featured catch-all moved out — the rail now surfaces the
+// archetype catalog from scheduleArchetypes.js as its primary lens.)
 
 function OverflowItem({ children, onClick }) {
   return (
@@ -1696,13 +1725,72 @@ function WheelRail({ userWheels, activeWheelId, onApply, onSchedule, onBrowseAll
   // The rail is "shape this day fast" — your saved shapes plus a tiny
   // curated set so first-time users see something useful without the
   // 100-wheel dump. Everything else lives behind "Browse all".
-  const featured = useMemo(() => {
-    const userIds = new Set(userWheels.map(w => w.id));
-    return RAIL_FEATURED_IDS
-      .map(id => FAMOUS_WHEELS.find(w => w.id === id))
-      .filter(Boolean)
-      .filter(w => !userIds.has(w.id));
+  // The rail leads with archetypes — each one a tagged identity ("Night
+  // Owl", "Parent") rather than a celebrity. We resolve the wheel for
+  // each archetype from ARCHETYPE_WHEELS or FAMOUS_WHEELS so the chip
+  // can render its preview without forcing a save first.
+  const archetypeChips = useMemo(() => {
+    const lookup = new Map();
+    for (const w of userWheels) lookup.set(w.id, w);
+    for (const w of ARCHETYPE_WHEELS) if (!lookup.has(w.id)) lookup.set(w.id, w);
+    for (const w of FAMOUS_WHEELS) if (!lookup.has(w.id)) lookup.set(w.id, w);
+    return ARCHETYPES
+      .map(a => ({ archetype: a, wheel: lookup.get(a.wheelId) }))
+      .filter(x => !!x.wheel);
   }, [userWheels]);
+
+  // Archetype chip — same shape as a wheel chip but with the
+  // archetype icon prepended and the archetype's name as the label.
+  // Clicking applies the archetype's wheel; drag works the same way.
+  const renderArchetypeChip = ({ archetype, wheel }) => {
+    const slotsForMini = (wheel.blocks || []).map(b => ({
+      startTime: b.startTime,
+      endTime: b.endTime,
+      color: b.color,
+    }));
+    const on = activeWheelId === wheel.id;
+    return (
+      <div
+        key={archetype.id}
+        role="listitem"
+        className={`tm-chip-wheel${on ? ' tm-chip-on' : ''}`}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/wheel-id', wheel.id);
+          e.dataTransfer.effectAllowed = 'copy';
+        }}
+        title={archetype.blurb}
+      >
+        <button
+          type="button"
+          className="tm-chip-wheel-main"
+          onClick={() => onApply(wheel.id)}
+        >
+          <span aria-hidden style={{ fontSize: 16, lineHeight: 1, marginRight: 2 }}>{archetype.icon}</span>
+          <MiniWheel slots={slotsForMini} size={28} thickness={4} />
+          <span className="tm-chip-wheel-name">{archetype.name}</span>
+        </button>
+        <button
+          type="button"
+          className="tm-chip-wheel-schedule"
+          onClick={(e) => { e.stopPropagation(); onSchedule(wheel.id); }}
+          title="schedule across a range"
+          aria-label={`schedule ${archetype.name} across a range`}
+        >
+          📅
+        </button>
+        <button
+          type="button"
+          className="tm-chip-wheel-schedule"
+          onClick={(e) => { e.stopPropagation(); handleShare(wheel); }}
+          title="copy a share link for this rhythm"
+          aria-label={`share ${archetype.name}`}
+        >
+          ↗
+        </button>
+      </div>
+    );
+  };
 
   const renderChip = (w) => {
     const slotsForMini = (w.blocks || []).map(b => ({
@@ -1765,17 +1853,17 @@ function WheelRail({ userWheels, activeWheelId, onApply, onSchedule, onBrowseAll
         Click to paint this day. Use 📅 to paint a range.
       </div>
 
+      {archetypeChips.length > 0 && (
+        <div>
+          <div className="tm-rail-cat">Archetypes</div>
+          <div className="tm-rail-list">{archetypeChips.map(renderArchetypeChip)}</div>
+        </div>
+      )}
+
       {userWheels.length > 0 && (
         <div>
           <div className="tm-rail-cat">Mine</div>
           <div className="tm-rail-list">{userWheels.map(renderChip)}</div>
-        </div>
-      )}
-
-      {featured.length > 0 && (
-        <div>
-          <div className="tm-rail-cat">Featured</div>
-          <div className="tm-rail-list">{featured.map(renderChip)}</div>
         </div>
       )}
 

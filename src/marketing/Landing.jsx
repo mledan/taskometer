@@ -1,8 +1,18 @@
 import React from 'react';
 import { MiniWheel } from '../taskometer/WheelView.jsx';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
+import { ARCHETYPES, ARCHETYPE_WHEELS } from '../defaults/scheduleArchetypes';
 import '../taskometer/taskometer.css';
 import './marketing.css';
+
+// Build a quick lookup so the archetype showcase can preview the
+// wheel for each archetype without reaching into the app's state.
+const WHEEL_BY_ID = (() => {
+  const m = new Map();
+  for (const w of ARCHETYPE_WHEELS) m.set(w.id, w);
+  for (const w of FAMOUS_WHEELS) if (!m.has(w.id)) m.set(w.id, w);
+  return m;
+})();
 
 /**
  * Marketing landing page. Lives at `/`. Two CTAs: try the app free,
@@ -104,34 +114,50 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* SHAPES SHOWCASE ───────────────────────────────────────────────── */}
+      {/* ARCHETYPE SHOWCASE ───────────────────────────────────────────── */}
       <section id="shapes" className="mk-section">
         <div className="mk-section-head">
-          <h2 className="mk-h2">A shape for every kind of day.</h2>
+          <h2 className="mk-h2">Pick the archetype that's you.</h2>
           <p className="mk-mono mk-section-sub">
-            Famous wheels, productivity systems, and your own — all clickable in the picker.
+            Eight rhythms, one click each. Tweak everything afterwards. Famous-people
+            schedules (Buffett, Mozart, Kafka) live as a curated easter egg inside the app.
           </p>
         </div>
         <div className="mk-grid">
-          {FAMOUS_WHEELS.slice(0, 12).map(w => (
-            <div key={w.id} className="mk-grid-card">
-              <MiniWheel
-                slots={(w.blocks || []).map(b => ({
-                  startTime: b.startTime, endTime: b.endTime, color: b.color,
-                }))}
-                size={72}
-                thickness={9}
-              />
-              <div className="mk-grid-card-text">
-                <div className="mk-grid-card-name">{w.name}</div>
-                <div className="mk-mono mk-grid-card-cat">{w.category}</div>
-              </div>
-            </div>
-          ))}
+          {ARCHETYPES.map(a => {
+            const wheel = WHEEL_BY_ID.get(a.wheelId);
+            if (!wheel) return null;
+            return (
+              <a key={a.id} href="/app" className="mk-grid-card" style={{ borderColor: 'var(--rule)' }}>
+                <MiniWheel
+                  slots={(wheel.blocks || []).map(b => ({
+                    startTime: b.startTime, endTime: b.endTime, color: b.color,
+                  }))}
+                  size={72}
+                  thickness={9}
+                />
+                <div className="mk-grid-card-text">
+                  <div className="mk-grid-card-name">
+                    <span aria-hidden style={{ marginRight: 4 }}>{a.icon}</span>
+                    {a.name}
+                  </div>
+                  <div className="mk-mono mk-grid-card-cat" style={{
+                    textTransform: 'none',
+                    letterSpacing: 'normal',
+                    color: 'var(--ink-soft)',
+                    fontSize: 11,
+                    lineHeight: 1.35,
+                  }}>
+                    {a.blurb}
+                  </div>
+                </div>
+              </a>
+            );
+          })}
         </div>
         <div style={{ textAlign: 'center', marginTop: 18 }}>
           <a href="/app" className="tm-btn tm-primary mk-cta">
-            See all shapes in the app →
+            Pick yours and start →
           </a>
         </div>
       </section>
