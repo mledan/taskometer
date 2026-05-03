@@ -17,7 +17,8 @@
 		"preview": "vite preview",
 		"test": "vitest",
 		"clean": "rm -rf dist",
-		"setup:stripe": "node scripts/setup-stripe.js"
+		"setup:stripe": "node scripts/setup-stripe.js",
+		"sync:vercel-env": "node scripts/sync-vercel-env.js"
 	},
 	"dependencies": {
 		"@azure/cosmos": "^4.9.3",
