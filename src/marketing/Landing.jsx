@@ -52,8 +52,8 @@ export default function Landing() {
             the same rhythm structure their days.
           </p>
           <div className="mk-cta-row">
-            <a href="/app/year" className="tm-btn tm-primary mk-cta">
-              Build your year →
+            <a href="/app" className="tm-btn tm-primary mk-cta">
+              Open the app →
             </a>
             <a href="/teams" className="tm-btn tm-ghost mk-cta">
               For teams →
@@ -98,18 +98,18 @@ export default function Landing() {
         <div className="mk-steps">
           <Step
             n="01"
-            title="Pick a shape"
-            body="Workday, weekend, travel day, sprint week. Pre-built wheels from Buffett to Pomodoro, or roll your own."
+            title="Capture as you go"
+            body="One line. Press n from anywhere, type the thing, hit Enter. No type, no time, no block — your inbox holds it until you're ready."
           />
           <Step
             n="02"
-            title="Paint your week"
-            body="Drag a shape onto any day. Apply to all weekdays. Override Friday for that conference. The wheel makes it visual."
+            title="Plan when you sit down"
+            body="Drag from the inbox onto a colored block in your day. Done in seconds. The skeleton's already there — Workday on weekdays, Weekend on Sat/Sun."
           />
           <Step
             n="03"
-            title="Drop in tasks"
-            body="Type what you need to do — taskometer slots it into the right block automatically. Your day fills itself."
+            title="Re-shape when life shifts"
+            body="Pick a different shape from the rail to repaint a day. Override a sick day. Save today's blocks as a new shape and apply it across a range."
           />
         </div>
       </section>
@@ -188,7 +188,7 @@ export default function Landing() {
       </section>
 
       <footer className="mk-footer">
-        <div className="mk-mono">© taskometer · shape your day, loop it forward</div>
+        <div className="mk-mono">© taskometer · capture as you go, plan when you sit down</div>
         <div className="mk-footer-links">
           <a href="/app">App</a>
           <a href="/teams">Teams</a>

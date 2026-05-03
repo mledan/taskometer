@@ -89,7 +89,7 @@ export default function WelcomePopup({ onDone }) {
             <div className="tm-modal-title" style={{ fontSize: 42 }}>
               Welcome to taskometer.
             </div>
-            <div style={{ fontSize: 22, color: 'var(--ink-mute)' }}>Shape your day. Loop it forward.</div>
+            <div style={{ fontSize: 22, color: 'var(--ink-mute)' }}>Capture as you go. Plan when you sit down.</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginTop: 18 }}>
               {CLERK_ENABLED ? (
                 <SignUpButton mode="modal" forceRedirectUrl="/app" signInForceRedirectUrl="/app">

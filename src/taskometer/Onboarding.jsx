@@ -42,54 +42,43 @@ function writeStep(i) {
   try { localStorage.setItem(STEP_KEY, String(i)); } catch (_) {}
 }
 
-// Tour script — keep it short. Five steps that match the current
-// product: pick a wheel, click a wedge, add a task, see the year
-// canvas, done. Each step optionally watches a signal so the tour
-// auto-advances when the user actually performs the action.
+// Tour script — capture, plan, repeat.
+// We start with capture because the most common failure mode is a
+// blank planner: type something now, decide where it goes later. Then
+// drag from the inbox into a block. Then point at the shapes rail for
+// when the skeleton needs to change. Each step optionally watches a
+// signal so the tour auto-advances when the user actually performs
+// the action.
 const STEPS = [
   {
     title: 'Welcome to taskometer',
-    body: 'Your day is a 24-hour wheel. You shape recurring rhythms once and let them paint the year — then drop tasks on top.',
+    body: 'Your week already has a shape. Capture things as they come up, drag them into blocks when you sit down to plan. No empty planner.',
     target: null,
   },
   {
-    title: '1. Pick a shape',
-    body: 'The chip in the header opens a library of day shapes — archetypes like Night Owl, Office 9-to-5, Parent. Pick the one that sounds like you.',
+    title: '1. Capture anything',
+    body: "Type a task into the inbox at the top and hit Enter. No type, no time, no block — just text. Hotkey n focuses this from anywhere.",
+    target: '[data-onboard="quick-capture"]',
+    awaitEvent: EVENTS.TASK_ADDED,
+    progressHint: 'type something and hit Enter · or hit Next',
+  },
+  {
+    title: '2. Drag into a block',
+    body: "When you're ready to plan, drag a task from the inbox onto a colored wedge in your day. That's it — the task is scheduled.",
+    target: '[data-onboard="inbox"]',
+    awaitEvent: EVENTS.SLOT_SELECTED,
+    progressHint: 'drag a task onto a block · or hit Next',
+  },
+  {
+    title: '3. Re-shape when you need to',
+    body: "Your day already runs Workday on weekdays, Weekend on Sat/Sun. Pick a different shape from the rail to repaint a day, or click the chip in the header to swap.",
     target: '[data-onboard="wheel-picker"]',
     awaitEvent: EVENTS.WHEEL_APPLIED,
-    progressHint: 'click the chip and pick any wheel · or hit Next',
-  },
-  {
-    title: '2. Click a wedge',
-    body: 'Tap any colored wedge. It expands below the wheel so you can see what\'s scheduled, and the composer auto-targets that block.',
-    target: '[data-onboard="wheel"]',
-    awaitEvent: EVENTS.SLOT_SELECTED,
-    progressHint: 'click any wedge · or hit Next',
-  },
-  {
-    title: '3. Add a task',
-    body: 'Type a task and hit Add. It lands in the highlighted block automatically. If today\'s block is full, the task rolls forward to the next matching block — even tomorrow.',
-    target: '[data-onboard="composer"]',
-    awaitEvent: EVENTS.TASK_ADDED,
-    progressHint: 'add a task · or hit Next',
-  },
-  {
-    title: '4. Plan the year',
-    body: 'Click "Open year canvas" — the orange button below — to start defining rhythms that paint themselves across the whole year.',
-    target: '[data-onboard="year-canvas"]',
-    awaitEvent: EVENTS.NAVIGATED_TO_YEAR,
-    progressHint: 'click the year canvas link · or hit Next',
-  },
-  {
-    title: '5. Add a rhythm',
-    body: "Hit '+ Rhythm' in the top right. Try a Weekly Mon/Wed/Fri at 9am — pick multiple days at once. Watch your year fill in.",
-    target: '[data-onboard="rhythm-add"]',
-    awaitEvent: EVENTS.RHYTHM_ADDED,
-    progressHint: 'add your first rhythm · or hit Next',
+    progressHint: 'pick a shape · or hit Next',
   },
   {
     title: "You're set",
-    body: 'Hit Cmd+K anywhere for the command palette. Hit ? in the top-right to replay this tour. Have fun.',
+    body: 'Press n to capture, Cmd+K for the palette, ? to replay this tour. The rest is just doing.',
     target: null,
   },
 ];

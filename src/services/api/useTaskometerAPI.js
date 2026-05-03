@@ -61,7 +61,7 @@ export function useTaskometerAPI() {
       nowTask: deriveNowTask({ tasks, date, now }),
       upcoming: deriveUpcoming({ tasks, date, now, limit: 3 }),
       pushed: derivePushed({ tasks, date, limit: 3 }),
-      backlog: deriveBacklog({ tasks, limit: 10 }),
+      backlog: deriveBacklog({ tasks, limit: 200 }),
       weekFit: deriveWeekFit({ tasks, slots, today: date }),
       stats: deriveStats({ tasks, date }),
       currentSlot: deriveCurrentSlotTasks({ tasks, slots, date, now }),

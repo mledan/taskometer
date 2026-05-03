@@ -9,6 +9,7 @@ import DailyWrap from './DailyWrap.jsx';
 import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
+import { QuickCapture, InboxPanel } from './Inbox.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
@@ -138,6 +139,7 @@ export default function Taskometer() {
   const [selectedType, setSelectedType] = useState(null);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
   const searchRef = useRef(null);
+  const quickCaptureRef = useRef(null);
 
   const { state, api, derived } = useTaskometerAPI();
 
@@ -152,17 +154,68 @@ export default function Taskometer() {
 
   // One-shot boot snapshot so the first console frame describes the landing state.
   const loggedReadyRef = useRef(false);
+  const seededRef = useRef(false);
   useEffect(() => {
     if (loggedReadyRef.current) return;
     if (state.isLoading || !state.isInitialized) return;
     loggedReadyRef.current = true;
     telemetryLog('app:ready', { scale, ...snapshotState(state) });
 
-    // First-run used to silently paint a default weekday wheel here.
-    // We removed that — picking a shape is now an explicit step. New
-    // users land on an empty wheel + the QuickStart card prompting
-    // them to pick an archetype, which gives the user (and us) a clear
-    // signal about what kind of day they're trying to plan.
+    // First-run skeleton seed: the user complaint that drove this is
+    // "my planner is always empty and i waste too much time planning."
+    // So a brand-new install gets a populated 30-day skeleton — Workday
+    // on weekdays, Weekend chill on weekends — pulled from the default
+    // wheels that AppContext already seeds into settings.wheels. The
+    // user can re-paint with a different shape any time, but the empty
+    // wheel of doom is gone.
+    const SEED_FLAG = 'taskometer.firstRunSeeded';
+    const alreadySeeded = (() => {
+      try { return localStorage.getItem(SEED_FLAG) === '1'; } catch (_) { return false; }
+    })();
+    if (seededRef.current || alreadySeeded) return;
+
+    const wheelsList = state.settings?.wheels || [];
+    const slotsCount = state.slots?.length || 0;
+    const assignmentsCount = Object.keys(state.settings?.dayAssignments || {}).length;
+    const isFreshSkeleton = slotsCount === 0 && assignmentsCount === 0 && wheelsList.length >= 2;
+    if (!isFreshSkeleton) {
+      try { localStorage.setItem(SEED_FLAG, '1'); } catch (_) {}
+      return;
+    }
+    const workday = wheelsList.find(w => w.id === DEFAULT_DAY_WHEEL_ID) || wheelsList[0];
+    const weekend = wheelsList.find(w => w.id === 'starter_weekend')
+      || wheelsList.find(w => w.id !== workday?.id)
+      || null;
+    if (!workday) return;
+
+    seededRef.current = true;
+    (async () => {
+      try {
+        const start = new Date();
+        const end = new Date();
+        end.setDate(end.getDate() + 29); // ~30 day skeleton
+        const startKey = formatYMD(start);
+        const endKey = formatYMD(end);
+        await api.wheels.applyToRange(workday.id, startKey, endKey, {
+          weekdaysOnly: true,
+          mode: 'replace',
+        });
+        if (weekend) {
+          await api.wheels.applyToRange(weekend.id, startKey, endKey, {
+            weekendsOnly: true,
+            mode: 'replace',
+          });
+        }
+        telemetryLog('first-run:skeleton-seeded', {
+          workdayWheel: workday.id,
+          weekendWheel: weekend?.id || null,
+          range: `${startKey}..${endKey}`,
+        });
+        try { localStorage.setItem(SEED_FLAG, '1'); } catch (_) {}
+      } catch (err) {
+        telemetryLog('first-run:skeleton-error', { message: err?.message });
+      }
+    })();
   }, [state, scale, api]);
 
   // Paper backdrop
@@ -182,7 +235,7 @@ export default function Taskometer() {
     goToDashboard: () => setScale('day'),
     goToPlan: () => setScale('week'),
     goToTodos: () => setScale('block'),
-    newTask: () => searchRef.current?.focus?.() || null,
+    newTask: () => { quickCaptureRef.current?.focus?.(); },
     search: () => { searchRef.current?.focus?.(); },
     cancel: () => {
       setSettingsOpen(false);
@@ -228,6 +281,27 @@ export default function Taskometer() {
     const slot = (state.slots || []).find(s => s.id === selectedSlotId);
     if (!slot || slot.date !== viewKey) setSelectedSlotId(null);
   }, [viewKey, selectedSlotId, state.slots]);
+
+  // Quick-capture: text in, unscheduled task out. No type, no duration,
+  // no block. Lands in the inbox; the user drags it into a slot when
+  // they sit down to plan. This is the "right now is not the time to
+  // plan" valve — the whole point of capture is to be cheaper than
+  // forgetting.
+  const handleQuickCapture = (text) => {
+    const t = (text || '').trim();
+    if (!t) return;
+    telemetryLog('task:add', { text: t.slice(0, 40), kind: 'inbox' });
+    return api.tasks.add({
+      text: t,
+      status: 'pending',
+      priority: 'medium',
+      recurrence: { frequency: 'none', interval: 1, daysOfWeek: [], dayOfMonth: null, endDate: null, occurrences: null },
+      // Bypass the reducer's auto-scheduler — the whole point of the
+      // inbox is unscheduled, so the user can drag it where they want.
+      // The flag is consumed by ADD_TASK in AppContext and discarded.
+      autoSchedule: false,
+    });
+  };
 
   const handleAddTask = async (data) => {
     const duration = data?.duration || 30;
@@ -763,11 +837,15 @@ export default function Taskometer() {
         </div>
       </header>
 
-      {/* Promote the new annual-first flow. Customers told us they think
-          year → day, not day → year, so we point them at the new canvas
-          first. Dismissible — once dismissed, stays dismissed via
-          localStorage. */}
-      <YearPromoBanner />
+      {/* Quick capture is the always-on entry point. The story is
+          "capture now, plan later" — anything you type here lands in
+          the inbox unscheduled until you drag it onto a block. Hotkey
+          `n` focuses this from anywhere. */}
+      <QuickCapture
+        ref={quickCaptureRef}
+        onCapture={handleQuickCapture}
+        inboxCount={(filteredDerived.backlog || []).length}
+      />
 
       {/* When rhythms fire on the selected day but haven't been
           materialized as concrete slots yet, surface them so the user
@@ -783,7 +861,12 @@ export default function Taskometer() {
         <QuickStart onPick={handleQuickStart} />
       )}
 
-      {hasSlots && (
+      {/* Heavy composer only surfaces when the user has actively picked
+          a block to plan into. Otherwise capture goes through the
+          always-on QuickCapture above and tasks land in the inbox. This
+          matches the "capture vs. plan" split — heavy details come out
+          only when the user is sitting down to plan a specific block. */}
+      {hasSlots && selectedSlot && selectedSlotIsForDay && (
         <div
           data-onboard="composer"
           style={{
@@ -804,7 +887,7 @@ export default function Taskometer() {
               marginBottom: 8,
             }}
           >
-            What do you need to do?
+            Plan into this block
           </div>
           {selectedSlot && selectedSlotIsForDay && (
             <div
@@ -910,6 +993,10 @@ export default function Taskometer() {
             />
           </div>
           <aside className="tm-dash-side">
+            <InboxPanel
+              tasks={filteredDerived.backlog || []}
+              rowHandlers={{ onToggle: handleToggle, onDelete: handleDelete }}
+            />
             <WheelRail
               userWheels={userWheels}
               activeWheelId={activeWheelId}
@@ -1630,48 +1717,6 @@ function RhythmsForToday({ dateKey, existingSlots, api }) {
         disabled={busy}
       >
         {busy ? 'applying…' : `Apply ${pending.length} →`}
-      </button>
-    </div>
-  );
-}
-
-function YearPromoBanner() {
-  const KEY = 'taskometer.yearPromoDismissed';
-  const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem(KEY) === '1'; } catch (_) { return false; }
-  });
-  if (dismissed) return null;
-  const dismiss = () => {
-    try { localStorage.setItem(KEY, '1'); } catch (_) {}
-    setDismissed(true);
-  };
-  return (
-    <div
-      data-onboard="year-canvas"
-      style={{
-        marginBottom: 18,
-        padding: '14px 18px',
-        border: '2px dashed var(--orange)',
-        borderRadius: 12,
-        background: 'var(--paper-warm, #FAF5EC)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        flexWrap: 'wrap',
-      }}
-    >
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <div style={{ fontFamily: 'Caveat, cursive', fontSize: 26, lineHeight: 1, color: 'var(--orange)', marginBottom: 4 }}>
-          Plan your year first.
-        </div>
-        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-soft)' }}>
-          New: define recurring rhythms (weekly all-hands, biweekly retro, monthly review)
-          and watch them paint your year. Add tasks here on top.
-        </div>
-      </div>
-      <a href="/app/year" className="tm-btn tm-primary">Open year canvas →</a>
-      <button type="button" className="tm-btn tm-sm" onClick={dismiss} title="hide this banner">
-        ×
       </button>
     </div>
   );
