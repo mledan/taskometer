@@ -1,13 +1,44 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-const STORAGE_KEY = 'taskometer.onboarding.done';
+const DONE_KEY = 'taskometer.onboarding.done';
+const LIVE_KEY = 'taskometer.onboarding.live';
+const STEP_KEY = 'taskometer.onboarding.step';
 
 export function hasSeenOnboarding() {
-  try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch (_) { return false; }
+  try { return localStorage.getItem(DONE_KEY) === '1'; } catch (_) { return false; }
+}
+
+/** Has the user started the tour but not finished it? Used by App.jsx
+ *  to decide whether to mount the overlay across route changes. */
+export function isOnboardingLive() {
+  try { return localStorage.getItem(LIVE_KEY) === '1'; } catch (_) { return false; }
+}
+
+/** Begin the tour. Called from anywhere — sets the live flag and
+ *  resets to step 0 so re-running starts fresh. */
+export function startOnboarding() {
+  try {
+    localStorage.setItem(LIVE_KEY, '1');
+    localStorage.setItem(STEP_KEY, '0');
+  } catch (_) {}
 }
 
 function markSeen() {
-  try { localStorage.setItem(STORAGE_KEY, '1'); } catch (_) {}
+  try {
+    localStorage.setItem(DONE_KEY, '1');
+    localStorage.removeItem(LIVE_KEY);
+    localStorage.removeItem(STEP_KEY);
+  } catch (_) {}
+}
+
+function readStep() {
+  try {
+    const raw = localStorage.getItem(STEP_KEY);
+    return raw ? Math.max(0, Math.min(parseInt(raw, 10) || 0, 99)) : 0;
+  } catch (_) { return 0; }
+}
+function writeStep(i) {
+  try { localStorage.setItem(STEP_KEY, String(i)); } catch (_) {}
 }
 
 // Tour script — keep it short. Five steps that match the current
@@ -43,8 +74,15 @@ const STEPS = [
   },
   {
     title: '4. Plan the year',
-    body: 'Click "Open year canvas" to define rhythms (weekly all-hands, biweekly retro, monthly review) that paint themselves across the whole year. Multi-select days with ⌘+click to bulk-paint or save as a custom rhythm.',
+    body: 'Click "Open year canvas" — the orange button below — to start defining rhythms that paint themselves across the whole year.',
     target: '[data-onboard="year-canvas"]',
+    awaitSignal: 'navigatedToYearCanvas',
+    progressHint: 'click "Open year canvas" to continue',
+  },
+  {
+    title: '5. Add a rhythm',
+    body: "Hit '+ Rhythm' in the top right. Try a Weekly Mon/Wed/Fri at 9am — pick multiple days at once. Watch your year fill in.",
+    target: '[data-onboard="rhythm-add"]',
   },
   {
     title: "You're set",
@@ -123,7 +161,13 @@ function pickPanelPlacement(rect) {
 }
 
 export default function Onboarding({ onClose, signals = {} }) {
-  const [i, setI] = useState(0);
+  // Persist the active step in localStorage so the tour survives a
+  // route navigation (the user clicking the "Open year canvas" button
+  // mid-tour). On mount we restore from disk; on every change we
+  // write back. Bounded by STEPS.length so a stale index can't crash.
+  const [i, setI] = useState(() => Math.min(readStep(), STEPS.length - 1));
+  useEffect(() => { writeStep(i); }, [i]);
+
   const step = STEPS[i];
   const isLast = i === STEPS.length - 1;
   const rect = useTargetRect(step.target, i);

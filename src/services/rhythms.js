@@ -121,6 +121,22 @@ function daysBetween(a, b) {
 function startOfMonth(y, m) { return new Date(y, m, 1); }
 function endOfMonth(y, m)   { return new Date(y, m + 1, 0); }
 
+/**
+ * Coerce a cadence's day-of-week field into a Set<number>. Accepts:
+ *   cad.daysOfWeek = [1, 2, 3]    — multi-day (preferred)
+ *   cad.dayOfWeek  = 2            — legacy single
+ * Returns an empty set if neither is set, which means "fires 0 days"
+ * — rare but handled safely upstream.
+ */
+function normalizeDays(cad) {
+  const out = new Set();
+  if (Array.isArray(cad?.daysOfWeek)) {
+    for (const d of cad.daysOfWeek) if (d >= 0 && d <= 6) out.add(d);
+  }
+  if (typeof cad?.dayOfWeek === 'number') out.add(cad.dayOfWeek);
+  return out;
+}
+
 // Return the date of the Nth occurrence of `dow` in month (y,m).
 // nth is 1..5 or -1 for last.
 function nthWeekdayOfMonth(y, m, dow, nth) {
@@ -151,9 +167,12 @@ export function occurrencesInRange(rhythm, startDate, endDate) {
 
   switch (cad.kind) {
     case 'weekly': {
+      // Multi-day: cad.daysOfWeek is a Set/Array of 0–6. Falls back
+      // to the legacy single cad.dayOfWeek for older rhythms.
+      const dows = normalizeDays(cad);
       const cur = new Date(start);
       while (cur.getTime() <= end.getTime()) {
-        if (cur.getDay() === cad.dayOfWeek) out.push(ymd(cur));
+        if (dows.has(cur.getDay())) out.push(ymd(cur));
         cur.setDate(cur.getDate() + 1);
       }
       break;
@@ -161,9 +180,10 @@ export function occurrencesInRange(rhythm, startDate, endDate) {
 
     case 'biweekly': {
       const anchor = parseYMD(cad.anchor) || start;
+      const dows = normalizeDays(cad);
       const cur = new Date(start);
       while (cur.getTime() <= end.getTime()) {
-        if (cur.getDay() === cad.dayOfWeek) {
+        if (dows.has(cur.getDay())) {
           const weeksFromAnchor = Math.floor(daysBetween(anchor, cur) / 7);
           if (weeksFromAnchor % 2 === 0) out.push(ymd(cur));
         }
@@ -173,17 +193,23 @@ export function occurrencesInRange(rhythm, startDate, endDate) {
     }
 
     case 'monthly_nth': {
-      // Iterate months in range and pick the nth weekday of each.
+      // Iterate months in range and pick the nth weekday of each
+      // selected day-of-week. Multi-day support: e.g., the 1st Monday
+      // AND the 3rd Friday of every month is two day-of-week entries.
+      const dows = normalizeDays(cad);
       const sY = start.getFullYear(), sM = start.getMonth();
       const eY = end.getFullYear(),   eM = end.getMonth();
       for (let y = sY, m = sM; (y < eY) || (y === eY && m <= eM); ) {
-        const d = nthWeekdayOfMonth(y, m, cad.dayOfWeek, cad.nth);
-        if (d && d.getTime() >= start.getTime() && d.getTime() <= end.getTime()) {
-          out.push(ymd(d));
+        for (const dow of dows) {
+          const d = nthWeekdayOfMonth(y, m, dow, cad.nth);
+          if (d && d.getTime() >= start.getTime() && d.getTime() <= end.getTime()) {
+            out.push(ymd(d));
+          }
         }
         m += 1;
         if (m > 11) { m = 0; y += 1; }
       }
+      out.sort();
       break;
     }
 
@@ -292,6 +318,7 @@ function cadenceFingerprint(rhythm) {
   return [
     c.kind,
     c.dayOfWeek ?? '',
+    Array.isArray(c.daysOfWeek) ? c.daysOfWeek.slice().sort().join(',') : '',
     c.nth ?? '',
     c.monthDate ?? '',
     c.weekOfQuarter ?? '',

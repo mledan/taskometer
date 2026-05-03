@@ -12,6 +12,7 @@ import SharePage from './marketing/SharePage.jsx';
 import YearCanvas from './taskometer/year/YearCanvas.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
 import './components/CommandPalette.css';
+import Onboarding, { isOnboardingLive } from './taskometer/Onboarding.jsx';
 import { runStorageMigrations } from './storage-migrations.js';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { CLERK_ENABLED, CLERK_PUBLISHABLE_KEY } from './services/auth.js';
@@ -117,6 +118,32 @@ function App() {
     />
   );
 
+  // Onboarding mounts globally (when active) so the tour survives
+  // route navigation. We pass a small signal map indicating whether
+  // the user just navigated to the year canvas — auto-advances step 4.
+  const [onboardLive, setOnboardLive] = useState(() => isOnboardingLive());
+  useEffect(() => {
+    // Re-check when the path changes — the welcome flow may have
+    // started the tour after the App's initial mount.
+    setOnboardLive(isOnboardingLive());
+  }, [path]);
+  // Welcome flow dispatches this when the user closes the popup so
+  // we don't have to wait for a route change to mount the tour.
+  useEffect(() => {
+    const onStart = () => setOnboardLive(true);
+    window.addEventListener('taskometer:onboarding-start', onStart);
+    return () => window.removeEventListener('taskometer:onboarding-start', onStart);
+  }, []);
+  const onboardSignals = {
+    navigatedToYearCanvas: path.startsWith('/app/year') ? 1 : 0,
+  };
+  const onboardOverlay = onboardLive ? (
+    <Onboarding
+      onClose={() => setOnboardLive(false)}
+      signals={onboardSignals}
+    />
+  ) : null;
+
   // Resolve the route once; ClerkProvider wraps the whole tree below
   // so every page (including the SPA's /app routes) shares one auth
   // session.
@@ -127,6 +154,7 @@ function App() {
       <ThemeProvider>
         <YearCanvas />
         {palette}
+        {onboardOverlay}
       </ThemeProvider>
     );
   } else if (path.startsWith('/app')) {
@@ -135,21 +163,22 @@ function App() {
         <AppStateProvider>
           <AppContent />
           {palette}
+          {onboardOverlay}
         </AppStateProvider>
       </ThemeProvider>
     );
   } else if (path === '/teams' || path.startsWith('/teams/')) {
-    body = <ThemeProvider><TeamsDemo />{palette}</ThemeProvider>;
+    body = <ThemeProvider><TeamsDemo />{palette}{onboardOverlay}</ThemeProvider>;
   } else if (path === '/privacy') {
-    body = <ThemeProvider><Privacy />{palette}</ThemeProvider>;
+    body = <ThemeProvider><Privacy />{palette}{onboardOverlay}</ThemeProvider>;
   } else if (path === '/terms') {
-    body = <ThemeProvider><Terms />{palette}</ThemeProvider>;
+    body = <ThemeProvider><Terms />{palette}{onboardOverlay}</ThemeProvider>;
   } else if (path === '/pricing') {
-    body = <ThemeProvider><Pricing />{palette}</ThemeProvider>;
+    body = <ThemeProvider><Pricing />{palette}{onboardOverlay}</ThemeProvider>;
   } else if (path === '/share') {
-    body = <ThemeProvider><SharePage />{palette}</ThemeProvider>;
+    body = <ThemeProvider><SharePage />{palette}{onboardOverlay}</ThemeProvider>;
   } else {
-    body = <ThemeProvider><Landing />{palette}</ThemeProvider>;
+    body = <ThemeProvider><Landing />{palette}{onboardOverlay}</ThemeProvider>;
   }
 
   return wrap(body);

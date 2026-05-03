@@ -204,6 +204,7 @@ export default function YearCanvas() {
         </div>
         <div className="yc-header-right">
           <button
+            data-onboard="rhythm-add"
             className="tm-btn tm-primary"
             onClick={() => { setEditingRhythm(null); setComposerOpen(true); }}
           >
@@ -518,10 +519,26 @@ function describeCellTitle(dateKey, entries) {
 function describeCadence(cad) {
   if (!cad) return '';
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // Resolve days-of-week from either the new array or the legacy
+  // single field. Render compactly: "Mon, Wed, Fri" or special-case
+  // "weekdays" / "weekends" / "every day" when applicable.
+  const dows = (() => {
+    if (Array.isArray(cad.daysOfWeek) && cad.daysOfWeek.length) return cad.daysOfWeek.slice().sort();
+    if (typeof cad.dayOfWeek === 'number') return [cad.dayOfWeek];
+    return [];
+  })();
+  const dowLabel = (() => {
+    if (dows.length === 7) return 'every day';
+    const asSet = new Set(dows);
+    if (dows.length === 5 && [1,2,3,4,5].every(d => asSet.has(d))) return 'weekdays';
+    if (dows.length === 2 && asSet.has(0) && asSet.has(6)) return 'weekends';
+    return dows.map(d => days[d]).join(', ');
+  })();
+
   switch (cad.kind) {
-    case 'weekly':       return `every ${days[cad.dayOfWeek]} · ${cad.startTime || ''}–${cad.endTime || ''}`;
-    case 'biweekly':     return `alt ${days[cad.dayOfWeek]} · ${cad.startTime || ''}–${cad.endTime || ''}`;
-    case 'monthly_nth':  return `${ordinal(cad.nth)} ${days[cad.dayOfWeek]} of month`;
+    case 'weekly':       return `${dowLabel} · ${cad.startTime || ''}–${cad.endTime || ''}`;
+    case 'biweekly':     return `alt ${dowLabel} · ${cad.startTime || ''}–${cad.endTime || ''}`;
+    case 'monthly_nth':  return `${ordinal(cad.nth)} ${dowLabel} of month`;
     case 'monthly_date': return `the ${ordinal(cad.monthDate)} of each month`;
     case 'quarterly_week': return `wk ${cad.weekOfQuarter} of each quarter`;
     case 'project':      return `project · ${cad.anchor} → ${cad.end}`;

@@ -10,7 +10,7 @@ import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
 import WelcomePopup, { readAuth } from './WelcomePopup.jsx';
-import Onboarding, { hasSeenOnboarding } from './Onboarding.jsx';
+import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
 import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
@@ -80,7 +80,9 @@ export default function Taskometer() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [wheelsPanelOpen, setWheelsPanelOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(() => !readAuth());
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  // Onboarding state lives at the App level now (so it persists
+  // across /app → /app/year navigation). Local triggers go through
+  // startOnboarding() + the 'taskometer:onboarding-start' event.
   const [accountOpen, setAccountOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
@@ -732,7 +734,11 @@ export default function Taskometer() {
                 <OverflowItem onClick={() => { setOverflowOpen(false); telemetryLog('backup:export-ics'); api.backup.exportICS(); }}>
                   export .ics
                 </OverflowItem>
-                <OverflowItem onClick={() => { setOverflowOpen(false); setOnboardingOpen(true); }}>
+                <OverflowItem onClick={() => {
+                  setOverflowOpen(false);
+                  startOnboarding();
+                  window.dispatchEvent(new Event('taskometer:onboarding-start'));
+                }}>
                   replay tour
                 </OverflowItem>
                 <OverflowItem onClick={() => { setOverflowOpen(false); setSettingsOpen(true); }}>
@@ -1066,18 +1072,15 @@ export default function Taskometer() {
         <WelcomePopup
           onDone={() => {
             setWelcomeOpen(false);
-            if (!hasSeenOnboarding()) setOnboardingOpen(true);
-          }}
-        />
-      )}
-
-      {onboardingOpen && !welcomeOpen && (
-        <Onboarding
-          onClose={() => setOnboardingOpen(false)}
-          signals={{
-            wheelPicked: derived.dayAssignments?.[formatYMD(selectedDate)] || '',
-            blockClicked: selectedSlotId || '',
-            taskAdded: (state.tasks || []).length,
+            // Onboarding now mounts at the App level so it survives
+            // route navigation. We just set the live flag here; the
+            // overlay reads it on the next render.
+            if (!hasSeenOnboarding()) {
+              startOnboarding();
+              // Force a re-render of App by dispatching a storage-like
+              // event the App's pollIsLive picks up on path change.
+              window.dispatchEvent(new Event('taskometer:onboarding-start'));
+            }
           }}
         />
       )}

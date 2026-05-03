@@ -42,7 +42,21 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
   const [name, setName] = useState(rhythm?.name || '');
   const [color, setColor] = useState(rhythm?.color || PALETTE[0]);
   const [kind, setKind] = useState(rhythm?.cadence?.kind || 'weekly');
-  const [dayOfWeek, setDayOfWeek] = useState(rhythm?.cadence?.dayOfWeek ?? 2);
+  // daysOfWeek is the new multi-day field. Initial state hydrates from
+  // either the new array or the legacy single dayOfWeek so editing an
+  // older rhythm doesn't lose its setting.
+  const [daysOfWeek, setDaysOfWeek] = useState(() => {
+    const c = rhythm?.cadence || {};
+    if (Array.isArray(c.daysOfWeek) && c.daysOfWeek.length > 0) return new Set(c.daysOfWeek);
+    if (typeof c.dayOfWeek === 'number') return new Set([c.dayOfWeek]);
+    return new Set([2]); // default to Tuesday
+  });
+  const toggleDow = (d) => setDaysOfWeek(prev => {
+    const next = new Set(prev);
+    if (next.has(d)) next.delete(d);
+    else next.add(d);
+    return next;
+  });
   const [nth, setNth] = useState(rhythm?.cadence?.nth ?? 1);
   const [monthDate, setMonthDate] = useState(rhythm?.cadence?.monthDate ?? 15);
   const [weekOfQuarter, setWeekOfQuarter] = useState(rhythm?.cadence?.weekOfQuarter ?? 1);
@@ -63,7 +77,9 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
   // in the next 90 days. Cheap thanks to the per-rhythm memo.
   const conflicts = useMemo(() => {
     const cadence = { kind };
-    if (kind === 'weekly' || kind === 'biweekly' || kind === 'monthly_nth') cadence.dayOfWeek = dayOfWeek;
+    if (kind === 'weekly' || kind === 'biweekly' || kind === 'monthly_nth') {
+      cadence.daysOfWeek = [...daysOfWeek];
+    }
     if (kind === 'biweekly') cadence.anchor = anchor;
     if (kind === 'monthly_nth') cadence.nth = nth;
     if (kind === 'monthly_date') cadence.monthDate = monthDate;
@@ -76,7 +92,7 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
     const today = new Date();
     const horizon = new Date(today); horizon.setDate(horizon.getDate() + 90);
     return findRhythmConflicts(candidate, peers, today, horizon);
-  }, [kind, dayOfWeek, nth, monthDate, weekOfQuarter, anchor, end, customDates, startTime, endTime, rhythm?.id]);
+  }, [kind, daysOfWeek, nth, monthDate, weekOfQuarter, anchor, end, customDates, startTime, endTime, rhythm?.id]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -87,7 +103,9 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
   const save = () => {
     if (!name.trim()) return;
     const cadence = { kind };
-    if (kind === 'weekly' || kind === 'biweekly' || kind === 'monthly_nth') cadence.dayOfWeek = dayOfWeek;
+    if (kind === 'weekly' || kind === 'biweekly' || kind === 'monthly_nth') {
+      cadence.daysOfWeek = [...daysOfWeek].sort((a, b) => a - b);
+    }
     if (kind === 'biweekly') cadence.anchor = anchor;
     if (kind === 'monthly_nth') cadence.nth = nth;
     if (kind === 'monthly_date') cadence.monthDate = monthDate;
@@ -167,15 +185,25 @@ export default function RhythmComposer({ rhythm, onClose, onSaved }) {
 
           <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             {(kind === 'weekly' || kind === 'biweekly' || kind === 'monthly_nth') && (
-              <div className="tm-seg">
-                {DAYS.map(d => (
-                  <button
-                    key={d.v}
-                    type="button"
-                    className={dayOfWeek === d.v ? 'tm-on' : ''}
-                    onClick={() => setDayOfWeek(d.v)}
-                  >{d.l}</button>
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="tm-seg">
+                  {DAYS.map(d => (
+                    <button
+                      key={d.v}
+                      type="button"
+                      className={daysOfWeek.has(d.v) ? 'tm-on' : ''}
+                      onClick={() => toggleDow(d.v)}
+                      title={`toggle ${d.l}`}
+                    >{d.l}</button>
+                  ))}
+                </div>
+                <div className="tm-mono tm-sm" style={{ display: 'flex', gap: 6, alignItems: 'center', color: 'var(--ink-mute)' }}>
+                  <span>Quick:</span>
+                  <button type="button" className="tm-btn tm-sm tm-ghost" onClick={() => setDaysOfWeek(new Set([1, 2, 3, 4, 5]))}>weekdays</button>
+                  <button type="button" className="tm-btn tm-sm tm-ghost" onClick={() => setDaysOfWeek(new Set([0, 6]))}>weekends</button>
+                  <button type="button" className="tm-btn tm-sm tm-ghost" onClick={() => setDaysOfWeek(new Set([0, 1, 2, 3, 4, 5, 6]))}>every day</button>
+                  <span style={{ marginLeft: 'auto' }}>{daysOfWeek.size} day{daysOfWeek.size === 1 ? '' : 's'} selected</span>
+                </div>
               </div>
             )}
 
