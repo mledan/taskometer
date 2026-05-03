@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SignUpButton, useClerk } from '@clerk/clerk-react';
+import { SignInButton, SignUpButton, useClerk } from '@clerk/clerk-react';
 import { readAuth, writeAuth, clearAuth } from './WelcomePopup.jsx';
 import { CLERK_ENABLED } from '../services/auth.js';
 
@@ -129,6 +129,27 @@ export default function AccountPanel({
                 </button>
               )}
             </div>
+            {CLERK_ENABLED && (
+              <div style={{ fontSize: 13, color: 'var(--ink-mute)', marginTop: 10, textAlign: 'right' }}>
+                Already have an account?{' '}
+                <SignInButton mode="modal" forceRedirectUrl="/app">
+                  <button
+                    type="button"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--orange)',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      textDecoration: 'underline',
+                      padding: 0,
+                    }}
+                  >
+                    Sign in
+                  </button>
+                </SignInButton>
+              </div>
+            )}
 
             <ActionList
               onClose={onClose}

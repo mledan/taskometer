@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SignUpButton } from '@clerk/clerk-react';
+import { SignInButton, SignUpButton } from '@clerk/clerk-react';
 import { CLERK_ENABLED } from '../services/auth.js';
 
 const STORAGE_KEY = 'taskometer.auth';
@@ -105,10 +105,32 @@ export default function WelcomePopup({ onDone }) {
               </button>
             </div>
             {CLERK_ENABLED && (
-              <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 8, lineHeight: 1.5 }}>
-                Guests can use everything. We hold the data for the day —
-                sign up before midnight to keep it.
-              </div>
+              <>
+                <div style={{ fontSize: 14, color: 'var(--ink-mute)', marginTop: 4 }}>
+                  Already have an account?{' '}
+                  <SignInButton mode="modal" forceRedirectUrl="/app" signUpForceRedirectUrl="/app">
+                    <button
+                      type="button"
+                      className="tm-link-button"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--orange)',
+                        cursor: 'pointer',
+                        font: 'inherit',
+                        textDecoration: 'underline',
+                        padding: 0,
+                      }}
+                    >
+                      Sign in
+                    </button>
+                  </SignInButton>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 8, lineHeight: 1.5 }}>
+                  Guests can use everything. We hold the data for the day —
+                  sign up before midnight to keep it.
+                </div>
+              </>
             )}
           </div>
         )}
