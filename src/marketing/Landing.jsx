@@ -32,7 +32,7 @@ export default function Landing() {
         <a href="/" className="mk-brand">taskometer</a>
         <nav className="mk-nav-links">
           <a href="#how">How it works</a>
-          <a href="#shapes">Shapes</a>
+          <a href="#shapes">Schedules</a>
           <a href="/teams">For teams</a>
           <a href="/app" className="tm-btn tm-primary tm-sm mk-cta-link">Open app →</a>
         </nav>
@@ -47,7 +47,7 @@ export default function Landing() {
           </h1>
           <p className="mk-lede">
             Pick the archetype that sounds like you — Early Bird, Night
-            Owl, Parent, Freelancer — and start with a day-shape that
+            Owl, Parent, Freelancer — and start with a day schedule that
             already makes sense. Tweak it. Share it. See how others on
             the same rhythm structure their days.
           </p>
@@ -108,8 +108,8 @@ export default function Landing() {
           />
           <Step
             n="03"
-            title="Re-shape when life shifts"
-            body="Pick a different shape from the rail to repaint a day. Override a sick day. Save today's blocks as a new shape and apply it across a range."
+            title="Swap schedules when life shifts"
+            body="Pick a different schedule to repaint a day. Override a sick day. Save today's blocks as a new schedule and apply it across a range."
           />
         </div>
       </section>
@@ -166,9 +166,9 @@ export default function Landing() {
       <section className="mk-section mk-teams-teaser">
         <div>
           <div className="mk-mono mk-eyebrow">For teams</div>
-          <h2 className="mk-h2">Your team's rhythm, in one wheel.</h2>
+          <h2 className="mk-h2">Your team's rhythm, in one schedule.</h2>
           <p className="mk-lede">
-            Shared shapes. Outlook two-way sync. A dashboard showing where
+            Shared schedules. Outlook two-way sync. A dashboard showing where
             the team's time actually went. No more "Tuesday is no-meeting
             day" buried in a Slack pinned message.
           </p>

@@ -742,7 +742,7 @@ export default function Taskometer() {
           type="button"
           className={`tm-active-chip${activeWheel ? '' : ' tm-active-chip-empty'}`}
           onClick={() => setPickerOpen(true)}
-          title={activeWheel ? `current wheel — click to switch` : 'no wheel on this day — click to pick one'}
+          title={activeWheel ? `current schedule — click to switch` : 'no schedule on this day — click to pick one'}
           data-onboard="wheel-picker"
         >
           <span
@@ -750,7 +750,7 @@ export default function Taskometer() {
             style={{ background: activeWheel?.color || 'transparent', border: activeWheel ? 'none' : '1.5px dashed var(--ink-mute)' }}
             aria-hidden
           />
-          {activeWheel ? activeWheel.name : 'pick a wheel'}
+          {activeWheel ? activeWheel.name : 'pick a schedule'}
           <span aria-hidden style={{ fontSize: 14, color: 'var(--ink-mute)', marginLeft: 2 }}>▾</span>
         </button>
 
@@ -1041,10 +1041,10 @@ export default function Taskometer() {
               type="button"
               className="tm-btn tm-sm tm-ghost"
               onClick={() => setWheelsPanelOpen(true)}
-              title="open the shapes library — design and save reusable day templates"
+              title="open your schedule library — design and save reusable day schedules"
               style={{ alignSelf: 'flex-start' }}
             >
-              shapes library →
+              schedule library →
             </button>
           </aside>
         </div>

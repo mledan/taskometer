@@ -1014,7 +1014,7 @@ function MonthCalendar({
                 setDragOverKey(null);
                 if (wheelId) onPaintDay(wheelId, key);
               }}
-              title={`open ${d.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }).toLowerCase()} · drop a wheel to paint · drag across days to range-paint`}
+              title={`open ${d.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }).toLowerCase()} · drop a schedule to paint · drag across days to range-paint`}
               style={{
                 cursor: lassoAnchor ? 'crosshair' : 'pointer',
                 display: 'flex',

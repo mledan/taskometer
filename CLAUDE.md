@@ -13,18 +13,20 @@ browser, no backend today.
 
 | Term | Meaning | Where it lives |
 |---|---|---|
-| **shape** | A reusable 24-hour template (Workday, Weekend, Travel). User-facing word. | Marketing copy, rail UI |
-| **wheel** | The visual 24-hour ring rendering of a shape or a day. Code/component name. | `WheelView`, `WheelSvg`, `MiniWheel` |
-| **block** | A user-facing time segment within a day or shape (e.g. 9–11 deep work). | UI strings, marketing copy |
+| **schedule** | A reusable 24-hour day template (Workday, Weekend, Travel). User-facing word — what we used to call "shape" / "wheel". | All UI strings, marketing copy |
+| **wheel** | The visual 24-hour ring rendering of a schedule or a day. Code/component name only — never appears in user copy. | `WheelView`, `WheelSvg`, `MiniWheel` |
+| **shape** | Legacy code term for "schedule". Internal use only; do NOT use in user-visible strings. | Some variable names, `wheel.shape`, FAMOUS_WHEELS internals |
+| **block** | A user-facing time segment within a day or schedule (e.g. 9–11 deep work). | UI strings, marketing copy |
 | **slot** | The persisted data record for a block. Internal data-layer term only. | `state.slots`, `slotType`, `tasksBySlotId` |
 | **wedge** | The SVG path that draws a slot on the wheel. Render-layer term only. | `WheelSvg` rendering code |
 | **task** | A todo item that lands inside a block. Has `text`, `duration`, optional `scheduledTime`. | `state.tasks` |
-| **assignment** | A `dayAssignments[YMD] = wheelId` mapping — which shape a calendar day uses. | `settings.dayAssignments` |
-| **override** | A day flagged sick / holiday / vacation. Skips wheel painting. | `settings.dayOverrides` |
-| **paint** | The user gesture of applying a shape to one day or a range. Always say "paint", never "apply" or "assign" in user-facing copy. | All UI strings |
+| **assignment** | A `dayAssignments[YMD] = wheelId` mapping — which schedule a calendar day uses. | `settings.dayAssignments` |
+| **override** | A day flagged sick / holiday / vacation. Skips schedule painting. | `settings.dayOverrides` |
+| **paint** | The user gesture of applying a schedule to one day or a range. Always say "paint", never "apply" or "assign" in user-facing copy. | All UI strings |
 
-If you find code or copy using "rhythm", "schedule", or "circle" for a
-shape, fix it on the way through.
+If you find user-visible copy using "wheel", "shape", "rhythm", or
+"circle" for a schedule, fix it on the way through. Code-level uses
+(`wheelId`, `WheelView`, etc.) stay — only UI text changes.
 
 ## Storage keys
 

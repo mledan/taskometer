@@ -294,7 +294,7 @@ function ActionList({ onClose, onOpenSettings, onManageWheels, onExportIcs, onRe
     },
     onManageWheels && {
       key: 'wheels',
-      label: 'Manage wheels',
+      label: 'Manage schedules',
       run: onManageWheels,
     },
     onExportIcs && {

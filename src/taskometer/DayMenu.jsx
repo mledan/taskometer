@@ -66,10 +66,10 @@ export default function DayMenu({
       >
         <div className="tm-mono tm-md" style={{ fontWeight: 600, marginBottom: 6 }}>{menu.date}</div>
 
-        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginBottom: 4 }}>assign wheel</div>
+        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginBottom: 4 }}>assign schedule</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
           {wheels.length === 0 && (
-            <span className="tm-mono tm-sm">no wheels yet — create one from the wheel tab</span>
+            <span className="tm-mono tm-sm">no schedules yet — create one from the day view</span>
           )}
           {wheels.map(w => (
             <button

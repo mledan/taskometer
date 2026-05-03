@@ -124,7 +124,7 @@ export default function SettingsPanel({
           <button
             className="tm-btn tm-sm"
             onClick={() => api.backup.exportJSON({ minimal: true })}
-            title="schedule-only JSON (tasks, blocks, wheels, rules, overrides)"
+            title="schedule-only JSON (tasks, blocks, schedules, rules, overrides)"
           >
             export schedule.json
           </button>
@@ -162,7 +162,7 @@ export default function SettingsPanel({
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
             <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-              type <strong>wipe my data</strong> to confirm. this removes every task, time block, wheel, rule, and override.
+              type <strong>wipe my data</strong> to confirm. this removes every task, time block, schedule, rule, and override.
             </div>
             <input
               className="tm-composer-input"

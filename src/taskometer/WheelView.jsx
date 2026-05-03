@@ -380,7 +380,7 @@ export default function WheelView({
           <button
             className="tm-btn tm-sm"
             onClick={onOpenWheels}
-            title="save this day as a wheel, or pick from the library"
+            title="save this day as a schedule, or pick from the library"
           >
             save day
           </button>

@@ -163,7 +163,7 @@ export default function TeamsDemo() {
                     <div className="mk-team-card-name">{member.name}</div>
                     <div className="mk-mono mk-team-card-role">{member.role}</div>
                     <div className="mk-team-card-focus">{member.focus}</div>
-                    <div className="mk-mono mk-team-card-shape">shape · {wheel?.name || 'Custom'}</div>
+                    <div className="mk-mono mk-team-card-shape">schedule · {wheel?.name || 'Custom'}</div>
                   </div>
                 </div>
               );
@@ -201,8 +201,8 @@ export default function TeamsDemo() {
         <h2 className="mk-h2">Two-way Outlook sync</h2>
         <div className="mk-syncgrid">
           <SyncCard
-            title="Pull meetings into the wheel"
-            body="Outlook events appear as wedges on your day, automatically. See your real day, not the planned one."
+            title="Pull meetings into the schedule"
+            body="Outlook events appear as blocks on your day, automatically. See your real day, not the planned one."
           />
           <SyncCard
             title="Push focus blocks to Outlook"
@@ -210,7 +210,7 @@ export default function TeamsDemo() {
           />
           <SyncCard
             title="Team-wide rules"
-            body="Shared shapes apply to every team member's calendar. Change once, sync everywhere."
+            body="Shared schedules apply to every team member's calendar. Change once, sync everywhere."
           />
         </div>
       </section>

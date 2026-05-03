@@ -33,7 +33,7 @@ export function Privacy() {
           <li>No third-party analytics scripts. No Google, Meta, Mixpanel, etc.</li>
           <li>No cookies (other than what your browser may set on its own).</li>
           <li>No advertising, no ad targeting, ever.</li>
-          <li>No content of your wheels, rhythms, or tasks — those stay in your browser.</li>
+          <li>No content of your schedules, rhythms, or tasks — those stay in your browser.</li>
           <li>No IP-address logging, no user agents stored.</li>
         </ul>
       </Section>
@@ -48,7 +48,7 @@ export function Privacy() {
           <code>sessionStorage</code>.
         </p>
         <p>
-          We do <strong>not</strong> log the contents of your wheels,
+          We do <strong>not</strong> log the contents of your schedules,
           rhythms, or tasks. We don't log your IP address, user agent,
           or any personal identifier. Logs are written to Vercel function
           logs and rotate automatically.

@@ -28,11 +28,11 @@ const FAMOUS_CATEGORIES = new Set([
 ]);
 
 const CATEGORY_ORDER = [
-  'My Wheels',
+  'My Schedules',
 ];
 
 function categoryOf(w) {
-  return w.category || CATEGORY_BY_ID[w.id] || 'My Wheels';
+  return w.category || CATEGORY_BY_ID[w.id] || 'My Schedules';
 }
 
 function isFamousWheel(w) {
@@ -182,8 +182,8 @@ export default function WheelPickerModal({
         <div className="tm-modal-head">
           <div className="tm-modal-title">
             {rangeContext || (paintingDays && paintingDays.length)
-              ? 'Pick a wheel to paint'
-              : 'Choose a wheel'}
+              ? 'Pick a schedule to paint'
+              : 'Choose a schedule'}
           </div>
           <button type="button" className="tm-btn tm-sm" onClick={onClose} aria-label="close">close</button>
         </div>
@@ -201,7 +201,7 @@ export default function WheelPickerModal({
               fontWeight: 600,
             }}
           >
-            painting {rangeContext.startDate} → {rangeContext.endDate} · click any wheel to apply
+            painting {rangeContext.startDate} → {rangeContext.endDate} · click any schedule to apply
           </div>
         )}
 
@@ -229,7 +229,7 @@ export default function WheelPickerModal({
                 ({paintingDays.slice().sort()[0]} … {paintingDays.slice().sort().slice(-1)[0]})
               </span>
             )}
-            {' · '}click any wheel to apply
+            {' · '}click any schedule to apply
           </div>
         )}
 
@@ -290,13 +290,13 @@ export default function WheelPickerModal({
           <input
             className="tm-composer-input"
             type="search"
-            placeholder="search wheels…"
+            placeholder="search schedules…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             style={{ flex: 1, minWidth: 200, fontSize: 14 }}
           />
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--ink-mute)' }}>
-            {filtered.length} wheel{filtered.length === 1 ? '' : 's'}
+            {filtered.length} schedule{filtered.length === 1 ? '' : 's'}
           </span>
         </div>
 
@@ -345,7 +345,7 @@ export default function WheelPickerModal({
                 textTransform: 'uppercase',
                 marginBottom: 8,
               }}>
-                Your shapes
+                Your schedules
               </div>
               <div style={{
                 display: 'grid',
@@ -413,7 +413,7 @@ export default function WheelPickerModal({
 
           {filtered.length === 0 && filteredFamous.length === 0 && !query.trim() === false && (
             <div style={{ textAlign: 'center', color: 'var(--ink-mute)', padding: 32 }}>
-              no wheels match — try a different search.
+              no schedules match — try a different search.
             </div>
           )}
         </div>

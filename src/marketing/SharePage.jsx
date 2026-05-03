@@ -56,7 +56,7 @@ export default function SharePage() {
   useEffect(() => {
     const decoded = readSharedWheelFromHash();
     if (!decoded) {
-      setError("This link doesn't contain a valid shared wheel.");
+      setError("This link doesn't contain a valid shared schedule.");
       return;
     }
     setWheel(decoded);

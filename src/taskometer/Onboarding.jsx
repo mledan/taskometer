@@ -52,7 +52,7 @@ function writeStep(i) {
 const STEPS = [
   {
     title: 'Welcome to taskometer',
-    body: 'Your week already has a shape. Capture things as they come up, drag them into blocks when you sit down to plan. No empty planner.',
+    body: 'Your week already has a schedule. Capture things as they come up, drag them into blocks when you sit down to plan. No empty planner.',
     target: null,
   },
   {
@@ -70,11 +70,11 @@ const STEPS = [
     progressHint: 'drag a task onto a block · or hit Next',
   },
   {
-    title: '3. Re-shape when you need to',
-    body: "Your day already runs Workday on weekdays, Weekend on Sat/Sun. Pick a different shape from the rail to repaint a day, or click the chip in the header to swap.",
+    title: '3. Swap schedules when you need to',
+    body: "Your day already runs Workday on weekdays, Weekend on Sat/Sun. Pick a different schedule to repaint a day — click the chip in the header to swap.",
     target: '[data-onboard="wheel-picker"]',
     awaitEvent: EVENTS.WHEEL_APPLIED,
-    progressHint: 'pick a shape · or hit Next',
+    progressHint: 'pick a schedule · or hit Next',
   },
   {
     title: "You're set",

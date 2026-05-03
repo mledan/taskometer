@@ -38,7 +38,7 @@ export default function WheelsPanel({ api, wheels = [], taskTypes = [], onClose 
   const [mergeMode, setMergeMode] = useState('replace'); // 'replace' | 'merge'
 
   const saveFromToday = async () => {
-    const name = window.prompt('name this wheel (e.g. "weekday", "weekend", "vacation"):');
+    const name = window.prompt('name this schedule (e.g. "weekday", "weekend", "vacation"):');
     if (!name) return;
     await api.wheels.saveFromDate(todayYMD(), { name: name.trim(), color: PALETTE[(wheels.length) % PALETTE.length] });
   };
@@ -60,7 +60,7 @@ export default function WheelsPanel({ api, wheels = [], taskTypes = [], onClose 
   };
 
   const removeWheel = async (id) => {
-    if (!window.confirm('delete this wheel? day assignments to it are cleared.')) return;
+    if (!window.confirm('delete this schedule? day assignments to it are cleared.')) return;
     await api.wheels.remove(id);
   };
 
@@ -92,33 +92,33 @@ export default function WheelsPanel({ api, wheels = [], taskTypes = [], onClose 
         className="tm-modal"
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="manage wheels"
+        aria-label="manage schedules"
         style={{ maxWidth: 720 }}
       >
         <div className="tm-modal-head">
-          <div className="tm-modal-title">wheels — day templates</div>
+          <div className="tm-modal-title">schedules — reusable day templates</div>
           <button type="button" onClick={onClose} className="tm-btn tm-sm">close</button>
         </div>
 
         <div className="tm-mono tm-md" style={{ marginBottom: 10 }}>
-          wheels save the shape of a day. apply one to any date or range to paint its blocks in.
+          schedules save the shape of a day. apply one to any date or range to paint its blocks in.
         </div>
 
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
           <button className="tm-btn tm-primary tm-sm" onClick={saveFromToday}>
-            + save today as wheel
+            + save today as schedule
           </button>
           <button className="tm-btn tm-sm" onClick={() => { setCreating(true); setEditingId(null); setApplyTarget(null); }}>
-            + blank wheel
+            + blank schedule
           </button>
           <button className="tm-btn tm-sm tm-ghost" onClick={seedStarters}>
-            + add starter wheels
+            + add starter schedules
           </button>
         </div>
 
         {creating && (
           <div className="tm-card tm-dashed" style={{ padding: '10px 12px', marginBottom: 12 }}>
-            <div className="tm-mono tm-md" style={{ marginBottom: 6 }}>new wheel</div>
+            <div className="tm-mono tm-md" style={{ marginBottom: 6 }}>new schedule</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input
                 className="tm-composer-input"
@@ -147,9 +147,9 @@ export default function WheelsPanel({ api, wheels = [], taskTypes = [], onClose 
 
         {wheels.length === 0 && !creating && (
           <div className="tm-card tm-dashed" style={{ padding: '16px 18px', marginBottom: 12, textAlign: 'center' }}>
-            <div style={{ fontSize: 22 }}>no wheels yet</div>
+            <div style={{ fontSize: 22 }}>no schedules yet</div>
             <div className="tm-mono tm-md" style={{ marginTop: 4 }}>
-              shape today how you want it, then use "save today as wheel". or grab starter wheels above.
+              shape today how you want it, then use "save today as schedule". or grab starter schedules above.
             </div>
           </div>
         )}

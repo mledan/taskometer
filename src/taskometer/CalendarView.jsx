@@ -195,7 +195,7 @@ export default function CalendarView({
             className="tm-composer-select"
             value={paintWheel || ''}
             onChange={(e) => setPaintWheel(e.target.value || null)}
-            title="pick a wheel, then drag across days to paint"
+            title="pick a schedule, then drag across days to paint"
           >
             <option value="">(off)</option>
             {wheels.map(w => (
@@ -212,7 +212,7 @@ export default function CalendarView({
               <button
                 className={paintMode === 'merge' ? 'tm-on' : ''}
                 onClick={() => setPaintMode('merge')}
-                title="layer the wheel on top of existing blocks"
+                title="layer the schedule on top of existing blocks"
               >merge</button>
             </div>
           )}
@@ -263,10 +263,10 @@ export default function CalendarView({
       </div>
 
       <div className="tm-cal-actions">
-        <button className="tm-btn tm-sm" onClick={() => onNavigate('wheel')}>back to wheel</button>
+        <button className="tm-btn tm-sm" onClick={() => onNavigate('wheel')}>back to day</button>
         <button className="tm-btn tm-sm" onClick={() => onNavigate('fit')}>week view</button>
         {onOpenWheels && (
-          <button className="tm-btn tm-sm" onClick={onOpenWheels} title="manage wheels">wheels</button>
+          <button className="tm-btn tm-sm" onClick={onOpenWheels} title="manage schedules">schedules</button>
         )}
         {onOpenRules && (
           <button className="tm-btn tm-sm" onClick={onOpenRules} title="rules for weekdays, weekends, vacation, holidays">rules</button>
@@ -356,13 +356,13 @@ function MonthCard({
             <span title="scheduled blocks this month">{stats.blocks} blk</span>
           )}
           {stats.paintedDays > 0 && (
-            <span title="days pinned to a wheel">{stats.paintedDays} pin</span>
+            <span title="days pinned to a schedule">{stats.paintedDays} pin</span>
           )}
           {dominantWheel && (
             <span
               className="tm-cal-card-dot"
               style={{ background: dominantWheel.color }}
-              title={`most-used wheel: ${dominantWheel.name}`}
+              title={`most-used schedule: ${dominantWheel.name}`}
             />
           )}
         </div>
