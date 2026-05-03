@@ -2,6 +2,7 @@ import React from 'react';
 import { MiniWheel } from '../taskometer/WheelView.jsx';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
 import { ARCHETYPES, ARCHETYPE_WHEELS } from '../defaults/scheduleArchetypes';
+import AuthCorner from '../auth/AuthCorner.jsx';
 import '../taskometer/taskometer.css';
 import './marketing.css';
 
@@ -34,6 +35,7 @@ export default function Landing() {
           <a href="#how">How it works</a>
           <a href="#shapes">Shapes</a>
           <a href="/teams">For teams</a>
+          <AuthCorner />
           <a href="/app" className="tm-btn tm-primary tm-sm mk-cta-link">Open app →</a>
         </nav>
       </header>
