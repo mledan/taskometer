@@ -8,8 +8,8 @@
  * DELETE /api/tasks?id=[&hard=1]            soft default (status='cancelled')
  */
 
-import { repos } from './_lib/repo/index.js';
-import { resolveOwner, requireOwner } from './_lib/identity.js';
+import { repos } from '../_lib/repo/index.js';
+import { resolveOwner, requireOwner } from '../_lib/identity.js';
 
 const VALID_STATUSES = new Set(['pending', 'completed', 'cancelled']);
 

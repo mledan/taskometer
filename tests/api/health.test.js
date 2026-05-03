@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import handler from '../../api/health.js';
+import handler from '../../api/_handlers/health.js';
 import { callHandler } from './helpers.js';
 
 describe('/api/health', () => {

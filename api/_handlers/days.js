@@ -18,9 +18,9 @@
  * for finer queries; this is the convenience layer.
  */
 
-import { repos } from './_lib/repo/index.js';
-import { resolveOwner } from './_lib/identity.js';
-import { occurrencesInRange } from '../src/services/rhythms.js';
+import { repos } from '../_lib/repo/index.js';
+import { resolveOwner } from '../_lib/identity.js';
+import { occurrencesInRange } from '../../src/services/rhythms.js';
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 

@@ -24,9 +24,9 @@
  * the exceptions list separately.
  */
 
-import { repos } from './_lib/repo/index.js';
-import { resolveOwner } from './_lib/identity.js';
-import { occurrencesInRange } from '../src/services/rhythms.js';
+import { repos } from '../_lib/repo/index.js';
+import { resolveOwner } from '../_lib/identity.js';
+import { occurrencesInRange } from '../../src/services/rhythms.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

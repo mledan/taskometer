@@ -1,9 +1,9 @@
 import { beforeEach, describe, test, expect } from 'vitest';
-import handler from '../../api/days.js';
-import routinesHandler from '../../api/routines.js';
-import recurringHandler from '../../api/recurring-blocks.js';
-import exceptionsHandler from '../../api/exceptions.js';
-import blocksHandler from '../../api/blocks.js';
+import handler from '../../api/_handlers/days.js';
+import routinesHandler from '../../api/_handlers/routines.js';
+import recurringHandler from '../../api/_handlers/recurring-blocks.js';
+import exceptionsHandler from '../../api/_handlers/exceptions.js';
+import blocksHandler from '../../api/_handlers/blocks.js';
 import { _resetAll } from '../../api/_lib/repo/index.js';
 import { callHandler } from './helpers.js';
 

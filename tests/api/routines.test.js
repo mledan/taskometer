@@ -1,7 +1,7 @@
 import { beforeEach, describe, test, expect } from 'vitest';
-import handler from '../../api/routines.js';
-import blocksHandler from '../../api/blocks.js';
-import dayAssignmentsHandler from '../../api/day-assignments.js';
+import handler from '../../api/_handlers/routines.js';
+import blocksHandler from '../../api/_handlers/blocks.js';
+import dayAssignmentsHandler from '../../api/_handlers/day-assignments.js';
 import { _resetAll } from '../../api/_lib/repo/index.js';
 import { callHandler } from './helpers.js';
 

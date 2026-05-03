@@ -1,5 +1,5 @@
 import { beforeEach, describe, test, expect } from 'vitest';
-import handler from '../../api/tasks.js';
+import handler from '../../api/_handlers/tasks.js';
 import { _resetAll } from '../../api/_lib/repo/index.js';
 import { callHandler } from './helpers.js';
 

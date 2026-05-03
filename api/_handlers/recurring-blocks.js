@@ -19,9 +19,9 @@
  *     dates?: ['YYYY-MM-DD', ...] }
  */
 
-import { repos } from './_lib/repo/index.js';
-import { resolveOwner, requireOwner } from './_lib/identity.js';
-import { occurrencesInRange } from '../src/services/rhythms.js';
+import { repos } from '../_lib/repo/index.js';
+import { resolveOwner, requireOwner } from '../_lib/identity.js';
+import { occurrencesInRange } from '../../src/services/rhythms.js';
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 const HHMM_RE = /^\d{2}:\d{2}$/;
