@@ -10,6 +10,8 @@ import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
 import { QuickCapture, InboxPanel } from './Inbox.jsx';
+import RightNow from './RightNow.jsx';
+import SleepPSA from './SleepPSA.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
@@ -22,7 +24,6 @@ import { listRhythms, listExceptions, dateIsExcepted, addRhythm } from '../servi
 import { useMultiSelect } from '../hooks/useMultiSelect.js';
 import { pendingRhythmSlotsForDate } from '../services/rhythmsToSlots.js';
 import { findScheduleTarget } from '../services/scheduling.js';
-import { buildShareURL } from '../services/wheelShare.js';
 import { emit, EVENTS } from '../services/events.js';
 import useTaskNotifications from '../hooks/useTaskNotifications.js';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts.js';
@@ -94,10 +95,18 @@ export default function Taskometer() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [wheelsPanelOpen, setWheelsPanelOpen] = useState(false);
-  const [welcomeOpen, setWelcomeOpen] = useState(() => !readAuth());
+  // welcomeOpen is intentionally not seeded from readAuth() at mount.
+  // On a fresh tab, Clerk hasn't had a chance to mirror a signed-in
+  // session into taskometer.auth yet, so initial readAuth() can be
+  // null even for a logged-in user — that flashes the welcome popup
+  // for a beat before AuthBoot catches up. Instead, we open welcome
+  // from a deferred effect below, and close it reactively when auth
+  // shows up. Net result: if you're already signed in (any tab, any
+  // device), the popup never appears.
   // Onboarding state lives at the App level now (so it persists
   // across /app → /app/year navigation). Local triggers go through
   // startOnboarding() + the 'taskometer:onboarding-start' event.
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   // The wheel currently being painted across a range. Null = painter
@@ -134,6 +143,22 @@ export default function Taskometer() {
     };
   }, []);
   const isLoggedIn = auth?.mode === 'account' || auth?.mode === 'clerk';
+
+  // Decide whether to nag a fresh visitor — but only after Clerk's
+  // mirror has had a chance to populate taskometer.auth. If auth is
+  // still missing 400ms after mount, the user is genuinely anonymous.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!readSafeAuth()) setWelcomeOpen(true);
+    }, 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  // If auth ever flips to logged-in (Clerk mirror, sign-in mid-session,
+  // cross-tab storage event), the welcome popup is no longer welcome.
+  useEffect(() => {
+    if (isLoggedIn && welcomeOpen) setWelcomeOpen(false);
+  }, [isLoggedIn, welcomeOpen]);
   const accountInitial = (auth?.profile?.firstName?.[0] || auth?.profile?.username?.[0] || 'G').toUpperCase();
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState(null);
@@ -557,18 +582,6 @@ export default function Taskometer() {
     emit(EVENTS.WHEEL_APPLIED, { wheelId, date: viewKey });
   };
 
-  // Open the painter for a given wheel id. We resolve the wheel object
-  // (looking through user wheels first, then the famous catalog) so the
-  // modal can show a preview without having to add it to the library
-  // until the user actually applies.
-  const openPainter = (wheelId) => {
-    const w = userWheels.find(x => x.id === wheelId)
-      || FAMOUS_WHEELS.find(x => x.id === wheelId)
-      || null;
-    if (!w) return;
-    setPainterTarget({ wheel: w });
-  };
-
   // Paint a wheel onto a single arbitrary date — used when a chip is
   // dragged onto a calendar cell. Mirrors applyWheelToDay but takes the
   // date explicitly instead of using viewKey.
@@ -637,28 +650,6 @@ export default function Taskometer() {
     const result = await api.wheels.applyToRange(actualId, startDate, endDate, { mode: 'replace' });
     telemetryLog('lasso-paint:applied', { wheelId, count: result?.painted?.length || 0, startDate, endDate });
     emit(EVENTS.WHEEL_APPLIED, { wheelId, startDate, endDate });
-  };
-
-  // Save today's blocks as a new shape, then chain into the painter so
-  // the user can paint that shape across a range immediately.
-  const saveAndPaint = async () => {
-    const name = window.prompt('name this shape (e.g. "Workday", "Weekend", "Travel"):');
-    if (!name?.trim()) return;
-    const palette = ['#D4663A', '#A8BF8C', '#D9C98C', '#C7BEDD', '#F2C4A6'];
-    const color = palette[(userWheels.length) % palette.length];
-    try {
-      const newWheel = await api.wheels.saveFromDate(viewKey, { name: name.trim(), color });
-      if (newWheel?.id) {
-        telemetryLog('save-paint:saved', { wheelId: newWheel.id });
-        setPainterTarget({ wheel: newWheel });
-      } else {
-        // fall back: open the wheels panel so the user sees their save
-        setWheelsPanelOpen(true);
-      }
-    } catch (err) {
-      telemetryLog('save-paint:error', { message: err?.message });
-      setWheelsPanelOpen(true);
-    }
   };
 
   const paintWheelAcrossRange = async ({ startDate, endDate, weekdaysOnly, weekendsOnly, customDow, mode }) => {
@@ -993,18 +984,28 @@ export default function Taskometer() {
             />
           </div>
           <aside className="tm-dash-side">
+            <RightNow
+              currentSlot={filteredDerived.currentSlot?.slot || null}
+              currentTasks={filteredDerived.currentSlot?.tasks || []}
+              nextSlot={filteredDerived.nextSlot?.slot || null}
+              hoursLeft={hoursLeftToday(state.slots || [], viewKey, new Date())}
+              onMoveTaskHere={handleTaskMoveToSlot}
+              onToggle={handleToggle}
+            />
             <InboxPanel
               tasks={filteredDerived.backlog || []}
               rowHandlers={{ onToggle: handleToggle, onDelete: handleDelete }}
             />
-            <WheelRail
-              userWheels={userWheels}
-              activeWheelId={activeWheelId}
-              onApply={applyWheelToDay}
-              onSchedule={openPainter}
-              onBrowseAll={() => setPickerOpen(true)}
-              onSaveToday={saveAndPaint}
-            />
+            <SleepPSA slots={state.slots || []} dateKey={viewKey} />
+            <button
+              type="button"
+              className="tm-btn tm-sm tm-ghost"
+              onClick={() => setWheelsPanelOpen(true)}
+              title="open the shapes library — design and save reusable day templates"
+              style={{ alignSelf: 'flex-start' }}
+            >
+              shapes library →
+            </button>
           </aside>
         </div>
       )}
@@ -1722,199 +1723,40 @@ function RhythmsForToday({ dateKey, existingSlots, api }) {
   );
 }
 
-function WheelRail({ userWheels, activeWheelId, onApply, onSchedule, onBrowseAll, onSaveToday }) {
-  const [shareToast, setShareToast] = useState(null);
-  const handleShare = async (wheel) => {
-    const url = buildShareURL(wheel);
-    if (!url) return;
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-        setShareToast(`copied · ${wheel.name}`);
-      } else {
-        // Fallback: open the URL itself so the user can copy from address bar.
-        window.prompt('Copy this share link:', url);
-      }
-      telemetryLog('wheel:share', { name: wheel.name, length: url.length });
-    } catch (_) {
-      window.prompt('Copy this share link:', url);
-    }
-    setTimeout(() => setShareToast(null), 2000);
-  };
-  // The rail is "shape this day fast" — your saved shapes plus a tiny
-  // curated set so first-time users see something useful without the
-  // 100-wheel dump. Everything else lives behind "Browse all".
-  // The rail leads with archetypes — each one a tagged identity ("Night
-  // Owl", "Parent") rather than a celebrity. We resolve the wheel for
-  // each archetype from ARCHETYPE_WHEELS or FAMOUS_WHEELS so the chip
-  // can render its preview without forcing a save first.
-  const archetypeChips = useMemo(() => {
-    const lookup = new Map();
-    for (const w of userWheels) lookup.set(w.id, w);
-    for (const w of ARCHETYPE_WHEELS) if (!lookup.has(w.id)) lookup.set(w.id, w);
-    for (const w of FAMOUS_WHEELS) if (!lookup.has(w.id)) lookup.set(w.id, w);
-    return ARCHETYPES
-      .map(a => ({ archetype: a, wheel: lookup.get(a.wheelId) }))
-      .filter(x => !!x.wheel);
-  }, [userWheels]);
+// The day-view rail is gone. Shapes/wheels moved to a secondary screen:
+// header chip swaps today's shape, the WheelsPanel modal manages the
+// library, the calendar lasso paints across ranges, the WheelPickerModal
+// is the "browse all" surface. Search Taskometer.jsx for `setPickerOpen`,
+// `setWheelsPanelOpen`, and `setPainterTarget` if you need the entry
+// points.
 
-  // Archetype chip — same shape as a wheel chip but with the
-  // archetype icon prepended and the archetype's name as the label.
-  // Clicking applies the archetype's wheel; drag works the same way.
-  const renderArchetypeChip = ({ archetype, wheel }) => {
-    const slotsForMini = (wheel.blocks || []).map(b => ({
-      startTime: b.startTime,
-      endTime: b.endTime,
-      color: b.color,
-    }));
-    const on = activeWheelId === wheel.id;
-    return (
-      <div
-        key={archetype.id}
-        role="listitem"
-        className={`tm-chip-wheel${on ? ' tm-chip-on' : ''}`}
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData('text/wheel-id', wheel.id);
-          e.dataTransfer.effectAllowed = 'copy';
-        }}
-        title={archetype.blurb}
-      >
-        <button
-          type="button"
-          className="tm-chip-wheel-main"
-          onClick={() => onApply(wheel.id)}
-        >
-          <span aria-hidden style={{ fontSize: 16, lineHeight: 1, marginRight: 2 }}>{archetype.icon}</span>
-          <MiniWheel slots={slotsForMini} size={28} thickness={4} />
-          <span className="tm-chip-wheel-name">{archetype.name}</span>
-        </button>
-        <button
-          type="button"
-          className="tm-chip-wheel-schedule"
-          onClick={(e) => { e.stopPropagation(); onSchedule(wheel.id); }}
-          title="schedule across a range"
-          aria-label={`schedule ${archetype.name} across a range`}
-        >
-          📅
-        </button>
-        <button
-          type="button"
-          className="tm-chip-wheel-schedule"
-          onClick={(e) => { e.stopPropagation(); handleShare(wheel); }}
-          title="copy a share link for this rhythm"
-          aria-label={`share ${archetype.name}`}
-        >
-          ↗
-        </button>
-      </div>
-    );
-  };
-
-  const renderChip = (w) => {
-    const slotsForMini = (w.blocks || []).map(b => ({
-      startTime: b.startTime,
-      endTime: b.endTime,
-      color: b.color,
-    }));
-    const on = activeWheelId === w.id;
-    return (
-      <div
-        key={w.id}
-        role="listitem"
-        className={`tm-chip-wheel${on ? ' tm-chip-on' : ''}`}
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData('text/wheel-id', w.id);
-          e.dataTransfer.effectAllowed = 'copy';
-        }}
-      >
-        <button
-          type="button"
-          className="tm-chip-wheel-main"
-          onClick={() => onApply(w.id)}
-          title={`apply "${w.name}" to this day · drag onto a calendar cell to paint a different day`}
-        >
-          <MiniWheel slots={slotsForMini} size={32} thickness={4} />
-          <span className="tm-chip-wheel-name">{w.name}</span>
-        </button>
-        <button
-          type="button"
-          className="tm-chip-wheel-schedule"
-          onClick={(e) => { e.stopPropagation(); onSchedule(w.id); }}
-          title="schedule across a range — weekdays, this month, custom"
-          aria-label={`schedule ${w.name} across a range`}
-        >
-          📅
-        </button>
-        <button
-          type="button"
-          className="tm-chip-wheel-schedule"
-          onClick={(e) => { e.stopPropagation(); handleShare(w); }}
-          title="copy a share link for this wheel"
-          aria-label={`share ${w.name}`}
-        >
-          ↗
-        </button>
-      </div>
-    );
-  };
-
-  return (
-    <div className="tm-rail" role="list" aria-label="wheel library">
-      <div className="tm-rail-head">
-        <span className="tm-rail-title">Shapes</span>
-        <button type="button" className="tm-btn tm-sm tm-ghost" onClick={onBrowseAll} title="open the full library">
-          browse all →
-        </button>
-      </div>
-      <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginTop: -8 }}>
-        Click to paint this day. Use 📅 to paint a range.
-      </div>
-
-      {archetypeChips.length > 0 && (
-        <div>
-          <div className="tm-rail-cat">Archetypes</div>
-          <div className="tm-rail-list">{archetypeChips.map(renderArchetypeChip)}</div>
-        </div>
-      )}
-
-      {userWheels.length > 0 && (
-        <div>
-          <div className="tm-rail-cat">Mine</div>
-          <div className="tm-rail-list">{userWheels.map(renderChip)}</div>
-        </div>
-      )}
-
-      <button
-        type="button"
-        className="tm-btn tm-sm tm-ghost"
-        onClick={onSaveToday}
-        title="save today's blocks as a reusable shape"
-        style={{ alignSelf: 'flex-start', marginTop: 4 }}
-      >
-        + save today as shape
-      </button>
-
-      {shareToast && (
-        <div
-          role="status"
-          className="tm-mono tm-sm"
-          style={{
-            marginTop: 4,
-            padding: '4px 10px',
-            background: 'var(--ink)',
-            color: 'var(--paper)',
-            borderRadius: 999,
-            alignSelf: 'flex-start',
-            fontSize: 11,
-          }}
-        >
-          ✓ {shareToast}
-        </div>
-      )}
-    </div>
-  );
+/**
+ * Hours remaining until the start of today's sleep block (or end of
+ * day if there isn't one). Used by RightNow to give "X hours left
+ * today" — the user explicitly wanted "show what's left today."
+ */
+function hoursLeftToday(slots, dateKey, now) {
+  if (!sameDayKey(now, dateKey)) return null;
+  const todays = (slots || []).filter(s => s?.date === dateKey);
+  if (todays.length === 0) return null;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  // Sleep slot starts after now — that's the bedtime cutoff.
+  let cutoff = 24 * 60;
+  for (const s of todays) {
+    const isSleep = s.slotType === 'sleep' || /sleep/i.test(s.label || '');
+    if (!isSleep) continue;
+    const [h, m] = (s.startTime || '23:00').split(':').map(Number);
+    const start = (h || 0) * 60 + (m || 0);
+    if (start > nowMin && start < cutoff) cutoff = start;
+  }
+  const minsLeft = Math.max(0, cutoff - nowMin);
+  return minsLeft / 60;
+}
+function sameDayKey(date, key) {
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const k = `${date.getFullYear()}-${m < 10 ? '0' + m : m}-${d < 10 ? '0' + d : d}`;
+  return k === key;
 }
 
 function formatRolloverLabel(dateKey) {

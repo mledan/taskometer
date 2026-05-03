@@ -75,62 +75,53 @@ export default function WelcomePopup({ onDone }) {
       <div
         className="tm-modal"
         style={{
-          maxWidth: 560,
-          width: 'min(560px, 92vw)',
-          minHeight: 'min(560px, 88vh)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: '32px 36px',
+          maxWidth: 420,
+          width: 'min(420px, 92vw)',
+          padding: '28px 30px',
         }}
       >
         {view === 'welcome' && (
-          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div className="tm-modal-title" style={{ fontSize: 42 }}>
-              Welcome to taskometer.
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="tm-modal-title" style={{ fontSize: 34, lineHeight: 1.1 }}>
+              taskometer
             </div>
-            <div style={{ fontSize: 22, color: 'var(--ink-mute)' }}>Capture as you go. Plan when you sit down.</div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginTop: 18 }}>
-              {CLERK_ENABLED ? (
+            <div style={{ fontSize: 16, color: 'var(--ink-mute)', lineHeight: 1.4 }}>
+              Capture as you go. Plan when you sit down.
+            </div>
+            {CLERK_ENABLED ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
                 <SignUpButton mode="modal" forceRedirectUrl="/app" signInForceRedirectUrl="/app">
-                  <button className="tm-btn tm-primary">Create account</button>
+                  <button className="tm-btn tm-primary" style={{ width: '100%' }}>Sign up</button>
                 </SignUpButton>
-              ) : (
-                <button className="tm-btn tm-primary" onClick={() => setView('signup')}>
-                  Create account
+                <SignInButton mode="modal" forceRedirectUrl="/app" signUpForceRedirectUrl="/app">
+                  <button className="tm-btn" style={{ width: '100%' }}>Sign in</button>
+                </SignInButton>
+                <button
+                  type="button"
+                  onClick={pickGuest}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--ink-mute)',
+                    cursor: 'pointer',
+                    font: 'inherit',
+                    fontSize: 13,
+                    padding: '6px 0 0',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Skip — continue without an account
                 </button>
-              )}
-              <button className="tm-btn tm-ghost" onClick={pickGuest}>
-                Continue as guest
-              </button>
-            </div>
-            {CLERK_ENABLED && (
-              <>
-                <div style={{ fontSize: 14, color: 'var(--ink-mute)', marginTop: 4 }}>
-                  Already have an account?{' '}
-                  <SignInButton mode="modal" forceRedirectUrl="/app" signUpForceRedirectUrl="/app">
-                    <button
-                      type="button"
-                      className="tm-link-button"
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--orange)',
-                        cursor: 'pointer',
-                        font: 'inherit',
-                        textDecoration: 'underline',
-                        padding: 0,
-                      }}
-                    >
-                      Sign in
-                    </button>
-                  </SignInButton>
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 8, lineHeight: 1.5 }}>
-                  Guests can use everything. We hold the data for the day —
-                  sign up before midnight to keep it.
-                </div>
-              </>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+                <button className="tm-btn tm-primary" style={{ width: '100%' }} onClick={() => setView('signup')}>
+                  Save a profile
+                </button>
+                <button className="tm-btn" style={{ width: '100%' }} onClick={pickGuest}>
+                  Continue without one
+                </button>
+              </div>
             )}
           </div>
         )}
