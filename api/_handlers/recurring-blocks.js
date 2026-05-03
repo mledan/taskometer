@@ -53,7 +53,7 @@ function missing(res) { return res.status(400).json({ error: 'id required' }); }
 async function handleList(req, res) {
   const ownerId = await resolveOwner(req);
   if (!ownerId) return res.status(401).json({ error: 'sign-in required' });
-  const items = repos().recurringBlocks.list({ ownerId });
+  const items = await repos().recurringBlocks.list({ ownerId });
   items.sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
   return res.status(200).json({ recurringBlocks: items });
 }
@@ -61,7 +61,7 @@ async function handleList(req, res) {
 async function handleGetOne(req, res, id) {
   const ownerId = await resolveOwner(req);
   if (!ownerId) return res.status(401).json({ error: 'sign-in required' });
-  const doc = repos().recurringBlocks.get({ ownerId, id });
+  const doc = await repos().recurringBlocks.get({ ownerId, id });
   if (!doc) return res.status(404).json({ error: 'not found' });
   return res.status(200).json({ recurringBlock: doc });
 }
@@ -82,7 +82,7 @@ async function handleCreate(req, res) {
     color: body.color ? String(body.color).slice(0, 32) : null,
     cadence: body.cadence,
   };
-  const doc = repos().recurringBlocks.create({ ownerId, data });
+  const doc = await repos().recurringBlocks.create({ ownerId, data });
   return res.status(201).json({ recurringBlock: doc });
 }
 
@@ -103,7 +103,7 @@ async function handleUpdate(req, res, id) {
   if ('endTime' in patch && !HHMM_RE.test(patch.endTime)) {
     return res.status(400).json({ error: 'invalid endTime' });
   }
-  const doc = repos().recurringBlocks.update({ ownerId, id, patch });
+  const doc = await repos().recurringBlocks.update({ ownerId, id, patch });
   if (!doc) return res.status(404).json({ error: 'not found' });
   return res.status(200).json({ recurringBlock: doc });
 }
@@ -111,7 +111,7 @@ async function handleUpdate(req, res, id) {
 async function handleDelete(req, res, id) {
   const ownerId = await requireOwner(req, res);
   if (!ownerId) return;
-  const ok = repos().recurringBlocks.remove({ ownerId, id });
+  const ok = await repos().recurringBlocks.remove({ ownerId, id });
   if (!ok) return res.status(404).json({ error: 'not found' });
   return res.status(204).end();
 }
@@ -119,7 +119,7 @@ async function handleDelete(req, res, id) {
 async function handleOccurrences(req, res, id) {
   const ownerId = await resolveOwner(req);
   if (!ownerId) return res.status(401).json({ error: 'sign-in required' });
-  const doc = repos().recurringBlocks.get({ ownerId, id });
+  const doc = await repos().recurringBlocks.get({ ownerId, id });
   if (!doc) return res.status(404).json({ error: 'not found' });
 
   const from = typeof req.query?.from === 'string' ? req.query.from : null;
@@ -142,14 +142,14 @@ async function handleOccurrences(req, res, id) {
 async function handleBreakOut(req, res, id) {
   const ownerId = await requireOwner(req, res);
   if (!ownerId) return;
-  const doc = repos().recurringBlocks.get({ ownerId, id });
+  const doc = await repos().recurringBlocks.get({ ownerId, id });
   if (!doc) return res.status(404).json({ error: 'not found' });
 
   const date = typeof req.query?.date === 'string' ? req.query.date : null;
   if (!date || !YMD_RE.test(date)) return res.status(400).json({ error: 'date (YYYY-MM-DD) required' });
 
   // Idempotent — if we already broke this out, return the existing block.
-  const existing = repos().blocks.list({
+  const existing = await repos().blocks.list({
     ownerId,
     where: (b) => b.date === date && b.sourceRecurringBlockId === id,
   });
@@ -157,7 +157,7 @@ async function handleBreakOut(req, res, id) {
     return res.status(200).json({ block: existing[0], created: false });
   }
 
-  const block = repos().blocks.create({
+  const block = await repos().blocks.create({
     ownerId,
     data: {
       date,

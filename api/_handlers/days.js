@@ -37,17 +37,17 @@ export default async function handler(req, res) {
   if (!date || !YMD_RE.test(date)) return res.status(400).json({ error: 'date (YYYY-MM-DD) required' });
 
   // Snapshot + ad-hoc + broken-out blocks on this exact date.
-  const blocks = repos().blocks.list({ ownerId, where: (b) => b.date === date });
+  const blocks = await repos().blocks.list({ ownerId, where: (b) => b.date === date });
   blocks.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   // Day assignment (which routine was painted here, if any).
-  const [assignment] = repos().dayAssignments.list({
+  const [assignment] = await repos().dayAssignments.list({
     ownerId,
     where: (a) => a.date === date,
   });
 
   // First exception covering this date, if any.
-  const [exception] = repos().exceptions.list({
+  const [exception] = await repos().exceptions.list({
     ownerId,
     where: (e) => e.startDate <= date && e.endDate >= date,
   });
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
   // Recurring blocks that fire on this date (suppressed if exception covers it).
   const recurringOccurrences = [];
   if (!exception) {
-    const allRecurring = repos().recurringBlocks.list({ ownerId });
+    const allRecurring = await repos().recurringBlocks.list({ ownerId });
     for (const r of allRecurring) {
       const dates = occurrencesInRange(r, date, date);
       if (dates.includes(date)) {

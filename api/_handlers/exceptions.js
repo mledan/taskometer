@@ -42,7 +42,7 @@ async function handleList(req, res) {
     where = (e) => !(e.endDate < from || e.startDate > to);
   }
 
-  const items = repos().exceptions.list({ ownerId, where });
+  const items = await repos().exceptions.list({ ownerId, where });
   items.sort((a, b) => a.startDate.localeCompare(b.startDate));
   return res.status(200).json({ exceptions: items });
 }
@@ -50,7 +50,7 @@ async function handleList(req, res) {
 async function handleGetOne(req, res, id) {
   const ownerId = await resolveOwner(req);
   if (!ownerId) return res.status(401).json({ error: 'sign-in required' });
-  const doc = repos().exceptions.get({ ownerId, id });
+  const doc = await repos().exceptions.get({ ownerId, id });
   if (!doc) return res.status(404).json({ error: 'not found' });
   return res.status(200).json({ exception: doc });
 }
@@ -77,7 +77,7 @@ async function handleCreate(req, res) {
     endDate,
     color: body.color ? String(body.color).slice(0, 32) : null,
   };
-  const doc = repos().exceptions.create({ ownerId, data });
+  const doc = await repos().exceptions.create({ ownerId, data });
   return res.status(201).json({ exception: doc });
 }
 
@@ -95,7 +95,7 @@ async function handleUpdate(req, res, id) {
   if ('startDate' in patch && !YMD_RE.test(patch.startDate)) return res.status(400).json({ error: 'invalid startDate' });
   if ('endDate' in patch && !YMD_RE.test(patch.endDate)) return res.status(400).json({ error: 'invalid endDate' });
 
-  const doc = repos().exceptions.update({ ownerId, id, patch });
+  const doc = await repos().exceptions.update({ ownerId, id, patch });
   if (!doc) return res.status(404).json({ error: 'not found' });
   if (doc.endDate < doc.startDate) {
     // restore would be ideal; for a memory repo just refuse + report
@@ -107,7 +107,7 @@ async function handleUpdate(req, res, id) {
 async function handleDelete(req, res, id) {
   const ownerId = await requireOwner(req, res);
   if (!ownerId) return;
-  const ok = repos().exceptions.remove({ ownerId, id });
+  const ok = await repos().exceptions.remove({ ownerId, id });
   if (!ok) return res.status(404).json({ error: 'not found' });
   return res.status(204).end();
 }

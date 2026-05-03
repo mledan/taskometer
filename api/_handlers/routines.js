@@ -48,7 +48,7 @@ function missing(res) { return res.status(400).json({ error: 'id required' }); }
 async function handleList(req, res) {
   const ownerId = await resolveOwner(req);
   if (!ownerId) return res.status(401).json({ error: 'sign-in required' });
-  const items = repos().routines.list({ ownerId });
+  const items = await repos().routines.list({ ownerId });
   items.sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
   return res.status(200).json({ routines: items });
 }
@@ -56,7 +56,7 @@ async function handleList(req, res) {
 async function handleGetOne(req, res, id) {
   const ownerId = await resolveOwner(req);
   if (!ownerId) return res.status(401).json({ error: 'sign-in required' });
-  const doc = repos().routines.get({ ownerId, id });
+  const doc = await repos().routines.get({ ownerId, id });
   if (!doc) return res.status(404).json({ error: 'not found' });
   return res.status(200).json({ routine: doc });
 }
@@ -75,7 +75,7 @@ async function handleCreate(req, res) {
     blocks: body.blocks.map(cleanBlock),
     isPublic: !!body.isPublic,
   };
-  const doc = repos().routines.create({ ownerId, data });
+  const doc = await repos().routines.create({ ownerId, data });
   return res.status(201).json({ routine: doc });
 }
 
@@ -92,7 +92,7 @@ async function handleUpdate(req, res, id) {
   if (Array.isArray(body.blocks)) patch.blocks = body.blocks.map(cleanBlock);
   if ('isPublic' in body) patch.isPublic = !!body.isPublic;
 
-  const doc = repos().routines.update({ ownerId, id, patch });
+  const doc = await repos().routines.update({ ownerId, id, patch });
   if (!doc) return res.status(404).json({ error: 'not found' });
   return res.status(200).json({ routine: doc });
 }
@@ -100,7 +100,7 @@ async function handleUpdate(req, res, id) {
 async function handleDelete(req, res, id) {
   const ownerId = await requireOwner(req, res);
   if (!ownerId) return;
-  const ok = repos().routines.remove({ ownerId, id });
+  const ok = await repos().routines.remove({ ownerId, id });
   if (!ok) return res.status(404).json({ error: 'not found' });
   return res.status(204).end();
 }
@@ -110,7 +110,7 @@ async function handleDelete(req, res, id) {
 async function handlePaint(req, res, id) {
   const ownerId = await requireOwner(req, res);
   if (!ownerId) return;
-  const routine = repos().routines.get({ ownerId, id });
+  const routine = await repos().routines.get({ ownerId, id });
   if (!routine) return res.status(404).json({ error: 'routine not found' });
 
   const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -119,19 +119,19 @@ async function handlePaint(req, res, id) {
     return res.status(400).json({ error: 'no dates resolved — provide `dates` or `range`' });
   }
 
-  return res.status(200).json(snapshotRoutineToDates({ ownerId, routine, dates }));
+  return res.status(200).json(await snapshotRoutineToDates({ ownerId, routine, dates }));
 }
 
 async function handleRepaint(req, res, id) {
   const ownerId = await requireOwner(req, res);
   if (!ownerId) return;
-  const routine = repos().routines.get({ ownerId, id });
+  const routine = await repos().routines.get({ ownerId, id });
   if (!routine) return res.status(404).json({ error: 'routine not found' });
 
   // Re-paint = repaint every date that ALREADY has this routine assigned.
   // Body can pass an explicit subset to only touch certain dates.
   const body = req.body && typeof req.body === 'object' ? req.body : {};
-  const allAssignments = repos().dayAssignments.list({
+  const allAssignments = await repos().dayAssignments.list({
     ownerId,
     where: (a) => a.routineId === id,
   });
@@ -143,13 +143,13 @@ async function handleRepaint(req, res, id) {
   if (targetDates.length === 0) {
     return res.status(200).json({ wheelId: id, painted: [], blocksCreated: 0, blocksDeleted: 0, assignments: 0 });
   }
-  return res.status(200).json(snapshotRoutineToDates({ ownerId, routine, dates: targetDates }));
+  return res.status(200).json(await snapshotRoutineToDates({ ownerId, routine, dates: targetDates }));
 }
 
 async function handleUpdateFromDate(req, res, id) {
   const ownerId = await requireOwner(req, res);
   if (!ownerId) return;
-  const routine = repos().routines.get({ ownerId, id });
+  const routine = await repos().routines.get({ ownerId, id });
   if (!routine) return res.status(404).json({ error: 'routine not found' });
 
   const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -158,7 +158,7 @@ async function handleUpdateFromDate(req, res, id) {
 
   // Take the live blocks on `date` that were sourced from this routine.
   // That becomes the new canonical block list for the routine.
-  const blocksOnDate = repos().blocks.list({
+  const blocksOnDate = await repos().blocks.list({
     ownerId,
     where: (b) => b.date === date && b.sourceRoutineId === id,
   });
@@ -174,11 +174,11 @@ async function handleUpdateFromDate(req, res, id) {
     category: b.category,
     color: b.color,
   }));
-  const updated = repos().routines.update({ ownerId, id, patch: { blocks: newBlocks } });
+  const updated = await repos().routines.update({ ownerId, id, patch: { blocks: newBlocks } });
 
   // Find other dates that still have the OLD snapshot (anyone whose
   // sourceBlockId no longer matches a block in the new routine).
-  const otherAssignments = repos().dayAssignments.list({
+  const otherAssignments = await repos().dayAssignments.list({
     ownerId,
     where: (a) => a.routineId === id && a.date !== date,
   });
@@ -189,21 +189,21 @@ async function handleUpdateFromDate(req, res, id) {
 
 // ───── shared helper for paint / re-paint ────────────────────────
 
-function snapshotRoutineToDates({ ownerId, routine, dates }) {
+async function snapshotRoutineToDates({ ownerId, routine, dates }) {
   let blocksCreated = 0;
   let blocksDeleted = 0;
   let assignments = 0;
 
   for (const date of dates) {
     // Wipe existing snapshot blocks for this routine on this date.
-    blocksDeleted += repos().blocks.removeWhere({
+    blocksDeleted += await repos().blocks.removeWhere({
       ownerId,
       where: (b) => b.date === date && b.sourceRoutineId === routine.id,
     });
 
     // Snapshot fresh.
     for (const blk of (routine.blocks || [])) {
-      repos().blocks.create({
+      await repos().blocks.create({
         ownerId,
         data: {
           date,
@@ -221,18 +221,18 @@ function snapshotRoutineToDates({ ownerId, routine, dates }) {
     }
 
     // Upsert the day assignment.
-    const existing = repos().dayAssignments.list({
+    const existing = await repos().dayAssignments.list({
       ownerId,
       where: (a) => a.date === date,
     });
     if (existing[0]) {
-      repos().dayAssignments.update({
+      await repos().dayAssignments.update({
         ownerId,
         id: existing[0].id,
         patch: { routineId: routine.id },
       });
     } else {
-      repos().dayAssignments.create({
+      await repos().dayAssignments.create({
         ownerId,
         data: { date, routineId: routine.id },
       });

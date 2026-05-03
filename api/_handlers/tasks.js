@@ -42,7 +42,7 @@ async function handleList(req, res) {
   const recurringBlockId = typeof req.query?.recurringBlockId === 'string' ? req.query.recurringBlockId : null;
   const status = typeof req.query?.status === 'string' ? req.query.status : null;
 
-  let items = repos().tasks.list({ ownerId });
+  let items = await repos().tasks.list({ ownerId });
 
   if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
     items = items.filter(t => t.scheduledTime && ymd(new Date(t.scheduledTime)) === date);
@@ -58,7 +58,7 @@ async function handleList(req, res) {
 async function handleGetOne(req, res, id) {
   const ownerId = await resolveOwner(req);
   if (!ownerId) return res.status(401).json({ error: 'sign-in required' });
-  const doc = repos().tasks.get({ ownerId, id });
+  const doc = await repos().tasks.get({ ownerId, id });
   if (!doc) return res.status(404).json({ error: 'not found' });
   return res.status(200).json({ task: doc });
 }
@@ -79,7 +79,7 @@ async function handleCreate(req, res) {
     scheduledBlockId: body.scheduledBlockId ?? null,
     scheduledRecurringBlockId: body.scheduledRecurringBlockId ?? null,
   };
-  const doc = repos().tasks.create({ ownerId, data });
+  const doc = await repos().tasks.create({ ownerId, data });
   return res.status(201).json({ task: doc });
 }
 
@@ -97,7 +97,7 @@ async function handleUpdate(req, res, id) {
   }
   if ('text' in patch) patch.text = String(patch.text).slice(0, 500);
 
-  const doc = repos().tasks.update({ ownerId, id, patch });
+  const doc = await repos().tasks.update({ ownerId, id, patch });
   if (!doc) return res.status(404).json({ error: 'not found' });
   return res.status(200).json({ task: doc });
 }
@@ -107,11 +107,11 @@ async function handleDelete(req, res, id) {
   if (!ownerId) return;
   const hard = req.query?.hard === '1';
   if (hard) {
-    const ok = repos().tasks.remove({ ownerId, id });
+    const ok = await repos().tasks.remove({ ownerId, id });
     if (!ok) return res.status(404).json({ error: 'not found' });
     return res.status(204).end();
   }
-  const doc = repos().tasks.update({ ownerId, id, patch: { status: 'cancelled' } });
+  const doc = await repos().tasks.update({ ownerId, id, patch: { status: 'cancelled' } });
   if (!doc) return res.status(404).json({ error: 'not found' });
   return res.status(200).json({ task: doc });
 }

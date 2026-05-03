@@ -35,7 +35,7 @@ async function handleGet(req, res) {
 
   if (date) {
     if (!YMD_RE.test(date)) return res.status(400).json({ error: 'invalid date' });
-    const [doc] = repos().dayAssignments.list({
+    const [doc] = await repos().dayAssignments.list({
       ownerId,
       where: (a) => a.date === date,
     });
@@ -44,7 +44,7 @@ async function handleGet(req, res) {
 
   if (from && to) {
     if (!YMD_RE.test(from) || !YMD_RE.test(to)) return res.status(400).json({ error: 'invalid from/to' });
-    const items = repos().dayAssignments.list({
+    const items = await repos().dayAssignments.list({
       ownerId,
       where: (a) => a.date >= from && a.date <= to,
     });
@@ -61,7 +61,7 @@ async function handleDelete(req, res) {
   const date = typeof req.query?.date === 'string' ? req.query.date : null;
   if (!date || !YMD_RE.test(date)) return res.status(400).json({ error: 'date required' });
 
-  const removed = repos().dayAssignments.removeWhere({
+  const removed = await repos().dayAssignments.removeWhere({
     ownerId,
     where: (a) => a.date === date,
   });

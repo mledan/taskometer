@@ -288,6 +288,27 @@ Azure Portal → **Cost Management → Budgets → Add**. $10/month with
 80% email alert. Cosmos serverless can't surprise-bill you anywhere
 near that at v1, but the alert is cheap insurance.
 
+### 5g. Provision the v2 API containers (Phase 2)
+
+Once the comments container is up, run the helper script to add the
+6 containers the v2 API uses. They live in the same Cosmos account
++ database as comments — no new resources, no new env vars.
+
+```bash
+COSMOS_NAME=<your account name from 5b> \
+COSMOS_RG=taskometer-comments-rg \
+bash scripts/setup-cosmos-v2.sh
+```
+
+This creates `blocks`, `recurring-blocks`, `routines`, `tasks`,
+`day-assignments`, `exceptions` — all partitioned by `/ownerId` so
+per-user reads are single-partition.
+
+The v2 dispatcher (`api/_lib/repo/index.js`) auto-detects Cosmos
+based on `COSMOS_ENDPOINT` + `COSMOS_KEY` already being set. Next
+deploy, `/api/v2/health` returns `{ "repo": "cosmos" }` and data
+persists across cold starts.
+
 ## 4 · Custom domain (optional)
 
 Once Vercel deploy is stable:

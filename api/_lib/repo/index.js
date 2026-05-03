@@ -2,27 +2,38 @@
  * Repo dispatch — pick the active backend at request time.
  *
  * Phase 1: memory always.
- * Phase 2: when COSMOS_ENDPOINT is set, swap in the cosmos repo. The
- * route handlers don't change because both repos honor the same
- * interface (list/get/create/update/remove/removeWhere).
+ * Phase 2: when COSMOS_ENDPOINT + COSMOS_KEY are set, swap in the
+ * cosmos repo. The route handlers don't change because both repos
+ * honor the same async interface (list/get/create/update/remove/
+ * removeWhere), all returning Promises.
+ *
+ * Backend is resolved per-call (not module-init) so toggling the env
+ * vars in dev / between tests works without a restart.
  */
 
 import * as memory from './memory.js';
+import * as cosmos from './cosmos.js';
+import { isCosmosConfigured } from '../cosmos.js';
+
+function backend() {
+  return isCosmosConfigured() ? cosmos : memory;
+}
 
 export function activeBackend() {
-  return 'memory';
+  return isCosmosConfigured() ? 'cosmos' : 'memory';
 }
 
 export function repos() {
+  const b = backend();
   return {
-    blocks:          memory.blocksRepo,
-    recurringBlocks: memory.recurringBlocksRepo,
-    routines:        memory.routinesRepo,
-    tasks:           memory.tasksRepo,
-    dayAssignments:  memory.dayAssignmentsRepo,
-    exceptions:      memory.exceptionsRepo,
+    blocks:          b.blocksRepo,
+    recurringBlocks: b.recurringBlocksRepo,
+    routines:        b.routinesRepo,
+    tasks:           b.tasksRepo,
+    dayAssignments:  b.dayAssignmentsRepo,
+    exceptions:      b.exceptionsRepo,
   };
 }
 
-/** Test-only — clear every store between cases. */
-export function _resetAll() { memory._resetAll(); }
+/** Test-only — clear every store between cases. Cosmos backend is a no-op. */
+export function _resetAll() { backend()._resetAll(); }

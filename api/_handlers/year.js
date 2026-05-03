@@ -46,19 +46,19 @@ export default async function handler(req, res) {
   const end   = `${year}-12-31`;
 
   // Pull everything in the range in three queries.
-  const blocks = repos().blocks.list({
+  const blocks = await repos().blocks.list({
     ownerId,
     where: (b) => b.date >= start && b.date <= end,
   });
-  const assignments = repos().dayAssignments.list({
+  const assignments = await repos().dayAssignments.list({
     ownerId,
     where: (a) => a.date >= start && a.date <= end,
   });
-  const exceptions = repos().exceptions.list({
+  const exceptions = await repos().exceptions.list({
     ownerId,
     where: (e) => !(e.endDate < start || e.startDate > end),
   });
-  const allRecurring = repos().recurringBlocks.list({ ownerId });
+  const allRecurring = await repos().recurringBlocks.list({ ownerId });
 
   // Index for fast lookups while building the daysByKey map.
   const exceptionByDate = new Map();

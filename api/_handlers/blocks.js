@@ -53,7 +53,7 @@ async function handleList(req, res) {
     where = (b) => b.date >= from && b.date <= to;
   }
 
-  const items = repos().blocks.list({ ownerId, where });
+  const items = await repos().blocks.list({ ownerId, where });
   items.sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
   return res.status(200).json({ blocks: items });
 }
@@ -61,7 +61,7 @@ async function handleList(req, res) {
 async function handleGetOne(req, res, id) {
   const ownerId = await resolveOwner(req);
   if (!ownerId) return res.status(401).json({ error: 'sign-in required' });
-  const doc = repos().blocks.get({ ownerId, id });
+  const doc = await repos().blocks.get({ ownerId, id });
   if (!doc) return res.status(404).json({ error: 'not found' });
   return res.status(200).json({ block: doc });
 }
@@ -84,7 +84,7 @@ async function handleCreate(req, res) {
     sourceBlockId: null,
     sourceRecurringBlockId: null,
   };
-  const doc = repos().blocks.create({ ownerId, data });
+  const doc = await repos().blocks.create({ ownerId, data });
   return res.status(201).json({ block: doc });
 }
 
@@ -108,7 +108,7 @@ async function handleUpdate(req, res, id) {
   }
   if ('label' in patch) patch.label = String(patch.label).slice(0, 60);
 
-  const doc = repos().blocks.update({ ownerId, id, patch });
+  const doc = await repos().blocks.update({ ownerId, id, patch });
   if (!doc) return res.status(404).json({ error: 'not found' });
   return res.status(200).json({ block: doc });
 }
@@ -116,7 +116,7 @@ async function handleUpdate(req, res, id) {
 async function handleDelete(req, res, id) {
   const ownerId = await requireOwner(req, res);
   if (!ownerId) return;
-  const ok = repos().blocks.remove({ ownerId, id });
+  const ok = await repos().blocks.remove({ ownerId, id });
   if (!ok) return res.status(404).json({ error: 'not found' });
   return res.status(204).end();
 }
