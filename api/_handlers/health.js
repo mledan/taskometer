@@ -17,5 +17,10 @@ export default async function handler(req, res) {
     repo: activeBackend(),
     auth: isClerkConfigured() ? 'clerk' : 'anonymous',
     ts: new Date().toISOString(),
+    env: {
+      hasCosmosEndpoint: !!process.env.COSMOS_ENDPOINT,
+      hasCosmosKey: !!process.env.COSMOS_KEY,
+      cosmosDb: process.env.COSMOS_DATABASE || null,
+    },
   });
 }
