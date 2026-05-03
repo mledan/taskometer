@@ -43,13 +43,24 @@ CONTAINERS=(
 echo "Provisioning v2 containers in ${COSMOS_NAME}/${COSMOS_DB}…"
 
 for name in "${CONTAINERS[@]}"; do
-  echo "  • ${name} (partition key /ownerId)"
+  echo "  • ${name} (partition key /ownerId, per-doc ttl enabled)"
+  # Idempotent: create if missing, then update TTL settings either way.
   az cosmosdb sql container create \
     --account-name  "$COSMOS_NAME" \
     --resource-group "$COSMOS_RG" \
     --database-name "$COSMOS_DB" \
     --name "$name" \
     --partition-key-path /ownerId \
+    --ttl -1 \
+    --output none 2>/dev/null || true
+  # `--ttl -1` = honor per-doc ttl, no default expiry. Ephemeral
+  # owners get ttl set on every write; Clerk owners don't.
+  az cosmosdb sql container update \
+    --account-name  "$COSMOS_NAME" \
+    --resource-group "$COSMOS_RG" \
+    --database-name "$COSMOS_DB" \
+    --name "$name" \
+    --ttl -1 \
     --output none
 done
 

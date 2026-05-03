@@ -88,6 +88,22 @@ function makeStore(name, idPrefix) {
       }
       return count;
     },
+
+    /**
+     * Move every doc owned by `fromOwnerId` to `toOwnerId`. Used by
+     * the claim flow when an ephemeral device signs up. TTL (if any)
+     * is dropped — claimed data persists.
+     */
+    reassignOwner({ fromOwnerId, toOwnerId }) {
+      let count = 0;
+      for (const [id, doc] of map.entries()) {
+        if (doc.ownerId !== fromOwnerId) continue;
+        const { ttl, ...rest } = doc;
+        map.set(id, { ...rest, ownerId: toOwnerId });
+        count++;
+      }
+      return count;
+    },
   };
 }
 

@@ -31,6 +31,7 @@
  */
 
 import blocks         from '../_handlers/blocks.js';
+import claim          from '../_handlers/claim.js';
 import dayAssignments from '../_handlers/day-assignments.js';
 import days           from '../_handlers/days.js';
 import exceptions     from '../_handlers/exceptions.js';
@@ -52,6 +53,7 @@ const HANDLERS = {
   'day-assignments':   dayAssignments,
   'days':              days,
   'year':              year,
+  'claim':             claim,
 };
 
 export default async function handler(req, res) {

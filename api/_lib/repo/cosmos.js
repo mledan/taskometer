@@ -31,6 +31,7 @@
  */
 
 import { getContainerByName } from '../cosmos.js';
+import { isEphemeralOwner } from '../identity.js';
 
 function genId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -41,6 +42,26 @@ function clean(doc) {
   if (!doc) return doc;
   const { _rid, _self, _etag, _attachments, _ts, ...rest } = doc;
   return rest;
+}
+
+/**
+ * Default TTL for ephemeral owners — 24 hours. Spirit of the design:
+ * if you don't sign up within a day of trying the app, your local
+ * scratch data is reclaimed. Refreshed on every write (Cosmos resets
+ * the TTL countdown to "now + ttl seconds" on each replace).
+ */
+const EPHEMERAL_TTL_SECONDS = 24 * 60 * 60;
+
+/**
+ * Apply Cosmos per-doc TTL when the owner is ephemeral. The `ttl`
+ * field is honored by Cosmos automatically when the container has
+ * default TTL enabled (we set it to -1 = "respect per-doc ttl when
+ * present, never expire otherwise"). For Clerk owners ttl stays
+ * unset → permanent.
+ */
+function applyTtl(doc, ownerId) {
+  if (!isEphemeralOwner(ownerId)) return doc;
+  return { ...doc, ttl: EPHEMERAL_TTL_SECONDS };
 }
 
 /**
@@ -80,7 +101,8 @@ function makeStore(containerName, idPrefix) {
     async create({ ownerId, data }) {
       const id = data.id || genId(idPrefix);
       const now = new Date().toISOString();
-      const doc = { ...data, id, ownerId, ts: data.ts || now, updated: now };
+      let doc = { ...data, id, ownerId, ts: data.ts || now, updated: now };
+      doc = applyTtl(doc, ownerId);
       const { resource } = await container().items.create(doc);
       return clean(resource);
     },
@@ -95,7 +117,8 @@ function makeStore(containerName, idPrefix) {
         throw err;
       }
       if (!existing || existing.ownerId !== ownerId) return null;
-      const next = { ...clean(existing), ...patch, id, ownerId, updated: new Date().toISOString() };
+      let next = { ...clean(existing), ...patch, id, ownerId, updated: new Date().toISOString() };
+      next = applyTtl(next, ownerId);
       const { resource } = await container().item(id, ownerId).replace(next);
       return clean(resource);
     },
@@ -132,6 +155,39 @@ function makeStore(containerName, idPrefix) {
         targets.map(d => container().item(d.id, ownerId).delete().catch(() => null)),
       );
       return targets.length;
+    },
+
+    /**
+     * Move every doc owned by `fromOwnerId` to `toOwnerId`. The
+     * partition key (ownerId) is part of the doc, so Cosmos requires
+     * a delete-then-create pair per doc — there's no in-place
+     * partition-key update. We strip `ttl` so the claimed docs
+     * persist permanently.
+     *
+     * Used by /api/v2/claim when an ephemeral device signs up.
+     */
+    async reassignOwner({ fromOwnerId, toOwnerId }) {
+      const { resources } = await container().items
+        .query(
+          { query: 'SELECT * FROM c WHERE c.ownerId = @o', parameters: [{ name: '@o', value: fromOwnerId }] },
+          { partitionKey: fromOwnerId },
+        )
+        .fetchAll();
+
+      let count = 0;
+      for (const doc of resources) {
+        const { ttl, ...rest } = clean(doc);
+        const reowned = { ...rest, ownerId: toOwnerId };
+        try {
+          await container().items.create(reowned);
+          await container().item(doc.id, fromOwnerId).delete();
+          count++;
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn('reassignOwner: skipped one doc', { id: doc.id, code: err?.code });
+        }
+      }
+      return count;
     },
   };
 }
