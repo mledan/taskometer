@@ -186,59 +186,65 @@ export default function Taskometer() {
     loggedReadyRef.current = true;
     telemetryLog('app:ready', { scale, ...snapshotState(state) });
 
-    // First-run skeleton seed: the user complaint that drove this is
-    // "my planner is always empty and i waste too much time planning."
-    // So a brand-new install gets a populated 30-day skeleton — Workday
-    // on weekdays, Weekend chill on weekends — pulled from the default
-    // wheels that AppContext already seeds into settings.wheels. The
-    // user can re-paint with a different shape any time, but the empty
-    // wheel of doom is gone.
-    const SEED_FLAG = 'taskometer.firstRunSeeded';
-    const alreadySeeded = (() => {
-      try { return localStorage.getItem(SEED_FLAG) === '1'; } catch (_) { return false; }
-    })();
-    if (seededRef.current || alreadySeeded) return;
+    // Skeleton self-heal. The user complaint that drove this is "my
+    // planner is always empty and i waste too much time planning."
+    // Strategy: on every boot, walk today → today+29 and paint any
+    // day that's truly empty (zero slots AND no manual assignment AND
+    // no override). That respects user intent — if they cleared a day
+    // *and* unassigned it, we leave it alone. But the default state is
+    // "every day has a shape," so a wipe, a fresh install, or simply
+    // navigating into an unpainted future day always shows a skeleton
+    // with at least the sleep block.
+    if (seededRef.current) return;
 
     const wheelsList = state.settings?.wheels || [];
-    const slotsCount = state.slots?.length || 0;
-    const assignmentsCount = Object.keys(state.settings?.dayAssignments || {}).length;
-    const isFreshSkeleton = slotsCount === 0 && assignmentsCount === 0 && wheelsList.length >= 2;
-    if (!isFreshSkeleton) {
-      try { localStorage.setItem(SEED_FLAG, '1'); } catch (_) {}
-      return;
-    }
+    if (wheelsList.length < 1) return;
     const workday = wheelsList.find(w => w.id === DEFAULT_DAY_WHEEL_ID) || wheelsList[0];
     const weekend = wheelsList.find(w => w.id === 'starter_weekend')
       || wheelsList.find(w => w.id !== workday?.id)
-      || null;
+      || workday;
     if (!workday) return;
 
+    const slotsByDate = new Map();
+    for (const s of state.slots || []) {
+      if (!s?.date) continue;
+      slotsByDate.set(s.date, (slotsByDate.get(s.date) || 0) + 1);
+    }
+    const assignments = state.settings?.dayAssignments || {};
+    const overrides = state.settings?.dayOverrides || {};
+
+    const targets = [];
+    const cursor = new Date();
+    for (let i = 0; i < 30; i++) {
+      const key = formatYMD(cursor);
+      const empty = (slotsByDate.get(key) || 0) === 0
+        && !assignments[key]
+        && !overrides[key];
+      if (empty) {
+        const dow = cursor.getDay(); // 0=Sun..6=Sat
+        const wheel = (dow === 0 || dow === 6) ? weekend : workday;
+        targets.push({ date: key, wheelId: wheel.id });
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    if (targets.length === 0) return;
     seededRef.current = true;
     (async () => {
       try {
-        const start = new Date();
-        const end = new Date();
-        end.setDate(end.getDate() + 29); // ~30 day skeleton
-        const startKey = formatYMD(start);
-        const endKey = formatYMD(end);
-        await api.wheels.applyToRange(workday.id, startKey, endKey, {
-          weekdaysOnly: true,
-          mode: 'replace',
-        });
-        if (weekend) {
-          await api.wheels.applyToRange(weekend.id, startKey, endKey, {
-            weekendsOnly: true,
-            mode: 'replace',
-          });
+        for (const t of targets) {
+          // eslint-disable-next-line no-await-in-loop
+          await api.wheels.applyToDate(t.wheelId, t.date, { mode: 'replace' });
         }
-        telemetryLog('first-run:skeleton-seeded', {
-          workdayWheel: workday.id,
-          weekendWheel: weekend?.id || null,
-          range: `${startKey}..${endKey}`,
+        telemetryLog('skeleton:self-heal', {
+          painted: targets.length,
+          first: targets[0]?.date,
+          last: targets[targets.length - 1]?.date,
         });
-        try { localStorage.setItem(SEED_FLAG, '1'); } catch (_) {}
       } catch (err) {
-        telemetryLog('first-run:skeleton-error', { message: err?.message });
+        telemetryLog('skeleton:self-heal-error', { message: err?.message });
+        // Allow another attempt next boot
+        seededRef.current = false;
       }
     })();
   }, [state, scale, api]);
