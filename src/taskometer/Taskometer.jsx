@@ -747,9 +747,9 @@ export default function Taskometer() {
                 }}>
                   replay tour
                 </OverflowItem>
-                <OverflowItem onClick={() => { setOverflowOpen(false); setSettingsOpen(true); }}>
-                  settings
-                </OverflowItem>
+                {/* Settings now lives in the account panel — click the
+                    avatar in the header. Kept the overflow `⋯` slot
+                    free for actions that don't have another home. */}
               </div>
             )}
           </div>
@@ -767,18 +767,28 @@ export default function Taskometer() {
               paddingRight: 10,
             }}
           >
-            <span
-              aria-hidden
-              style={{
-                width: 22, height: 22, borderRadius: '50%',
-                background: isLoggedIn ? 'var(--orange)' : 'var(--ink-mute)',
-                color: 'var(--paper)',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'Caveat, cursive', fontSize: 16, fontWeight: 600, lineHeight: 1,
-              }}
-            >
-              {accountInitial}
-            </span>
+            {auth?.profile?.avatarUrl ? (
+              <img
+                src={auth.profile.avatarUrl}
+                alt=""
+                width={22}
+                height={22}
+                style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+              />
+            ) : (
+              <span
+                aria-hidden
+                style={{
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: isLoggedIn ? 'var(--orange)' : 'var(--ink-mute)',
+                  color: 'var(--paper)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'Caveat, cursive', fontSize: 16, fontWeight: 600, lineHeight: 1,
+                }}
+              >
+                {accountInitial}
+              </span>
+            )}
             {isLoggedIn ? (auth.profile.firstName || auth.profile.username) : 'guest'}
           </button>
         </div>
@@ -1097,6 +1107,7 @@ export default function Taskometer() {
           onClose={() => setAccountOpen(false)}
           onSignOut={() => { setAccountOpen(false); setWelcomeOpen(true); }}
           onCreateAccount={() => setWelcomeOpen(true)}
+          onOpenSettings={() => { setAccountOpen(false); setSettingsOpen(true); }}
         />
       )}
 

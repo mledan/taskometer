@@ -8,7 +8,7 @@ import { CLERK_ENABLED } from '../services/auth.js';
  *  - Guest:    "you're browsing as a guest" + create-account CTA
  *  - Account:  profile fields (editable), member-since, sign out, delete
  */
-export default function AccountPanel({ onClose, onSignOut, onCreateAccount }) {
+export default function AccountPanel({ onClose, onSignOut, onCreateAccount, onOpenSettings }) {
   const auth = readAuth();
   const isAccount = auth?.mode === 'account' || auth?.mode === 'clerk';
   const isClerkAccount = auth?.mode === 'clerk';
@@ -121,6 +121,27 @@ export default function AccountPanel({ onClose, onSignOut, onCreateAccount }) {
                 </button>
               )}
             </div>
+
+            {onOpenSettings && (
+              <>
+                <hr style={{ border: 'none', borderTop: '1px dashed var(--rule)', margin: '20px 0 14px' }} />
+                <button
+                  type="button"
+                  className="tm-btn tm-sm"
+                  onClick={() => { onClose?.(); onOpenSettings(); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    padding: '12px 14px',
+                  }}
+                >
+                  <span>App settings — look &amp; feel, behavior, backup</span>
+                  <span aria-hidden style={{ color: 'var(--ink-mute)' }}>→</span>
+                </button>
+              </>
+            )}
           </>
         )}
 
@@ -204,6 +225,27 @@ export default function AccountPanel({ onClose, onSignOut, onCreateAccount }) {
                 </div>
               )}
             </form>
+
+            {onOpenSettings && (
+              <>
+                <hr style={{ border: 'none', borderTop: '1px dashed var(--rule)', margin: '20px 0 14px' }} />
+                <button
+                  type="button"
+                  className="tm-btn tm-sm"
+                  onClick={() => { onClose?.(); onOpenSettings(); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    padding: '12px 14px',
+                  }}
+                >
+                  <span>App settings — look &amp; feel, behavior, backup</span>
+                  <span aria-hidden style={{ color: 'var(--ink-mute)' }}>→</span>
+                </button>
+              </>
+            )}
 
             <hr style={{ border: 'none', borderTop: '1px dashed var(--rule)', margin: '20px 0 14px' }} />
 
