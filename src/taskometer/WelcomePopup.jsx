@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { SignUpButton } from '@clerk/clerk-react';
+import { CLERK_ENABLED } from '../services/auth.js';
 
 const STORAGE_KEY = 'taskometer.auth';
 
@@ -19,20 +21,25 @@ export function clearAuth() {
   try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
 }
 
+/**
+ * First-visit welcome.
+ *
+ *   CLERK_ENABLED   → "Create account" opens Clerk's hosted sign-up
+ *                     modal (real auth, real email verification, no
+ *                     password handling on our side).
+ *   CLERK disabled  → falls through to the legacy two-view flow:
+ *                     name-only profile saved to localStorage. Keeps
+ *                     zero-config local dev working.
+ *
+ * Either way "Continue as guest" leaves the user anonymous; the
+ * server's ephemeral identity (X-Device-Id, 24h Cosmos TTL) covers
+ * anything they create as a guest.
+ */
 export default function WelcomePopup({ onDone }) {
   const [view, setView] = useState('welcome');
-  // Local-only profile. We do not collect a password because we have no
-  // server to store it on. When auth ships for real, this form swaps to
-  // an OAuth handoff — no plaintext credentials in localStorage.
-  const [form, setForm] = useState({
-    firstName: '',
-    email: '',
-  });
+  const [form, setForm] = useState({ firstName: '', email: '' });
 
-  const pickGuest = () => {
-    onDone?.();
-  };
-
+  const pickGuest = () => onDone?.();
   const setField = (k) => (e) => setForm(prev => ({ ...prev, [k]: e.target.value }));
 
   const submit = (e) => {
@@ -70,13 +77,25 @@ export default function WelcomePopup({ onDone }) {
             </div>
             <div style={{ fontSize: 22, color: 'var(--ink-mute)' }}>Shape your day. Loop it forward.</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginTop: 18 }}>
-              <button className="tm-btn tm-primary" onClick={() => setView('signup')}>
-                Create account
-              </button>
+              {CLERK_ENABLED ? (
+                <SignUpButton mode="modal" forceRedirectUrl="/app" signInForceRedirectUrl="/app">
+                  <button className="tm-btn tm-primary">Create account</button>
+                </SignUpButton>
+              ) : (
+                <button className="tm-btn tm-primary" onClick={() => setView('signup')}>
+                  Create account
+                </button>
+              )}
               <button className="tm-btn tm-ghost" onClick={pickGuest}>
                 Continue as guest
               </button>
             </div>
+            {CLERK_ENABLED && (
+              <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 8, lineHeight: 1.5 }}>
+                Guests can use everything. We hold the data for the day —
+                sign up before midnight to keep it.
+              </div>
+            )}
           </div>
         )}
 

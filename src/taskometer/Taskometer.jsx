@@ -12,7 +12,6 @@ import { TaskComposer } from './Composers.jsx';
 import WelcomePopup, { readAuth } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
-import AuthCorner from '../auth/AuthCorner.jsx';
 import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
@@ -782,7 +781,6 @@ export default function Taskometer() {
             </span>
             {isLoggedIn ? (auth.profile.firstName || auth.profile.username) : 'guest'}
           </button>
-          <AuthCorner compact />
         </div>
       </header>
 

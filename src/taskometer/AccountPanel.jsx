@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { SignUpButton, useClerk } from '@clerk/clerk-react';
 import { readAuth, writeAuth, clearAuth } from './WelcomePopup.jsx';
+import { CLERK_ENABLED } from '../services/auth.js';
 
 /**
  * Account modal. Two faces:
@@ -8,30 +10,62 @@ import { readAuth, writeAuth, clearAuth } from './WelcomePopup.jsx';
  */
 export default function AccountPanel({ onClose, onSignOut, onCreateAccount }) {
   const auth = readAuth();
-  const isAccount = auth?.mode === 'account';
+  const isAccount = auth?.mode === 'account' || auth?.mode === 'clerk';
+  const isClerkAccount = auth?.mode === 'clerk';
   const [profile, setProfile] = useState(auth?.profile || {
     username: '', firstName: '', lastName: '', birthday: '', email: '',
   });
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // useClerk() requires ClerkProvider in the tree. When Clerk isn't
+  // wired (zero-config local dev) we render this panel without the
+  // provider — so we delegate the Clerk-specific actions to a small
+  // sub-component (<ClerkActions />) that only mounts when enabled.
+  // For Clerk users that's where signOut + openUserProfile live; the
+  // panel itself just sets a target via refs.
+  const clerkActionsRef = React.useRef({ signOut: null, openUserProfile: null });
+
   const setField = (k) => (e) => setProfile(p => ({ ...p, [k]: e.target.value }));
 
   const save = (e) => {
     e?.preventDefault?.();
+    // Clerk-managed profiles can't be edited inline — that's a Clerk
+    // feature (avatar upload, email verification, password). For
+    // those, defer to clerk.openUserProfile().
+    if (isClerkAccount) {
+      clerkActionsRef.current.openUserProfile?.();
+      setEditing(false);
+      return;
+    }
     writeAuth({ ...auth, profile });
     setEditing(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 1600);
   };
 
-  const signOut = () => {
+  const signOut = async () => {
+    if (isClerkAccount) {
+      // Sign-out is reversible — data lives under the Clerk userId,
+      // not the device, so signing back in restores everything.
+      await clerkActionsRef.current.signOut?.();
+      onSignOut?.();
+      return;
+    }
     if (!window.confirm('sign out? guest sessions reset on refresh — your data may not persist.')) return;
     clearAuth();
     onSignOut?.();
   };
 
   const deleteAccount = () => {
+    if (isClerkAccount) {
+      // Clerk's UserProfile dialog has a "Delete account" section
+      // (security tab). Account deletion has to go through Clerk so
+      // their identity record is destroyed too — wiping just the
+      // local mirror would leave a zombie Clerk account behind.
+      clerkActionsRef.current.openUserProfile?.();
+      return;
+    }
     const ok = window.confirm('delete your account? this clears your profile and local data. this cannot be undone.');
     if (!ok) return;
     try {
@@ -55,6 +89,7 @@ export default function AccountPanel({ onClose, onSignOut, onCreateAccount }) {
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
       <div className="tm-modal" style={{ maxWidth: 520, padding: '24px 28px' }}>
+        {CLERK_ENABLED && <ClerkActions actionsRef={clerkActionsRef} />}
         <div className="tm-modal-head">
           <div className="tm-modal-title">{isAccount ? 'Your Account' : 'Guest Session'}</div>
           <button type="button" className="tm-btn tm-sm" onClick={onClose} aria-label="close">close</button>
@@ -63,19 +98,28 @@ export default function AccountPanel({ onClose, onSignOut, onCreateAccount }) {
         {!isAccount && (
           <>
             <div style={{ fontSize: 16, color: 'var(--ink)', lineHeight: 1.5, marginBottom: 14 }}>
-              You're browsing as a guest. Anything you build will reset the next time you refresh.
+              You're browsing as a guest. Your data is held for the day —
+              sign up before midnight to keep it.
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button type="button" className="tm-btn tm-ghost" onClick={onClose}>
                 keep browsing
               </button>
-              <button
-                type="button"
-                className="tm-btn tm-primary"
-                onClick={() => { onClose?.(); onCreateAccount?.(); }}
-              >
-                Create an Account
-              </button>
+              {CLERK_ENABLED ? (
+                <SignUpButton mode="modal" forceRedirectUrl="/app">
+                  <button type="button" className="tm-btn tm-primary">
+                    Create an Account
+                  </button>
+                </SignUpButton>
+              ) : (
+                <button
+                  type="button"
+                  className="tm-btn tm-primary"
+                  onClick={() => { onClose?.(); onCreateAccount?.(); }}
+                >
+                  Create an Account
+                </button>
+              )}
             </div>
           </>
         )}
@@ -94,32 +138,46 @@ export default function AccountPanel({ onClose, onSignOut, onCreateAccount }) {
                 marginBottom: 16,
               }}
             >
-              <div
-                aria-hidden
-                style={{
-                  width: 56, height: 56, borderRadius: '50%',
-                  background: 'var(--orange)', color: 'var(--paper)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'Caveat, cursive', fontSize: 32, fontWeight: 600,
-                  flexShrink: 0,
-                }}
-              >
-                {(profile.firstName?.[0] || profile.username?.[0] || '?').toUpperCase()}
-              </div>
+              {profile.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt=""
+                  width={56}
+                  height={56}
+                  style={{ borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
+                />
+              ) : (
+                <div
+                  aria-hidden
+                  style={{
+                    width: 56, height: 56, borderRadius: '50%',
+                    background: 'var(--orange)', color: 'var(--paper)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'Caveat, cursive', fontSize: 32, fontWeight: 600,
+                    flexShrink: 0,
+                  }}
+                >
+                  {(profile.firstName?.[0] || profile.username?.[0] || '?').toUpperCase()}
+                </div>
+              )}
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontFamily: 'Caveat, cursive', fontSize: 26, lineHeight: 1, color: 'var(--ink)' }}>
                   {profile.firstName} {profile.lastName}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--ink-mute)', marginTop: 2 }}>
-                  @{profile.username}
+                  {isClerkAccount ? profile.email : `@${profile.username}`}
                 </div>
               </div>
               <button
                 type="button"
                 className="tm-btn tm-sm"
-                onClick={() => setEditing(v => !v)}
+                onClick={
+                  isClerkAccount
+                    ? () => clerkActionsRef.current.openUserProfile?.()
+                    : () => setEditing(v => !v)
+                }
               >
-                {editing ? 'cancel' : 'edit'}
+                {isClerkAccount ? 'manage' : (editing ? 'cancel' : 'edit')}
               </button>
             </div>
 
@@ -171,6 +229,23 @@ export default function AccountPanel({ onClose, onSignOut, onCreateAccount }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Tiny invisible component that publishes Clerk's signOut +
+ * openUserProfile fns into a ref so the parent panel (which can't
+ * call useClerk conditionally) can use them. Mounted only when
+ * CLERK_ENABLED so we never call useClerk without ClerkProvider.
+ */
+function ClerkActions({ actionsRef }) {
+  const clerk = useClerk();
+  React.useEffect(() => {
+    actionsRef.current = {
+      signOut: () => clerk.signOut(),
+      openUserProfile: () => clerk.openUserProfile(),
+    };
+  }, [clerk, actionsRef]);
+  return null;
 }
 
 function Field({ label, value, onChange, type = 'text', disabled }) {
