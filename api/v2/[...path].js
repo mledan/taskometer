@@ -55,17 +55,24 @@ const HANDLERS = {
 };
 
 export default async function handler(req, res) {
-  // req.query.path is an array of catchall segments. The first one
-  // is the resource name; the rest (if any) are passed through to the
-  // handler via the URL but the handlers only inspect req.query for
-  // ?id, ?op, etc. — they don't care about extra path segments.
-  const segments = Array.isArray(req.query?.path) ? req.query.path : [];
+  // Try req.query.path first (Vercel catchall convention). If that's
+  // empty/missing, fall back to parsing req.url — works regardless of
+  // how Vercel populates query params for catchall routes.
+  let segments = Array.isArray(req.query?.path) ? req.query.path : [];
+  if (segments.length === 0 && req.url) {
+    // req.url is like "/api/v2/health?foo=bar" — strip the prefix
+    // and the querystring, then split.
+    const pathPart = req.url.split('?')[0];
+    const afterPrefix = pathPart.replace(/^\/api\/v2\/?/, '');
+    segments = afterPrefix.length > 0 ? afterPrefix.split('/').filter(Boolean) : [];
+  }
   const resource = segments[0];
 
   if (!resource) {
     return res.status(404).json({
       error: 'no resource',
       hint: 'try /api/v2/health',
+      debug: { url: req.url, queryPath: req.query?.path },
     });
   }
 
