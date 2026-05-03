@@ -9,7 +9,7 @@ import DailyWrap from './DailyWrap.jsx';
 import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import { TaskComposer } from './Composers.jsx';
-import WelcomePopup, { readAuth } from './WelcomePopup.jsx';
+import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
 import { useTaskometerAPI } from '../services/api';
@@ -44,6 +44,19 @@ const DEFAULT_UI = {
   rules: 'lines',
   notifications: false,
 };
+
+function readSafeAuth() {
+  try {
+    // taskometer.auth is the current key; smartcircle.auth is the legacy
+    // location migrated by main.jsx on first load. Read both for the
+    // brief overlap window.
+    return JSON.parse(
+      localStorage.getItem('taskometer.auth')
+      || localStorage.getItem('smartcircle.auth')
+      || 'null'
+    );
+  } catch (_) { return null; }
+}
 
 function readStoredUI() {
   try {
@@ -86,7 +99,6 @@ export default function Taskometer() {
   // startOnboarding() + the 'taskometer:onboarding-start' event.
   const [accountOpen, setAccountOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [overflowOpen, setOverflowOpen] = useState(false);
   // The wheel currently being painted across a range. Null = painter
   // closed. Object = { wheel } where wheel may need to be added to the
   // user's library before applyToRange can target it by ID.
@@ -105,19 +117,22 @@ export default function Taskometer() {
   // 'app-calendar' storage key mirrors selection into sessionStorage so
   // an accidental refresh doesn't lose what the user just picked.
   const multiSelect = useMultiSelect('app-calendar');
-  const auth = (() => {
-    try {
-      // taskometer.auth is the current key; smartcircle.auth is the legacy
-      // location migrated by main.jsx on first load. Read both for the
-      // brief overlap window.
-      return JSON.parse(
-        localStorage.getItem('taskometer.auth')
-        || localStorage.getItem('smartcircle.auth')
-        || 'null'
-      );
-    } catch (_) { return null; }
-  })();
-  const isLoggedIn = auth?.mode === 'account';
+  // Reactive auth — the source of truth is localStorage (taskometer.auth),
+  // but the chip needs to update when AuthBoot mirrors a Clerk sign-in
+  // or the user signs out via Clerk. WelcomePopup.writeAuth/clearAuth
+  // dispatch AUTH_EVENT after every change; we listen and re-read.
+  const [auth, setAuth] = useState(() => readSafeAuth());
+  useEffect(() => {
+    const onChange = () => setAuth(readSafeAuth());
+    window.addEventListener(AUTH_EVENT, onChange);
+    // Cross-tab updates fire the native `storage` event.
+    window.addEventListener('storage', onChange);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, onChange);
+      window.removeEventListener('storage', onChange);
+    };
+  }, []);
+  const isLoggedIn = auth?.mode === 'account' || auth?.mode === 'clerk';
   const accountInitial = (auth?.profile?.firstName?.[0] || auth?.profile?.username?.[0] || 'G').toUpperCase();
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState(null);
@@ -703,56 +718,10 @@ export default function Taskometer() {
               aria-label="search"
             />
           )}
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className="tm-btn tm-sm"
-              onClick={() => setOverflowOpen(o => !o)}
-              aria-haspopup="menu"
-              aria-expanded={overflowOpen}
-              title="more"
-            >
-              ⋯
-            </button>
-            {overflowOpen && (
-              <div
-                role="menu"
-                onMouseLeave={() => setOverflowOpen(false)}
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 'calc(100% + 6px)',
-                  background: 'var(--paper)',
-                  border: '1.5px solid var(--ink)',
-                  borderRadius: 10,
-                  padding: 6,
-                  boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
-                  zIndex: 60,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                  minWidth: 180,
-                }}
-              >
-                <OverflowItem onClick={() => { setOverflowOpen(false); telemetryLog('ui:wheels-open'); setWheelsPanelOpen(true); }}>
-                  manage wheels
-                </OverflowItem>
-                <OverflowItem onClick={() => { setOverflowOpen(false); telemetryLog('backup:export-ics'); api.backup.exportICS(); }}>
-                  export .ics
-                </OverflowItem>
-                <OverflowItem onClick={() => {
-                  setOverflowOpen(false);
-                  startOnboarding();
-                  window.dispatchEvent(new Event('taskometer:onboarding-start'));
-                }}>
-                  replay tour
-                </OverflowItem>
-                {/* Settings now lives in the account panel — click the
-                    avatar in the header. Kept the overflow `⋯` slot
-                    free for actions that don't have another home. */}
-              </div>
-            )}
-          </div>
+          {/* The `⋯` overflow menu (manage wheels, export .ics, replay
+              tour, settings) was consolidated into the account panel —
+              click the avatar in the header to access all of those.
+              One surface is easier to scan than two. */}
           <button
             data-onboard="account"
             className="tm-btn tm-sm"
@@ -1108,6 +1077,12 @@ export default function Taskometer() {
           onSignOut={() => { setAccountOpen(false); setWelcomeOpen(true); }}
           onCreateAccount={() => setWelcomeOpen(true)}
           onOpenSettings={() => { setAccountOpen(false); setSettingsOpen(true); }}
+          onManageWheels={() => { telemetryLog('ui:wheels-open'); setWheelsPanelOpen(true); }}
+          onExportIcs={() => { telemetryLog('backup:export-ics'); api.backup.exportICS(); }}
+          onReplayTour={() => {
+            startOnboarding();
+            window.dispatchEvent(new Event('taskometer:onboarding-start'));
+          }}
         />
       )}
 
@@ -1486,28 +1461,6 @@ function WeekView({ selectedDate, slots, tasks, wheels = [], dayAssignments = {}
 
 // (the Featured catch-all moved out — the rail now surfaces the
 // archetype catalog from scheduleArchetypes.js as its primary lens.)
-
-function OverflowItem({ children, onClick }) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      style={{
-        all: 'unset',
-        cursor: 'pointer',
-        padding: '6px 10px',
-        borderRadius: 6,
-        fontSize: 14,
-        color: 'var(--ink)',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-warm, #FAF5EC)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-    >
-      {children}
-    </button>
-  );
-}
 
 /**
  * Live preview under the composer showing where a 30-min task of the

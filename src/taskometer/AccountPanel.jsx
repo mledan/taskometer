@@ -8,7 +8,15 @@ import { CLERK_ENABLED } from '../services/auth.js';
  *  - Guest:    "you're browsing as a guest" + create-account CTA
  *  - Account:  profile fields (editable), member-since, sign out, delete
  */
-export default function AccountPanel({ onClose, onSignOut, onCreateAccount, onOpenSettings }) {
+export default function AccountPanel({
+  onClose,
+  onSignOut,
+  onCreateAccount,
+  onOpenSettings,
+  onManageWheels,
+  onExportIcs,
+  onReplayTour,
+}) {
   const auth = readAuth();
   const isAccount = auth?.mode === 'account' || auth?.mode === 'clerk';
   const isClerkAccount = auth?.mode === 'clerk';
@@ -122,26 +130,13 @@ export default function AccountPanel({ onClose, onSignOut, onCreateAccount, onOp
               )}
             </div>
 
-            {onOpenSettings && (
-              <>
-                <hr style={{ border: 'none', borderTop: '1px dashed var(--rule)', margin: '20px 0 14px' }} />
-                <button
-                  type="button"
-                  className="tm-btn tm-sm"
-                  onClick={() => { onClose?.(); onOpenSettings(); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    padding: '12px 14px',
-                  }}
-                >
-                  <span>App settings — look &amp; feel, behavior, backup</span>
-                  <span aria-hidden style={{ color: 'var(--ink-mute)' }}>→</span>
-                </button>
-              </>
-            )}
+            <ActionList
+              onClose={onClose}
+              onOpenSettings={onOpenSettings}
+              onManageWheels={onManageWheels}
+              onExportIcs={onExportIcs}
+              onReplayTour={onReplayTour}
+            />
           </>
         )}
 
@@ -226,26 +221,13 @@ export default function AccountPanel({ onClose, onSignOut, onCreateAccount, onOp
               )}
             </form>
 
-            {onOpenSettings && (
-              <>
-                <hr style={{ border: 'none', borderTop: '1px dashed var(--rule)', margin: '20px 0 14px' }} />
-                <button
-                  type="button"
-                  className="tm-btn tm-sm"
-                  onClick={() => { onClose?.(); onOpenSettings(); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    padding: '12px 14px',
-                  }}
-                >
-                  <span>App settings — look &amp; feel, behavior, backup</span>
-                  <span aria-hidden style={{ color: 'var(--ink-mute)' }}>→</span>
-                </button>
-              </>
-            )}
+            <ActionList
+              onClose={onClose}
+              onOpenSettings={onOpenSettings}
+              onManageWheels={onManageWheels}
+              onExportIcs={onExportIcs}
+              onReplayTour={onReplayTour}
+            />
 
             <hr style={{ border: 'none', borderTop: '1px dashed var(--rule)', margin: '20px 0 14px' }} />
 
@@ -270,6 +252,69 @@ export default function AccountPanel({ onClose, onSignOut, onCreateAccount, onOp
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Shared action list — same row group used in both guest and signed-in
+ * views. Each entry self-renders if its callback is supplied; the
+ * whole block is suppressed if there's nothing to show.
+ *
+ * The actions came from the header's `⋯` overflow menu (manage wheels,
+ * export .ics, replay tour) plus the App-settings deep link. The
+ * overflow menu was retired in favor of this consolidated home.
+ */
+function ActionList({ onClose, onOpenSettings, onManageWheels, onExportIcs, onReplayTour }) {
+  const items = [
+    onOpenSettings && {
+      key: 'settings',
+      label: 'App settings — look & feel, behavior, backup',
+      run: onOpenSettings,
+    },
+    onManageWheels && {
+      key: 'wheels',
+      label: 'Manage wheels',
+      run: onManageWheels,
+    },
+    onExportIcs && {
+      key: 'ics',
+      label: 'Export calendar (.ics)',
+      run: onExportIcs,
+    },
+    onReplayTour && {
+      key: 'tour',
+      label: 'Replay tour',
+      run: onReplayTour,
+    },
+  ].filter(Boolean);
+
+  if (items.length === 0) return null;
+
+  return (
+    <>
+      <hr style={{ border: 'none', borderTop: '1px dashed var(--rule)', margin: '20px 0 14px' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {items.map(({ key, label, run }) => (
+          <button
+            key={key}
+            type="button"
+            className="tm-btn tm-sm"
+            onClick={() => { onClose?.(); run(); }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              padding: '10px 14px',
+              textAlign: 'left',
+            }}
+          >
+            <span>{label}</span>
+            <span aria-hidden style={{ color: 'var(--ink-mute)' }}>→</span>
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 

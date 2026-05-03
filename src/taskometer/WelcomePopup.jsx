@@ -15,10 +15,24 @@ export function readAuth() {
 
 export function writeAuth(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (_) {}
+  emitAuthChange();
 }
 
 export function clearAuth() {
   try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+  emitAuthChange();
+}
+
+/**
+ * Custom event other components listen for to re-read taskometer.auth.
+ * The native `storage` event only fires across windows, not the
+ * window that wrote — so we emit our own.
+ */
+export const AUTH_EVENT = 'taskometer:auth-changed';
+function emitAuthChange() {
+  if (typeof window !== 'undefined') {
+    try { window.dispatchEvent(new Event(AUTH_EVENT)); } catch (_) {}
+  }
 }
 
 /**
