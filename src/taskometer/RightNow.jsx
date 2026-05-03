@@ -85,6 +85,11 @@ export default function RightNow({
                 return (
                   <div
                     key={id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/task-id', id);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -92,6 +97,7 @@ export default function RightNow({
                       padding: '6px 0',
                       borderBottom: '1px solid var(--rule-soft)',
                       opacity: done ? 0.55 : 1,
+                      cursor: 'grab',
                     }}
                   >
                     <button

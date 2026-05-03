@@ -12,6 +12,8 @@ import { TaskComposer } from './Composers.jsx';
 import { QuickCapture, InboxPanel } from './Inbox.jsx';
 import RightNow from './RightNow.jsx';
 import SleepPSA from './SleepPSA.jsx';
+import DayStrip from './DayStrip.jsx';
+import ComingUp from './ComingUp.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
@@ -373,10 +375,18 @@ export default function Taskometer() {
         scheduledFor: iso,
       };
 
-      // Rollover feedback: only surface a toast if the task moved off
-      // the day the user was looking at.
+      // Rollover feedback: a sticky breadcrumb (not a 4s toast) so
+      // the task is *visible* after it auto-scheduled forward. The
+      // user explicitly said "tasks shouldn't just go disappearing
+      // once they are added" — ComingUp surfaces this with a click
+      // to follow.
       if (target.date !== viewKey) {
-        showRolloverToast(`Rolled over to ${formatRolloverLabel(target.date)} · ${minToHHMM(target.startMin)}`);
+        setRecentRollover({
+          text: data?.text || 'task',
+          dayKey: target.date,
+          scheduledTime: iso,
+          at: Date.now(),
+        });
       }
     } else {
       // No fit anywhere in the next 60 days. Give it a date but no slot
@@ -385,7 +395,6 @@ export default function Taskometer() {
       const d = new Date(`${viewKey}T09:00:00`);
       const iso = d.toISOString();
       payload = { ...data, scheduledTime: iso, scheduledFor: iso };
-      showRolloverToast(`No open block in the next 60 days — task is unscheduled`);
     }
 
     telemetryLog('task:add', {
@@ -401,15 +410,17 @@ export default function Taskometer() {
     return api.tasks.add(payload);
   };
 
-  // Rollover toast — a transient notification when a task lands on a
-  // future day. Stored in component state so React re-renders cleanly.
-  const [rolloverMsg, setRolloverMsg] = useState(null);
+  // Recent-rollover breadcrumb. When the auto-scheduler pushes a task
+  // forward, ComingUp highlights it as "just rolled forward" with a
+  // click-to-jump. We auto-clear after 60s so a stale breadcrumb
+  // doesn't linger across sessions, but it's far longer than a toast.
+  const [recentRollover, setRecentRollover] = useState(null);
   const rolloverTimerRef = useRef(null);
-  const showRolloverToast = (msg) => {
-    setRolloverMsg(msg);
+  useEffect(() => {
+    if (!recentRollover) return;
     if (rolloverTimerRef.current) clearTimeout(rolloverTimerRef.current);
-    rolloverTimerRef.current = setTimeout(() => setRolloverMsg(null), 4500);
-  };
+    rolloverTimerRef.current = setTimeout(() => setRecentRollover(null), 60000);
+  }, [recentRollover]);
   useEffect(() => () => {
     if (rolloverTimerRef.current) clearTimeout(rolloverTimerRef.current);
   }, []);
@@ -844,6 +855,19 @@ export default function Taskometer() {
         inboxCount={(filteredDerived.backlog || []).length}
       />
 
+      {/* Day breadcrumb strip — yesterday → +5 days. Each chip shows
+          the day's task count and is click-to-jump, so a task that
+          rolled forward never feels lost: the user sees "tomorrow ·
+          3 tasks" and one click is there. */}
+      <DayStrip
+        selectedDate={selectedDate}
+        tasks={state.tasks || []}
+        onPickDate={(d) => {
+          setSelectedDate(d);
+          telemetryLog('ui:day-strip', { date: formatYMD(d) });
+        }}
+      />
+
       {/* When rhythms fire on the selected day but haven't been
           materialized as concrete slots yet, surface them so the user
           can apply with one click. This is the bridge that makes the
@@ -1001,6 +1025,16 @@ export default function Taskometer() {
             <InboxPanel
               tasks={filteredDerived.backlog || []}
               rowHandlers={{ onToggle: handleToggle, onDelete: handleDelete }}
+            />
+            <ComingUp
+              tasks={state.tasks || []}
+              selectedDate={selectedDate}
+              recentRollover={recentRollover}
+              onJumpToDate={(d) => {
+                setSelectedDate(d);
+                setRecentRollover(null);
+                telemetryLog('ui:coming-up-jump', { date: formatYMD(d) });
+              }}
             />
             <SleepPSA slots={state.slots || []} dateKey={viewKey} />
             <button
@@ -1182,29 +1216,6 @@ export default function Taskometer() {
 
       {shortcutsOpen && (
         <KeyboardShortcuts isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      )}
-
-      {rolloverMsg && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: 'fixed',
-            bottom: 24,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--ink)',
-            color: 'var(--paper)',
-            padding: '10px 16px',
-            borderRadius: 999,
-            fontFamily: 'JetBrains Mono, monospace',
-            fontSize: 13,
-            boxShadow: '0 6px 20px rgba(0, 0, 0, 0.22)',
-            zIndex: 300,
-          }}
-        >
-          → {rolloverMsg}
-        </div>
       )}
 
       {settingsOpen && (

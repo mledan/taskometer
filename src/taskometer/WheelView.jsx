@@ -1317,7 +1317,7 @@ function WheelSvg({
         const label = slot.label || slot.slotType || 'block';
         const stroke = strokeFor(slot, wedge, isCurrent, isEditing);
         const isSelected = selectedSlotId && slot.id === selectedSlotId;
-        const strokeW = isEditing || isDragging ? 2.6 : isSelected ? 2.8 : isCurrent ? 2.2 : 1;
+        const strokeW = isEditing || isDragging ? 3 : isSelected ? 3.2 : isCurrent ? 2.6 : 1.6;
         const fill = fillFor(slot, wedge);
         const midH = (startH + endH) / 2;
         const [lx, ly] = polar(((midH % 24) + 24) % 24, labelR);
