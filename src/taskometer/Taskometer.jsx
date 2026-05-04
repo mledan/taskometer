@@ -17,6 +17,7 @@ import BlockBoard from './BlockBoard.jsx';
 import WeekCanvas from './WeekCanvas.jsx';
 import LifeCanvas from './LifeCanvas.jsx';
 import TimeBreakdown from './TimeBreakdown.jsx';
+import Snoozed from './Snoozed.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
@@ -1040,6 +1041,20 @@ export default function Taskometer() {
                 api.tasks.reschedule(taskId, iso, null);
                 telemetryLog('ui:coming-up-reschedule', { id: taskId });
               }}
+            />
+            <Snoozed
+              tasks={state.tasks || []}
+              onReschedule={(taskId, iso) => {
+                api.tasks.reschedule(taskId, iso, null);
+                telemetryLog('ui:snoozed-reschedule', { id: taskId });
+              }}
+              onComplete={(taskId) => api.tasks.toggleComplete(taskId)}
+              onPushTomorrow={(taskId, when) => {
+                const base = when || new Date();
+                const next = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+                api.tasks.reschedule(taskId, next.toISOString(), null);
+              }}
+              onDelete={(taskId) => api.tasks.remove(taskId)}
             />
             <SleepPSA slots={state.slots || []} dateKey={viewKey} />
             <button

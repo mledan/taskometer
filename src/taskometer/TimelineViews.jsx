@@ -645,7 +645,6 @@ export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPa
   const ms = multiSelect || localMs;
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <CategoryBreakdownBar slots={monthSlots} taskTypes={taskTypes} label="month" />
       <MonthCalendar
         year={selectedDate.getFullYear()}
         month={selectedDate.getMonth()}
@@ -694,7 +693,6 @@ export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, on
   const ms = multiSelect || localMs;
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <CategoryBreakdownBar slots={slice} taskTypes={taskTypes} label="quarter" />
       <ScopeHeatmapHeader title={`Q${q + 1} ${year}`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
         {[0, 1, 2].map(off => (
@@ -749,7 +747,6 @@ export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPai
   const ms = multiSelect || localMs;
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <CategoryBreakdownBar slots={slice} taskTypes={taskTypes} label="year" />
       <ScopeHeatmapHeader title={`${y}`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
         {Array.from({ length: 12 }, (_, m) => (
@@ -1019,9 +1016,11 @@ function MonthCalendar({
                 cursor: lassoAnchor ? 'crosshair' : 'pointer',
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'center',
-                gap: 2,
+                alignItems: 'stretch',
+                justifyContent: 'space-between',
+                gap: compact ? 2 : 4,
                 padding: cellPad,
+                minHeight: compact ? 56 : 90,
                 border: `${isDragOver || isInLasso ? '2px' : '1px'} ${borderStyle} ${borderColor}`,
                 borderRadius: 6,
                 background,
@@ -1030,20 +1029,12 @@ function MonthCalendar({
                 outline: 'none',
               }}
             >
-              <span style={{
-                fontFamily: 'Inter, system-ui, sans-serif',
-                fontSize: dayFontSize + (compact ? 2 : 6),
-                lineHeight: 1,
-                color: isToday || isInLasso || isDragOver ? 'var(--orange)' : 'var(--ink)',
-              }}>
-                {d.getDate()}
-              </span>
-              <MiniWheel slots={cellSlots} size={wheelSize} thickness={Math.max(3, Math.round(wheelSize / 9))} />
-              {!compact && (
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'var(--ink-mute)' }}>
-                  {cellSlots.length ? `${cellSlots.length}b` : '·'}
-                </span>
-              )}
+              <CellContent
+                date={d}
+                cellSlots={cellSlots}
+                isToday={isToday || isInLasso || isDragOver}
+                compact={compact}
+              />
             </div>
           );
         })}
@@ -1054,6 +1045,106 @@ function MonthCalendar({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * CellContent — replaces the tiny mini-wheel that was illegible at
+ * quarter/year scale. Renders a horizontal stacked bar of category
+ * colors proportional to time spent, with the day number on top and
+ * a compact footer (hours · blocks). Reads at every grid size.
+ */
+function CellContent({ date, cellSlots, isToday, compact }) {
+  const segments = useMemo(() => {
+    const byColor = new Map();
+    let total = 0;
+    for (const s of cellSlots) {
+      const min = (() => {
+        const [sh, sm] = (s.startTime || '0:0').split(':').map(Number);
+        const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
+        let start = (sh || 0) * 60 + (sm || 0);
+        let end = (eh || 0) * 60 + (em || 0);
+        if (end <= start) end += 24 * 60;
+        return end - start;
+      })();
+      const color = s.color || 'var(--ink-mute)';
+      byColor.set(color, (byColor.get(color) || 0) + min);
+      total += min;
+    }
+    if (total === 0) return [];
+    return [...byColor.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([color, min]) => ({ color, pct: (min / total) * 100 }));
+  }, [cellSlots]);
+
+  const totalHours = useMemo(() => {
+    let m = 0;
+    for (const s of cellSlots) {
+      const [sh, sm] = (s.startTime || '0:0').split(':').map(Number);
+      const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
+      let start = (sh || 0) * 60 + (sm || 0);
+      let end = (eh || 0) * 60 + (em || 0);
+      if (end <= start) end += 24 * 60;
+      m += end - start;
+    }
+    return Math.round(m / 60);
+  }, [cellSlots]);
+
+  const empty = segments.length === 0;
+  const dayFont = compact ? 12 : 16;
+  const footerFont = compact ? 9 : 10;
+  const barH = compact ? 8 : 16;
+
+  return (
+    <>
+      <span
+        style={{
+          fontFamily: 'Inter, system-ui, sans-serif',
+          fontSize: dayFont,
+          fontWeight: isToday ? 700 : 500,
+          lineHeight: 1,
+          color: isToday ? 'var(--orange)' : 'var(--ink)',
+          textAlign: 'left',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {date.getDate()}
+      </span>
+      <div
+        aria-hidden
+        style={{
+          display: 'flex',
+          height: barH,
+          borderRadius: 3,
+          overflow: 'hidden',
+          background: 'var(--rule-soft)',
+          opacity: empty ? 0.35 : 1,
+          flex: '0 0 auto',
+        }}
+      >
+        {segments.map((seg, i) => (
+          <div
+            key={i}
+            style={{
+              width: `${seg.pct}%`,
+              background: seg.color,
+            }}
+          />
+        ))}
+      </div>
+      {!compact && (
+        <span
+          style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: footerFont,
+            color: 'var(--ink-mute)',
+            textAlign: 'right',
+          }}
+        >
+          {empty ? '·' : `${totalHours}h · ${cellSlots.length}b`}
+        </span>
+      )}
+    </>
   );
 }
 
