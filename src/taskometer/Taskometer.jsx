@@ -121,6 +121,11 @@ export default function Taskometer() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [packPickerOpen, setPackPickerOpen] = useState(false);
   const [pathPickerOpen, setPathPickerOpen] = useState(false);
+  // Shared paint material across calendar views — schedule (default)
+  // or blank (erase). User: "i want to do click and drag, wether
+  // it's a path, a single task, blankness, or a full day or week."
+  // Future material types (path, task) would extend this.
+  const [paintMaterial, setPaintMaterial] = useState('schedule');
   // The wheel currently being painted across a range. Null = painter
   // closed. Object = { wheel } where wheel may need to be added to the
   // user's library before applyToRange can target it by ID.
@@ -750,6 +755,44 @@ export default function Taskometer() {
     emit(EVENTS.WHEEL_APPLIED, { wheelId, startDate, endDate });
   };
 
+  // Paint dispatchers — route by material (schedule | blank). Schedule
+  // opens the picker so the user chooses the wheel; blank goes
+  // straight through to clearRange. Easy to extend later for "path"
+  // and "single task" materials.
+  const handlePaintDay = async (wheelIdOrNull, dateKey, material) => {
+    if (material === 'blank') {
+      await api.wheels.clearRange(dateKey, dateKey);
+      telemetryLog('paint:blank-day', { dateKey });
+      return;
+    }
+    if (wheelIdOrNull) {
+      // Drop-from-rail flow already passes a real wheelId.
+      return paintWheelOnDate(wheelIdOrNull, dateKey);
+    }
+  };
+  const handlePaintRange = async (startDate, endDate, material) => {
+    if (material === 'blank') {
+      await api.wheels.clearRange(startDate, endDate);
+      telemetryLog('paint:blank-range', { startDate, endDate });
+      return;
+    }
+    setPendingRange({ startDate, endDate });
+    setPickerOpen(true);
+  };
+  const handlePaintDays = async (dates, material) => {
+    if (!dates || dates.length === 0) return;
+    if (material === 'blank') {
+      for (const dateKey of dates) {
+        // eslint-disable-next-line no-await-in-loop
+        await api.wheels.clearRange(dateKey, dateKey);
+      }
+      telemetryLog('paint:blank-days', { count: dates.length });
+      return;
+    }
+    setPendingDays(dates);
+    setPickerOpen(true);
+  };
+
   const paintWheelAcrossRange = async ({ startDate, endDate, weekdaysOnly, weekendsOnly, customDow, mode }) => {
     if (!painterTarget?.wheel) return;
     const target = painterTarget.wheel;
@@ -1206,6 +1249,12 @@ export default function Taskometer() {
         />
       )}
 
+      {/* Material toggle is shared across calendar views — schedule
+          paints the picker-selected wheel, blank erases the range. */}
+      {(scale === 'month' || scale === 'quarter' || scale === 'year' || scale === 'life') && (
+        <PaintMaterialToolbar material={paintMaterial} setMaterial={setPaintMaterial} />
+      )}
+
       {scale === 'month' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <TimeBreakdown
@@ -1221,16 +1270,9 @@ export default function Taskometer() {
             slots={state.slots || []}
             taskTypes={state.taskTypes || []}
             onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
-            onPaintDay={paintWheelOnDate}
-            onPaintRange={(startDate, endDate) => {
-              setPendingRange({ startDate, endDate });
-              setPickerOpen(true);
-            }}
-            onPaintDays={(dates) => {
-              if (!dates || dates.length === 0) return;
-              setPendingDays(dates);
-              setPickerOpen(true);
-            }}
+            onPaintDay={(wheelId, dateKey) => handlePaintDay(wheelId, dateKey, paintMaterial)}
+            onPaintRange={(startDate, endDate) => handlePaintRange(startDate, endDate, paintMaterial)}
+            onPaintDays={(dates) => handlePaintDays(dates, paintMaterial)}
             onSaveDaysAsRhythm={saveDaysAsRhythm}
             multiSelect={multiSelect}
           />
@@ -1252,16 +1294,9 @@ export default function Taskometer() {
             slots={state.slots || []}
             taskTypes={state.taskTypes || []}
             onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
-            onPaintDay={paintWheelOnDate}
-            onPaintRange={(startDate, endDate) => {
-              setPendingRange({ startDate, endDate });
-              setPickerOpen(true);
-            }}
-            onPaintDays={(dates) => {
-              if (!dates || dates.length === 0) return;
-              setPendingDays(dates);
-              setPickerOpen(true);
-            }}
+            onPaintDay={(wheelId, dateKey) => handlePaintDay(wheelId, dateKey, paintMaterial)}
+            onPaintRange={(startDate, endDate) => handlePaintRange(startDate, endDate, paintMaterial)}
+            onPaintDays={(dates) => handlePaintDays(dates, paintMaterial)}
             onSaveDaysAsRhythm={saveDaysAsRhythm}
             multiSelect={multiSelect}
           />
@@ -1283,16 +1318,9 @@ export default function Taskometer() {
             slots={state.slots || []}
             taskTypes={state.taskTypes || []}
             onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
-            onPaintDay={paintWheelOnDate}
-            onPaintRange={(startDate, endDate) => {
-              setPendingRange({ startDate, endDate });
-              setPickerOpen(true);
-            }}
-            onPaintDays={(dates) => {
-              if (!dates || dates.length === 0) return;
-              setPendingDays(dates);
-              setPickerOpen(true);
-            }}
+            onPaintDay={(wheelId, dateKey) => handlePaintDay(wheelId, dateKey, paintMaterial)}
+            onPaintRange={(startDate, endDate) => handlePaintRange(startDate, endDate, paintMaterial)}
+            onPaintDays={(dates) => handlePaintDays(dates, paintMaterial)}
             onSaveDaysAsRhythm={saveDaysAsRhythm}
             multiSelect={multiSelect}
           />
@@ -1304,7 +1332,9 @@ export default function Taskometer() {
           slots={state.slots || []}
           tasks={filteredState.tasks || []}
           taskTypes={state.taskTypes || []}
+          paintMaterial={paintMaterial}
           onPickDate={(d) => { setSelectedDate(d); setScale('year'); }}
+          onPaintRange={(startKey, endKey) => handlePaintRange(startKey, endKey, paintMaterial)}
         />
       )}
 
@@ -2042,6 +2072,53 @@ function sameDayKey(date, key) {
   const d = date.getDate();
   const k = `${date.getFullYear()}-${m < 10 ? '0' + m : m}-${d < 10 ? '0' + d : d}`;
   return k === key;
+}
+
+function PaintMaterialToolbar({ material, setMaterial }) {
+  return (
+    <div
+      style={{
+        marginBottom: 12,
+        padding: '8px 12px',
+        border: '1px dashed var(--rule)',
+        borderRadius: 10,
+        background: 'var(--paper)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        flexWrap: 'wrap',
+      }}
+    >
+      <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+        click + drag paints
+      </span>
+      <div className="tm-seg">
+        <button
+          type="button"
+          className={material === 'schedule' ? 'tm-on' : ''}
+          onClick={() => setMaterial('schedule')}
+          title="drag a range, then pick a schedule to apply"
+          style={{ fontSize: 11 }}
+        >
+          schedule
+        </button>
+        <button
+          type="button"
+          className={material === 'blank' ? 'tm-on' : ''}
+          onClick={() => setMaterial('blank')}
+          title="drag a range to clear all blocks (and drop the day assignment)"
+          style={{ fontSize: 11 }}
+        >
+          blank
+        </button>
+      </div>
+      <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', flex: 1, textAlign: 'right' }}>
+        {material === 'blank'
+          ? 'drag clears every block in the range'
+          : 'drag selects a range, then a picker asks which schedule'}
+      </span>
+    </div>
+  );
 }
 
 function monthRangeFor(date) {

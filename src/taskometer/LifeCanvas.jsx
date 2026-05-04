@@ -39,10 +39,44 @@ export default function LifeCanvas({
   slots = [],
   tasks = [],
   taskTypes = [],
+  paintMaterial = 'schedule',
   onPickDate,
+  onPaintRange,
 }) {
   const [horizon, setHorizon] = useState(readHorizon);
   useEffect(() => { writeHorizon(horizon); }, [horizon]);
+
+  // Year-range lasso. Dragging from year A to year B paints the
+  // active material across [Jan 1 of min, Dec 31 of max]. The
+  // material toolbar lives one level up in Taskometer.
+  const [lassoAnchor, setLassoAnchor] = useState(null);
+  const [lassoEnd, setLassoEnd] = useState(null);
+  const lassoActive = lassoAnchor != null && lassoEnd != null;
+  const lassoSet = useMemo(() => {
+    if (!lassoActive) return new Set();
+    const a = Math.min(lassoAnchor, lassoEnd);
+    const b = Math.max(lassoAnchor, lassoEnd);
+    const set = new Set();
+    for (let y = a; y <= b; y++) set.add(y);
+    return set;
+  }, [lassoAnchor, lassoEnd, lassoActive]);
+
+  useEffect(() => {
+    if (lassoAnchor == null) return;
+    const onUp = () => {
+      if (lassoAnchor != null && lassoEnd != null) {
+        const a = Math.min(lassoAnchor, lassoEnd);
+        const b = Math.max(lassoAnchor, lassoEnd);
+        const startKey = `${a}-01-01`;
+        const endKey = `${b}-12-31`;
+        onPaintRange?.(startKey, endKey);
+      }
+      setLassoAnchor(null);
+      setLassoEnd(null);
+    };
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, [lassoAnchor, lassoEnd, onPaintRange]);
 
   const today = useMemo(() => new Date(), []);
   const startYear = today.getFullYear();
@@ -145,20 +179,34 @@ export default function LifeCanvas({
             const yearSlots = slotsByYear.get(y) || [];
             const fillPct = peak > 0 ? Math.round((yearSlots.length / peak) * 100) : 0;
             const isCurrent = y === startYear;
+            const isInLasso = lassoSet.has(y);
             return (
-              <button
+              <div
                 key={y}
-                type="button"
-                onClick={() => jumpToYear(y)}
-                title={`${y} · ${yearSlots.length} block${yearSlots.length === 1 ? '' : 's'} painted`}
+                role="button"
+                tabIndex={0}
+                onClick={() => { if (!lassoActive) jumpToYear(y); }}
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return;
+                  if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+                  if (!onPaintRange) return;
+                  setLassoAnchor(y);
+                  setLassoEnd(y);
+                }}
+                onMouseEnter={() => {
+                  if (lassoAnchor != null) setLassoEnd(y);
+                }}
+                title={`${y} · ${yearSlots.length} block${yearSlots.length === 1 ? '' : 's'} painted${onPaintRange ? ' · click + drag to paint a year range' : ''}`}
                 style={{
-                  all: 'unset',
-                  cursor: 'pointer',
+                  cursor: lassoAnchor != null ? 'crosshair' : 'pointer',
                   display: 'grid',
                   gridTemplateColumns: '60px 1fr 80px',
                   alignItems: 'center',
                   gap: 10,
-                  padding: '4px 0',
+                  padding: '4px 4px',
+                  borderRadius: 4,
+                  background: isInLasso ? 'var(--orange-pale, #FBE9DD)' : 'transparent',
+                  userSelect: 'none',
                 }}
               >
                 <span
@@ -196,7 +244,7 @@ export default function LifeCanvas({
                 >
                   {yearSlots.length > 0 ? `${yearSlots.length} block${yearSlots.length === 1 ? '' : 's'}` : '—'}
                 </span>
-              </button>
+              </div>
             );
           })}
         </div>
