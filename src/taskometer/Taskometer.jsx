@@ -4,7 +4,7 @@ import WheelPickerModal from './WheelPickerModal.jsx';
 import WheelPainter from './WheelPainter.jsx';
 import SaveAsRhythmModal from './year/SaveAsRhythmModal.jsx';
 import CalendarView from './CalendarView.jsx';
-import { WeekTimeline, MonthInsights, QuarterInsights, YearInsights } from './TimelineViews.jsx';
+import { MonthInsights, QuarterInsights, YearInsights } from './TimelineViews.jsx';
 import DailyWrap from './DailyWrap.jsx';
 import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
@@ -14,6 +14,9 @@ import SleepPSA from './SleepPSA.jsx';
 import DayStrip from './DayStrip.jsx';
 import ComingUp from './ComingUp.jsx';
 import BlockBoard from './BlockBoard.jsx';
+import WeekCanvas from './WeekCanvas.jsx';
+import LifeCanvas from './LifeCanvas.jsx';
+import TimeBreakdown from './TimeBreakdown.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
@@ -40,8 +43,8 @@ import './taskometer.css';
  * rules) is gone. Each scale picks its own body component.
  */
 
-const SCALES = ['block', 'day', 'week', 'month', 'quarter', 'year'];
-const CALENDAR_SCOPES = new Set(['month', 'quarter', 'year']);
+const SCALES = ['block', 'day', 'week', 'month', 'quarter', 'year', 'life'];
+const CALENDAR_SCOPES = new Set(['month', 'quarter', 'year', 'life']);
 
 const DEFAULT_UI = {
   palette: 'warm',
@@ -1040,79 +1043,136 @@ export default function Taskometer() {
       )}
 
       {scale === 'week' && (
-        <WeekTimeline
+        <WeekCanvas
           selectedDate={selectedDate}
           slots={state.slots || []}
           tasks={filteredState.tasks || []}
           taskTypes={state.taskTypes || []}
+          wheels={userWheels}
+          dayAssignments={derived.dayAssignments}
+          dayOverrides={derived.dayOverrides}
           onPickDate={(d) => {
             telemetryLog('ui:week-pick-day', { date: formatYMD(d) });
             setSelectedDate(d);
             setScale('day');
           }}
+          onPaintRange={async ({ wheelId, startKey, endKey, weekdaysOnly, weekendsOnly }) => {
+            if (!wheelId) return;
+            const result = await api.wheels.applyToRange(wheelId, startKey, endKey, {
+              weekdaysOnly: !!weekdaysOnly,
+              weekendsOnly: !!weekendsOnly,
+              mode: 'replace',
+            });
+            telemetryLog('ui:week-paint', {
+              wheelId,
+              count: result?.painted?.length || 0,
+              weekdaysOnly: !!weekdaysOnly,
+              weekendsOnly: !!weekendsOnly,
+            });
+            emit(EVENTS.WHEEL_APPLIED, { wheelId });
+          }}
         />
       )}
 
       {scale === 'month' && (
-        <MonthInsights
-          selectedDate={selectedDate}
-          slots={state.slots || []}
-          taskTypes={state.taskTypes || []}
-          onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
-          onPaintDay={paintWheelOnDate}
-          onPaintRange={(startDate, endDate) => {
-            setPendingRange({ startDate, endDate });
-            setPickerOpen(true);
-          }}
-          onPaintDays={(dates) => {
-            if (!dates || dates.length === 0) return;
-            setPendingDays(dates);
-            setPickerOpen(true);
-          }}
-          onSaveDaysAsRhythm={saveDaysAsRhythm}
-          multiSelect={multiSelect}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <TimeBreakdown
+            slots={state.slots || []}
+            tasks={filteredState.tasks || []}
+            taskTypes={state.taskTypes || []}
+            range={monthRangeFor(selectedDate)}
+            title="Where the month goes"
+            subtitle={`${selectedDate.toLocaleDateString('en', { month: 'long', year: 'numeric' })} · planned hours by category`}
+          />
+          <MonthInsights
+            selectedDate={selectedDate}
+            slots={state.slots || []}
+            taskTypes={state.taskTypes || []}
+            onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
+            onPaintDay={paintWheelOnDate}
+            onPaintRange={(startDate, endDate) => {
+              setPendingRange({ startDate, endDate });
+              setPickerOpen(true);
+            }}
+            onPaintDays={(dates) => {
+              if (!dates || dates.length === 0) return;
+              setPendingDays(dates);
+              setPickerOpen(true);
+            }}
+            onSaveDaysAsRhythm={saveDaysAsRhythm}
+            multiSelect={multiSelect}
+          />
+        </div>
       )}
 
       {scale === 'quarter' && (
-        <QuarterInsights
-          selectedDate={selectedDate}
-          slots={state.slots || []}
-          taskTypes={state.taskTypes || []}
-          onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
-          onPaintDay={paintWheelOnDate}
-          onPaintRange={(startDate, endDate) => {
-            setPendingRange({ startDate, endDate });
-            setPickerOpen(true);
-          }}
-          onPaintDays={(dates) => {
-            if (!dates || dates.length === 0) return;
-            setPendingDays(dates);
-            setPickerOpen(true);
-          }}
-          onSaveDaysAsRhythm={saveDaysAsRhythm}
-          multiSelect={multiSelect}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <TimeBreakdown
+            slots={state.slots || []}
+            tasks={filteredState.tasks || []}
+            taskTypes={state.taskTypes || []}
+            range={quarterRangeFor(selectedDate)}
+            title="Where the quarter goes"
+            subtitle={`${quarterLabel(selectedDate)} · planned hours by category`}
+          />
+          <QuarterInsights
+            selectedDate={selectedDate}
+            slots={state.slots || []}
+            taskTypes={state.taskTypes || []}
+            onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
+            onPaintDay={paintWheelOnDate}
+            onPaintRange={(startDate, endDate) => {
+              setPendingRange({ startDate, endDate });
+              setPickerOpen(true);
+            }}
+            onPaintDays={(dates) => {
+              if (!dates || dates.length === 0) return;
+              setPendingDays(dates);
+              setPickerOpen(true);
+            }}
+            onSaveDaysAsRhythm={saveDaysAsRhythm}
+            multiSelect={multiSelect}
+          />
+        </div>
       )}
 
       {scale === 'year' && (
-        <YearInsights
-          selectedDate={selectedDate}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <TimeBreakdown
+            slots={state.slots || []}
+            tasks={filteredState.tasks || []}
+            taskTypes={state.taskTypes || []}
+            range={yearRangeFor(selectedDate)}
+            title="Where the year goes"
+            subtitle={`${selectedDate.getFullYear()} · planned hours by category`}
+          />
+          <YearInsights
+            selectedDate={selectedDate}
+            slots={state.slots || []}
+            taskTypes={state.taskTypes || []}
+            onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
+            onPaintDay={paintWheelOnDate}
+            onPaintRange={(startDate, endDate) => {
+              setPendingRange({ startDate, endDate });
+              setPickerOpen(true);
+            }}
+            onPaintDays={(dates) => {
+              if (!dates || dates.length === 0) return;
+              setPendingDays(dates);
+              setPickerOpen(true);
+            }}
+            onSaveDaysAsRhythm={saveDaysAsRhythm}
+            multiSelect={multiSelect}
+          />
+        </div>
+      )}
+
+      {scale === 'life' && (
+        <LifeCanvas
           slots={state.slots || []}
+          tasks={filteredState.tasks || []}
           taskTypes={state.taskTypes || []}
-          onPickDate={(d) => { setSelectedDate(d); setScale('day'); }}
-          onPaintDay={paintWheelOnDate}
-          onPaintRange={(startDate, endDate) => {
-            setPendingRange({ startDate, endDate });
-            setPickerOpen(true);
-          }}
-          onPaintDays={(dates) => {
-            if (!dates || dates.length === 0) return;
-            setPendingDays(dates);
-            setPickerOpen(true);
-          }}
-          onSaveDaysAsRhythm={saveDaysAsRhythm}
-          multiSelect={multiSelect}
+          onPickDate={(d) => { setSelectedDate(d); setScale('year'); }}
         />
       )}
 
@@ -1763,6 +1823,29 @@ function sameDayKey(date, key) {
   const d = date.getDate();
   const k = `${date.getFullYear()}-${m < 10 ? '0' + m : m}-${d < 10 ? '0' + d : d}`;
   return k === key;
+}
+
+function monthRangeFor(date) {
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  const start = new Date(y, m, 1);
+  const end = new Date(y, m + 1, 0);
+  return { startKey: formatYMD(start), endKey: formatYMD(end) };
+}
+function quarterRangeFor(date) {
+  const y = date.getFullYear();
+  const q = Math.floor(date.getMonth() / 3);
+  const start = new Date(y, q * 3, 1);
+  const end = new Date(y, q * 3 + 3, 0);
+  return { startKey: formatYMD(start), endKey: formatYMD(end) };
+}
+function quarterLabel(date) {
+  const q = Math.floor(date.getMonth() / 3) + 1;
+  return `Q${q} ${date.getFullYear()}`;
+}
+function yearRangeFor(date) {
+  const y = date.getFullYear();
+  return { startKey: `${y}-01-01`, endKey: `${y}-12-31` };
 }
 
 function formatRolloverLabel(dateKey) {
