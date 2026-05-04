@@ -20,6 +20,16 @@ const COLLAPSE_KEY = 'taskometer.famousSpotlight.collapsed';
  * Collapsible — once a user is happy with their routine, the
  * spotlight stays out of the way until they reopen it.
  */
+// Time-of-day slices for mix-and-match. Each entry is a label and a
+// half-open [from, to) window. "All" is a sentinel — null means paint
+// the whole day with no clipping.
+const SLICES = [
+  { id: 'all', label: 'All day', from: null, to: null },
+  { id: 'morning', label: 'AM', from: '05:00', to: '12:00', tip: '5am – noon' },
+  { id: 'afternoon', label: 'PM', from: '12:00', to: '17:00', tip: 'noon – 5pm' },
+  { id: 'evening', label: 'Eve', from: '17:00', to: '22:00', tip: '5pm – 10pm' },
+];
+
 export default function FamousSpotlight({ onApply, onSeeAll }) {
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch (_) { return false; }
@@ -134,7 +144,7 @@ export default function FamousSpotlight({ onApply, onSeeAll }) {
             key={wheel.id}
             wheel={wheel}
             profile={profile}
-            onApply={() => onApply?.(wheel.id)}
+            onApply={(id, slice) => onApply?.(id, slice)}
           />
         ))}
       </div>
@@ -149,14 +159,13 @@ function FamousCard({ wheel, profile, onApply }) {
     color: b.color,
   }));
 
+  const apply = (slice) => {
+    onApply?.(wheel.id, slice);
+  };
+
   return (
-    <button
-      type="button"
-      onClick={onApply}
-      title={`paint ${wheel.name}'s routine onto today · drag to weekdays/weekends from the schedule library for a recurring pattern`}
+    <div
       style={{
-        all: 'unset',
-        cursor: 'pointer',
         padding: '12px 14px',
         border: '1px solid var(--rule)',
         borderRadius: 10,
@@ -164,7 +173,7 @@ function FamousCard({ wheel, profile, onApply }) {
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
-        transition: 'border-color 0.1s, transform 0.08s',
+        transition: 'border-color 0.1s',
       }}
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--orange)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--rule)'; }}
@@ -183,10 +192,29 @@ function FamousCard({ wheel, profile, onApply }) {
       <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.4 }}>
         {profile.blurb}
       </div>
+
+      {/* Slice buttons — paint just AM/PM/Eve so users can mix two
+          routines on the same day. "All day" is the simple full
+          replace (clears the day, paints whole wheel). The others
+          clip the wheel to a time window and merge with the rest of
+          the day's existing slots — that's the partial paint mode. */}
+      <div className="tm-seg" style={{ marginTop: 2 }}>
+        {SLICES.map(s => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => apply(s)}
+            title={s.tip ? `paint ${s.tip} of ${wheel.name}'s routine` : `paint ${wheel.name}'s full day`}
+            style={{ fontSize: 11 }}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
       <div
         className="tm-mono tm-sm"
         style={{ color: 'var(--ink-mute)', fontSize: 10, lineHeight: 1.3 }}
-        onClick={(e) => e.stopPropagation()}
       >
         source:{' '}
         {profile.sourceUrl ? (
@@ -202,6 +230,6 @@ function FamousCard({ wheel, profile, onApply }) {
           profile.source
         )}
       </div>
-    </button>
+    </div>
   );
 }

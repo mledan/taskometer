@@ -283,36 +283,147 @@ export function makeTaskometerAPI({ dispatch, getState }) {
       return wheels.add({ name, color, blocks });
     },
     /**
-     * Apply a wheel to a date. Creates concrete slots. `mode`:
-     *   'replace' — remove existing same-date slots first
-     *   'merge'   — keep existing slots and layer the wheel on top
-     * Auto-assigns the wheel to that date via dayAssignments.
+     * Apply a wheel to a date. Creates concrete slots.
+     *
+     *   mode: 'replace' — remove existing same-date slots first
+     *         'merge'   — keep existing slots and layer the wheel on top
+     *
+     *   from / to: optional 'HH:mm' time window to paint only a slice
+     *     of the wheel onto the day. The window is inclusive of `from`
+     *     and exclusive of `to`. Blocks that overlap the window are
+     *     clipped to fit. Used for mix-and-match — "morning of Buffett
+     *     + afternoon of Hemingway." When `from` or `to` is set we
+     *     don't auto-assign the wheel to the day (the day is now a
+     *     composition, not a single shape).
      */
-    async applyToDate(wheelId, date, { mode = 'replace' } = {}) {
+    async applyToDate(wheelId, date, { mode = 'replace', from, to } = {}) {
       const state = getState();
       const wheel = wheels.list().find(w => w.id === wheelId);
       if (!wheel) return;
       const dateKey = typeof date === 'string' ? date : ymd(date);
 
+      const partial = !!from || !!to;
+      const winFrom = from ? hhmmToMinutes(from) : 0;
+      const winTo = to ? hhmmToMinutes(to) : 24 * 60;
+
       if (mode === 'replace') {
-        const toRemove = (state.slots || []).filter(s => s.date === dateKey);
-        for (const s of toRemove) {
-          // eslint-disable-next-line no-await-in-loop
-          dispatch({ type: ACTION_TYPES.DELETE_SLOT, payload: { id: s.id } });
+        const dayList = (state.slots || []).filter(s => s.date === dateKey);
+        if (!partial) {
+          for (const s of dayList) {
+            // eslint-disable-next-line no-await-in-loop
+            dispatch({ type: ACTION_TYPES.DELETE_SLOT, payload: { id: s.id } });
+          }
+        } else {
+          // Partial mode: delete slots entirely inside the window;
+          // for slots straddling the window boundary, clip them to
+          // keep the outside portion. Mix-and-match should not erase
+          // the user's existing blocks just because the boundary cuts
+          // through them.
+          for (const s of dayList) {
+            const sStart = hhmmToMinutes(s.startTime);
+            const sEndRaw = hhmmToMinutes(s.endTime);
+            const sEnd = sEndRaw <= sStart ? sEndRaw + 24 * 60 : sEndRaw;
+            const winFromMin = winFrom;
+            const winToMin = winTo;
+            // Entirely outside the window — leave alone
+            if (sEnd <= winFromMin || sStart >= winToMin) continue;
+            // Entirely inside — delete
+            if (sStart >= winFromMin && sEnd <= winToMin) {
+              // eslint-disable-next-line no-await-in-loop
+              dispatch({ type: ACTION_TYPES.DELETE_SLOT, payload: { id: s.id } });
+              continue;
+            }
+            // Straddling: clip to the outside portion. There are three
+            // shapes — left overhang, right overhang, or wrap (slot
+            // covers the whole window with leftovers on both sides;
+            // we split into two slots).
+            const leftStart = sStart;
+            const leftEnd = Math.max(sStart, Math.min(sEnd, winFromMin));
+            const rightStart = Math.max(sStart, Math.min(sEnd, winToMin));
+            const rightEnd = sEnd;
+            const hasLeft = leftEnd > leftStart;
+            const hasRight = rightEnd > rightStart;
+            if (hasLeft && !hasRight) {
+              // eslint-disable-next-line no-await-in-loop
+              dispatch({
+                type: ACTION_TYPES.UPDATE_SLOT,
+                payload: { id: s.id, startTime: minutesToHHMM(leftStart), endTime: minutesToHHMM(leftEnd) },
+              });
+            } else if (!hasLeft && hasRight) {
+              // eslint-disable-next-line no-await-in-loop
+              dispatch({
+                type: ACTION_TYPES.UPDATE_SLOT,
+                payload: { id: s.id, startTime: minutesToHHMM(rightStart), endTime: minutesToHHMM(rightEnd === 24 * 60 ? 0 : rightEnd) },
+              });
+            } else if (hasLeft && hasRight) {
+              // Window punches a hole — shrink the existing slot to
+              // the left chunk and create a new slot for the right.
+              // eslint-disable-next-line no-await-in-loop
+              dispatch({
+                type: ACTION_TYPES.UPDATE_SLOT,
+                payload: { id: s.id, startTime: minutesToHHMM(leftStart), endTime: minutesToHHMM(leftEnd) },
+              });
+              // eslint-disable-next-line no-await-in-loop
+              dispatch({
+                type: ACTION_TYPES.ADD_SLOT,
+                payload: {
+                  date: dateKey,
+                  startTime: minutesToHHMM(rightStart),
+                  endTime: minutesToHHMM(rightEnd === 24 * 60 ? 0 : rightEnd),
+                  slotType: s.slotType || null,
+                  label: s.label || s.slotType || 'block',
+                  color: s.color || null,
+                  sourceScheduleId: s.sourceScheduleId || null,
+                },
+              });
+            }
+          }
         }
       }
 
-      const slotsToAdd = wheel.blocks.map(b => ({
-        date: dateKey,
-        startTime: b.startTime,
-        endTime: b.endTime,
-        slotType: b.slotType || null,
-        label: b.label || b.slotType || 'block',
-        color: b.color || wheel.color || null,
-        sourceScheduleId: wheelId,
-      }));
-      dispatch({ type: ACTION_TYPES.BATCH_CREATE_SLOTS, payload: { slots: slotsToAdd } });
-      await days.assign(dateKey, wheelId);
+      const slotsToAdd = [];
+      for (const b of wheel.blocks) {
+        if (!partial) {
+          slotsToAdd.push({
+            date: dateKey,
+            startTime: b.startTime,
+            endTime: b.endTime,
+            slotType: b.slotType || null,
+            label: b.label || b.slotType || 'block',
+            color: b.color || wheel.color || null,
+            sourceScheduleId: wheelId,
+          });
+          continue;
+        }
+        // Partial paint: clip the block to the window if it overlaps.
+        const blockStart = hhmmToMinutes(b.startTime);
+        const blockEndRaw = hhmmToMinutes(b.endTime);
+        const blockEnd = blockEndRaw <= blockStart ? blockEndRaw + 24 * 60 : blockEndRaw;
+        // Skip blocks entirely outside the window.
+        if (blockEnd <= winFrom || blockStart >= winTo) continue;
+        const startMin = Math.max(blockStart, winFrom);
+        const endMin = Math.min(blockEnd, winTo);
+        const startTime = minutesToHHMM(startMin);
+        const endTime = minutesToHHMM(endMin === 24 * 60 ? 0 : endMin);
+        slotsToAdd.push({
+          date: dateKey,
+          startTime,
+          endTime,
+          slotType: b.slotType || null,
+          label: b.label || b.slotType || 'block',
+          color: b.color || wheel.color || null,
+          sourceScheduleId: wheelId,
+        });
+      }
+      if (slotsToAdd.length > 0) {
+        dispatch({ type: ACTION_TYPES.BATCH_CREATE_SLOTS, payload: { slots: slotsToAdd } });
+      }
+      // Only auto-assign if this is a whole-day paint. A partial paint
+      // means the day is now a composition — there's no single owning
+      // wheel.
+      if (!partial) {
+        await days.assign(dateKey, wheelId);
+      }
     },
     /**
      * Apply to a date range. Options:
@@ -731,6 +842,13 @@ function hhmmToMinutes(s) {
   if (!s) return 0;
   const [h, m] = s.split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
+}
+
+function minutesToHHMM(min) {
+  const m = ((Math.round(min) % (24 * 60)) + 24 * 60) % (24 * 60);
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${h < 10 ? '0' + h : h}:${mm < 10 ? '0' + mm : mm}`;
 }
 
 function slotOverlapsWindow(slot, fromHHMM, toHHMM) {

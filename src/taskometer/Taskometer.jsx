@@ -945,13 +945,38 @@ export default function Taskometer() {
       />
 
       {/* Famous routines spotlight — surfaces curated historical
-          schedules with sourced one-liners. Click → paint that
-          routine on the day in view. Collapsible. */}
+          schedules with sourced one-liners. Click All-day → paints
+          the whole wheel. Click AM/PM/Eve → mix-and-match: paints
+          only that slice, leaving the rest of the day intact so the
+          user can layer Buffett's morning over Hemingway's afternoon. */}
       {scale === 'day' && (
         <FamousSpotlight
-          onApply={async (wheelId) => {
-            await applyWheelToDay(wheelId);
-            telemetryLog('ui:famous-spotlight-apply', { wheelId, date: viewKey });
+          onApply={async (wheelId, slice) => {
+            const partial = slice && (slice.from || slice.to);
+            if (partial) {
+              // Make sure the wheel is in the user's library so applyToDate
+              // can resolve it — same shape as applyWheelToDay does.
+              const existing = userWheels.find(w => w.id === wheelId);
+              let actualId = existing?.id;
+              if (!actualId) {
+                const tmpl = [...STARTER_WHEELS, ...ARCHETYPE_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
+                if (!tmpl) return;
+                const added = await api.wheels.add({
+                  id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
+                });
+                actualId = added.id;
+              }
+              await api.wheels.applyToDate(actualId, viewKey, {
+                mode: 'replace',
+                from: slice.from,
+                to: slice.to,
+              });
+              telemetryLog('ui:famous-spotlight-slice', { wheelId, slice: slice.id, date: viewKey });
+              emit(EVENTS.WHEEL_APPLIED, { wheelId, date: viewKey, slice: slice.id });
+            } else {
+              await applyWheelToDay(wheelId);
+              telemetryLog('ui:famous-spotlight-apply', { wheelId, date: viewKey });
+            }
           }}
           onSeeAll={() => setPickerOpen(true)}
         />
