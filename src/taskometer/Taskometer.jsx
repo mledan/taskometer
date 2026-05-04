@@ -19,6 +19,7 @@ import LifeCanvas from './LifeCanvas.jsx';
 import TimeBreakdown from './TimeBreakdown.jsx';
 import Snoozed from './Snoozed.jsx';
 import FamousSpotlight from './FamousSpotlight.jsx';
+import PackPicker from './PackPicker.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
@@ -116,6 +117,7 @@ export default function Taskometer() {
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [packPickerOpen, setPackPickerOpen] = useState(false);
   // The wheel currently being painted across a range. Null = painter
   // closed. Object = { wheel } where wheel may need to be added to the
   // user's library before applyToRange can target it by ID.
@@ -1096,15 +1098,24 @@ export default function Taskometer() {
               onDelete={(taskId) => api.tasks.remove(taskId)}
             />
             <SleepPSA slots={state.slots || []} dateKey={viewKey} />
-            <button
-              type="button"
-              className="tm-btn tm-sm tm-ghost"
-              onClick={() => setWheelsPanelOpen(true)}
-              title="open your schedule library — design and save reusable day schedules"
-              style={{ alignSelf: 'flex-start' }}
-            >
-              schedule library →
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'flex-start' }}>
+              <button
+                type="button"
+                className="tm-btn tm-sm tm-ghost"
+                onClick={() => setWheelsPanelOpen(true)}
+                title="open your schedule library — design and save reusable day schedules"
+              >
+                schedule library →
+              </button>
+              <button
+                type="button"
+                className="tm-btn tm-sm tm-ghost"
+                onClick={() => setPackPickerOpen(true)}
+                title="add a starter pack of tasks (chores, morning routine, sprint week, etc.)"
+              >
+                task packs →
+              </button>
+            </div>
           </aside>
         </div>
       )}
@@ -1286,6 +1297,42 @@ export default function Taskometer() {
           anchorDate={selectedDate}
           onClose={() => setPainterTarget(null)}
           onApply={paintWheelAcrossRange}
+        />
+      )}
+
+      {packPickerOpen && (
+        <PackPicker
+          onClose={() => setPackPickerOpen(false)}
+          onAddToInbox={async (tasks) => {
+            for (const t of tasks) {
+              // eslint-disable-next-line no-await-in-loop
+              await api.tasks.add({
+                text: t.text,
+                duration: t.duration,
+                primaryType: t.primaryType,
+                status: 'pending',
+                priority: 'medium',
+                recurrence: { frequency: 'none', interval: 1, daysOfWeek: [], dayOfMonth: null, endDate: null, occurrences: null },
+                autoSchedule: false, // straight to inbox
+              });
+            }
+            telemetryLog('packs:added-to-inbox', { count: tasks.length });
+          }}
+          onScheduleToday={async (tasks) => {
+            for (const t of tasks) {
+              // eslint-disable-next-line no-await-in-loop
+              await api.tasks.add({
+                text: t.text,
+                duration: t.duration,
+                primaryType: t.primaryType,
+                status: 'pending',
+                priority: 'medium',
+                // Auto-schedule: lets the engine slot each task into a
+                // matching block today (rolls forward if today's full).
+              });
+            }
+            telemetryLog('packs:scheduled-today', { count: tasks.length });
+          }}
         />
       )}
 
