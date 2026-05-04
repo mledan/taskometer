@@ -18,6 +18,7 @@ import WeekCanvas from './WeekCanvas.jsx';
 import LifeCanvas from './LifeCanvas.jsx';
 import TimeBreakdown from './TimeBreakdown.jsx';
 import Snoozed from './Snoozed.jsx';
+import FamousSpotlight from './FamousSpotlight.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
@@ -942,6 +943,19 @@ export default function Taskometer() {
           telemetryLog('ui:day-strip', { date: formatYMD(d) });
         }}
       />
+
+      {/* Famous routines spotlight — surfaces curated historical
+          schedules with sourced one-liners. Click → paint that
+          routine on the day in view. Collapsible. */}
+      {scale === 'day' && (
+        <FamousSpotlight
+          onApply={async (wheelId) => {
+            await applyWheelToDay(wheelId);
+            telemetryLog('ui:famous-spotlight-apply', { wheelId, date: viewKey });
+          }}
+          onSeeAll={() => setPickerOpen(true)}
+        />
+      )}
 
       {/* When rhythms fire on the selected day but haven't been
           materialized as concrete slots yet, surface them so the user
