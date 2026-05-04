@@ -948,43 +948,10 @@ export default function Taskometer() {
         }}
       />
 
-      {/* Famous routines spotlight — surfaces curated historical
-          schedules with sourced one-liners. Click All-day → paints
-          the whole wheel. Click AM/PM/Eve → mix-and-match: paints
-          only that slice, leaving the rest of the day intact so the
-          user can layer Buffett's morning over Hemingway's afternoon. */}
-      {scale === 'day' && (
-        <FamousSpotlight
-          onApply={async (wheelId, slice) => {
-            const partial = slice && (slice.from || slice.to);
-            if (partial) {
-              // Make sure the wheel is in the user's library so applyToDate
-              // can resolve it — same shape as applyWheelToDay does.
-              const existing = userWheels.find(w => w.id === wheelId);
-              let actualId = existing?.id;
-              if (!actualId) {
-                const tmpl = [...STARTER_WHEELS, ...ARCHETYPE_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
-                if (!tmpl) return;
-                const added = await api.wheels.add({
-                  id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
-                });
-                actualId = added.id;
-              }
-              await api.wheels.applyToDate(actualId, viewKey, {
-                mode: 'replace',
-                from: slice.from,
-                to: slice.to,
-              });
-              telemetryLog('ui:famous-spotlight-slice', { wheelId, slice: slice.id, date: viewKey });
-              emit(EVENTS.WHEEL_APPLIED, { wheelId, date: viewKey, slice: slice.id });
-            } else {
-              await applyWheelToDay(wheelId);
-              telemetryLog('ui:famous-spotlight-apply', { wheelId, date: viewKey });
-            }
-          }}
-          onSeeAll={() => setPickerOpen(true)}
-        />
-      )}
+      {/* Famous-spotlight moved into the left drawer (.tm-dash-left)
+          per the user note: "the main part is my schedule, perhaps
+          they can be drawers on the side that I can put away if I
+          choose." See the day-view dash below. */}
 
       {/* When rhythms fire on the selected day but haven't been
           materialized as concrete slots yet, surface them so the user
@@ -1017,6 +984,82 @@ export default function Taskometer() {
 
       {scale === 'day' && (
         <div className="tm-dash">
+          {/* Left drawer — discovery surfaces tucked to the side so
+              the user's own schedule stays the centerpiece. The user
+              said: "the main part is my schedule, perhaps they can be
+              drawers on the side that I can put away if I choose." */}
+          <aside className="tm-dash-left">
+            <FamousSpotlight
+              onApply={async (wheelId, slice) => {
+                const partial = slice && (slice.from || slice.to);
+                if (partial) {
+                  const existing = userWheels.find(w => w.id === wheelId);
+                  let actualId = existing?.id;
+                  if (!actualId) {
+                    const tmpl = [...STARTER_WHEELS, ...ARCHETYPE_WHEELS, ...FAMOUS_WHEELS].find(w => w.id === wheelId);
+                    if (!tmpl) return;
+                    const added = await api.wheels.add({
+                      id: tmpl.id, name: tmpl.name, color: tmpl.color, blocks: tmpl.blocks,
+                    });
+                    actualId = added.id;
+                  }
+                  await api.wheels.applyToDate(actualId, viewKey, {
+                    mode: 'replace',
+                    from: slice.from,
+                    to: slice.to,
+                  });
+                  telemetryLog('ui:famous-spotlight-slice', { wheelId, slice: slice.id, date: viewKey });
+                  emit(EVENTS.WHEEL_APPLIED, { wheelId, date: viewKey, slice: slice.id });
+                } else {
+                  await applyWheelToDay(wheelId);
+                  telemetryLog('ui:famous-spotlight-apply', { wheelId, date: viewKey });
+                }
+              }}
+              onSeeAll={() => setPickerOpen(true)}
+            />
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                padding: '12px 14px',
+                border: '1.5px dashed var(--rule)',
+                borderRadius: 12,
+                background: 'var(--paper)',
+              }}
+            >
+              <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>
+                Discover
+              </div>
+              <button
+                type="button"
+                className="tm-btn tm-sm tm-ghost"
+                onClick={() => setPathPickerOpen(true)}
+                title="adopt a path — schedule + pack + duration applied as one move"
+                style={{ color: 'var(--orange)', fontWeight: 600, alignSelf: 'flex-start' }}
+              >
+                paths ★ →
+              </button>
+              <button
+                type="button"
+                className="tm-btn tm-sm tm-ghost"
+                onClick={() => setPackPickerOpen(true)}
+                title="add a starter pack of tasks (chores, morning routine, sprint week, etc.)"
+                style={{ alignSelf: 'flex-start' }}
+              >
+                task packs →
+              </button>
+              <button
+                type="button"
+                className="tm-btn tm-sm tm-ghost"
+                onClick={() => setWheelsPanelOpen(true)}
+                title="open your schedule library — design and save reusable day schedules"
+                style={{ alignSelf: 'flex-start' }}
+              >
+                schedule library →
+              </button>
+            </div>
+          </aside>
           <div className="tm-dash-main">
             <WheelView
               selectedDate={selectedDate}
@@ -1100,33 +1143,6 @@ export default function Taskometer() {
               onDelete={(taskId) => api.tasks.remove(taskId)}
             />
             <SleepPSA slots={state.slots || []} dateKey={viewKey} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'flex-start' }}>
-              <button
-                type="button"
-                className="tm-btn tm-sm tm-ghost"
-                onClick={() => setWheelsPanelOpen(true)}
-                title="open your schedule library — design and save reusable day schedules"
-              >
-                schedule library →
-              </button>
-              <button
-                type="button"
-                className="tm-btn tm-sm tm-ghost"
-                onClick={() => setPackPickerOpen(true)}
-                title="add a starter pack of tasks (chores, morning routine, sprint week, etc.)"
-              >
-                task packs →
-              </button>
-              <button
-                type="button"
-                className="tm-btn tm-sm tm-ghost"
-                onClick={() => setPathPickerOpen(true)}
-                title="adopt a path — schedule + pack + duration applied as one move"
-                style={{ color: 'var(--orange)', fontWeight: 600 }}
-              >
-                paths ★ →
-              </button>
-            </div>
           </aside>
         </div>
       )}
