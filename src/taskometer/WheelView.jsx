@@ -1452,7 +1452,7 @@ function WheelSvg({
             <text
               x={lx}
               y={ly - 2}
-              fontFamily="Caveat"
+              fontFamily="Plus Jakarta Sans"
               fontSize={isCurrent || isEditing ? 22 : 18}
               fill="var(--ink)"
               textAnchor="middle"

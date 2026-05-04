@@ -1,6 +1,6 @@
 /* ─────────────────────────────────────────────────────────────────────
    Marketing pages — landing + teams demo. Paper aesthetic shared with
-   the app, but more breathable. Headlines lean Caveat; body uses the
+   the app, but more breathable. Headlines lean Plus Jakarta Sans; body uses the
    default sans; utility text is JetBrains Mono.
    ───────────────────────────────────────────────────────────────────── */
 
@@ -43,11 +43,12 @@
   border-bottom: 1px solid var(--rule-soft);
 }
 .mk-brand {
-  font-family: 'Caveat', cursive;
-  font-size: 30px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
   color: var(--ink);
   text-decoration: none;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 .mk-nav-links {
   display: flex;
@@ -74,11 +75,11 @@
 }
 .mk-hero-text { max-width: 580px; }
 .mk-h1 {
-  font-family: 'Caveat', cursive;
-  font-size: 88px;
-  line-height: 0.95;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 64px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   color: var(--ink);
   margin: 0 0 24px;
 }
@@ -130,7 +131,7 @@
   background: var(--paper-warm, #FAF5EC);
 }
 .mk-hero-bigwheel-label {
-  font-family: 'Caveat', cursive;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 28px;
   color: var(--ink);
   line-height: 1;
@@ -153,7 +154,7 @@
 
 @media (max-width: 960px) {
   .mk-hero { grid-template-columns: 1fr; padding: 40px 24px; }
-  .mk-h1 { font-size: 56px; }
+  .mk-h1 { font-size: 44px; }
   .mk-nav { padding: 18px 24px; }
   .mk-nav-links { gap: 14px; }
   .mk-nav-links a:not(.mk-cta-link) { display: none; }
@@ -169,19 +170,19 @@
 .mk-section-head { margin-bottom: 28px; }
 .mk-section-sub { font-size: 13px; }
 .mk-h2 {
-  font-family: 'Caveat', cursive;
-  font-size: 56px;
-  line-height: 1;
-  letter-spacing: -0.01em;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 40px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   color: var(--ink);
   margin: 0 0 16px;
-  font-weight: 600;
+  font-weight: 700;
 }
-.mk-h2-tight { margin-bottom: 4px; font-size: 42px; }
+.mk-h2-tight { margin-bottom: 4px; font-size: 32px; }
 
 @media (max-width: 760px) {
   .mk-section { padding: 50px 24px; }
-  .mk-h2 { font-size: 40px; }
+  .mk-h2 { font-size: 30px; }
 }
 
 /* ── Steps ───────────────────────────────────────────────────────── */
@@ -205,9 +206,10 @@
   margin-bottom: 12px;
 }
 .mk-step-title {
-  font-family: 'Caveat', cursive;
-  font-size: 32px;
-  line-height: 1;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 600;
   color: var(--ink);
   margin-bottom: 10px;
 }
@@ -320,7 +322,7 @@
   margin-bottom: 14px;
 }
 .mk-card-title {
-  font-family: 'Caveat', cursive;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 28px;
   color: var(--ink);
   line-height: 1;
@@ -404,7 +406,7 @@
 .mk-shared-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .mk-shared-dot { width: 12px; height: 12px; border-radius: 50%; }
 .mk-shared-name {
-  font-family: 'Caveat', cursive;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 22px;
   line-height: 1;
   color: var(--ink);
@@ -429,7 +431,7 @@
   background: var(--paper);
 }
 .mk-sync-title {
-  font-family: 'Caveat', cursive;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 28px;
   color: var(--ink);
   line-height: 1;
@@ -467,14 +469,16 @@
   box-shadow: 0 4px 18px rgba(212, 102, 58, 0.10);
 }
 .mk-price-tier {
-  font-family: 'Caveat', cursive;
-  font-size: 32px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 600;
   color: var(--ink);
-  line-height: 1;
+  line-height: 1.1;
 }
 .mk-price-amount {
-  font-family: 'Caveat', cursive;
-  font-size: 56px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 40px;
+  font-weight: 700;
   line-height: 1;
   color: var(--orange);
 }

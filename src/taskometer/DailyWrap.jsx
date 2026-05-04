@@ -54,7 +54,7 @@ export default function DailyWrap({ selectedDate, slots = [], tasks = [], taskTy
       }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontFamily: 'Caveat, cursive', fontSize: 26, color: 'var(--ink)', lineHeight: 1 }}>
+        <span style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 26, color: 'var(--ink)', lineHeight: 1 }}>
           {isToday ? "Today's wrap" : isPast ? 'How that day went' : 'A look ahead'}
         </span>
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--ink-mute)' }}>
@@ -93,7 +93,7 @@ function Stat({ label, value, accent }) {
       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'var(--ink-mute)', letterSpacing: 0.6, textTransform: 'uppercase' }}>
         {label}
       </span>
-      <span style={{ fontFamily: 'Caveat, cursive', fontSize: 28, lineHeight: 1, color: accent || 'var(--ink)' }}>
+      <span style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 28, lineHeight: 1, color: accent || 'var(--ink)' }}>
         {value}
       </span>
     </div>

@@ -69,7 +69,7 @@ export default function SettingsPanel({
         settings
         <button
           onClick={onClose}
-          style={{ background: 'transparent', border: 'none', fontFamily: 'Caveat', fontSize: 18, cursor: 'pointer', color: 'var(--ink-mute)' }}
+          style={{ background: 'transparent', border: 'none', fontFamily: 'Plus Jakarta Sans', fontSize: 18, cursor: 'pointer', color: 'var(--ink-mute)' }}
         >×</button>
       </h4>
 

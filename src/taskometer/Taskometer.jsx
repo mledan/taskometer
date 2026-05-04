@@ -834,7 +834,7 @@ export default function Taskometer() {
                   background: isLoggedIn ? 'var(--orange)' : 'var(--ink-mute)',
                   color: 'var(--paper)',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'Caveat, cursive', fontSize: 16, fontWeight: 600, lineHeight: 1,
+                  fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 16, fontWeight: 600, lineHeight: 1,
                 }}
               >
                 {accountInitial}
@@ -901,7 +901,7 @@ export default function Taskometer() {
         >
           <div
             style={{
-              fontFamily: 'Caveat, cursive',
+              fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
               fontSize: 26,
               lineHeight: 1,
               color: 'var(--orange)',
@@ -1250,7 +1250,7 @@ function QuickStart({ onPick }) {
 
   return (
     <div className="tm-card tm-dashed" style={{ padding: '20px 22px', marginBottom: 18 }}>
-      <div style={{ fontSize: 26, fontFamily: 'Caveat, cursive', lineHeight: 1, marginBottom: 4 }}>
+      <div style={{ fontSize: 26, fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', lineHeight: 1, marginBottom: 4 }}>
         What kind of day are you?
       </div>
       <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginBottom: 14 }}>
@@ -1290,7 +1290,7 @@ function QuickStart({ onPick }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span aria-hidden style={{ fontSize: 18 }}>{archetype.icon}</span>
                 <span style={{
-                  fontFamily: 'Caveat, cursive',
+                  fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
                   fontSize: 22,
                   color: archetype.color,
                   lineHeight: 1.1,
@@ -1547,7 +1547,7 @@ function WeekView({ selectedDate, slots, tasks, wheels = [], dayAssignments = {}
             <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', letterSpacing: '.10em', textTransform: 'uppercase' }}>
               {wkLabel}
             </div>
-            <div style={{ fontFamily: 'Caveat', fontSize: 22, lineHeight: 1, color: isToday ? 'var(--orange)' : 'var(--ink)' }}>
+            <div style={{ fontFamily: 'Plus Jakarta Sans', fontSize: 22, lineHeight: 1, color: isToday ? 'var(--orange)' : 'var(--ink)' }}>
               {dayNum}
             </div>
             <MiniWheel slots={daySlots} size={96} thickness={11} highlight={isToday} />
