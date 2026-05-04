@@ -3,7 +3,10 @@ import { MiniWheel } from './WheelView.jsx';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
 import { FAMOUS_PROFILES, FAMOUS_SPOTLIGHT_ORDER } from '../defaults/famousProfiles';
 
-const COLLAPSE_KEY = 'taskometer.famousSpotlight.collapsed';
+// Bumped key so users who collapsed the previous version see the
+// strip again. The user said "i don't really see any of your WAVE
+// changes" — likely landed on a session where it was collapsed.
+const COLLAPSE_KEY = 'taskometer.famousSpotlight.collapsed.v2';
 
 /**
  * FamousSpotlight — horizontal strip surfacing curated historical

@@ -21,6 +21,7 @@ import Snoozed from './Snoozed.jsx';
 import FamousSpotlight from './FamousSpotlight.jsx';
 import PackPicker from './PackPicker.jsx';
 import PathPicker from './PathPicker.jsx';
+import DiscoveryStrip from './DiscoveryStrip.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
@@ -948,10 +949,24 @@ export default function Taskometer() {
         }}
       />
 
-      {/* Famous-spotlight moved into the left drawer (.tm-dash-left)
-          per the user note: "the main part is my schedule, perhaps
-          they can be drawers on the side that I can put away if I
-          choose." See the day-view dash below. */}
+      {/* Discovery strip — three always-visible CTAs for paths,
+          packs, and famous routines. Per the user note: "i don't
+          really see any of your WAVE changes... make them more
+          impactful." So the entry points to all four waves now sit
+          right above the schedule, not buried in a drawer. */}
+      {scale === 'day' && (
+        <DiscoveryStrip
+          onOpenPaths={() => setPathPickerOpen(true)}
+          onOpenPacks={() => setPackPickerOpen(true)}
+          onOpenRoutines={() => {
+            // Make sure the spotlight drawer is expanded, then scroll to it.
+            try { localStorage.setItem('taskometer.famousSpotlight.collapsed', '0'); } catch (_) {}
+            const el = document.querySelector('.tm-dash-left');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            else setPickerOpen(true); // narrow viewport — fall back to the picker modal
+          }}
+        />
+      )}
 
       {/* When rhythms fire on the selected day but haven't been
           materialized as concrete slots yet, surface them so the user
