@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import { resolveTypeColor } from './Composers.jsx';
+import { MiniWheel } from './WheelView.jsx';
 
 const PALETTE = [
   '#D4663A', '#A8BF8C', '#D9C98C', '#C7BEDD', '#F2C4A6',
@@ -30,6 +31,8 @@ export default function WheelsPanel({ api, wheels = [], taskTypes = [], onClose 
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({ name: '', color: PALETTE[0] });
   const [applyTarget, setApplyTarget] = useState(null); // {wheelId}
+  const [expandedId, setExpandedId] = useState(null); // which row shows blocks
+  const [menuOpenId, setMenuOpenId] = useState(null); // which row's overflow menu is open
   const [applyMode, setApplyMode] = useState('single'); // 'single' | 'range'
   const [singleDate, setSingleDate] = useState(todayYMD());
   const [rangeStart, setRangeStart] = useState(todayYMD());
@@ -93,32 +96,31 @@ export default function WheelsPanel({ api, wheels = [], taskTypes = [], onClose 
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="manage schedules"
-        style={{ maxWidth: 720 }}
+        style={{ maxWidth: 640 }}
       >
         <div className="tm-modal-head">
-          <div className="tm-modal-title">schedules — reusable day templates</div>
-          <button type="button" onClick={onClose} className="tm-btn tm-sm">close</button>
-        </div>
-
-        <div className="tm-mono tm-md" style={{ marginBottom: 10 }}>
-          schedules save the shape of a day. apply one to any date or range to paint its blocks in.
-        </div>
-
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-          <button className="tm-btn tm-primary tm-sm" onClick={saveFromToday}>
-            + save today as schedule
-          </button>
-          <button className="tm-btn tm-sm" onClick={() => { setCreating(true); setEditingId(null); setApplyTarget(null); }}>
-            + blank schedule
-          </button>
-          <button className="tm-btn tm-sm tm-ghost" onClick={seedStarters}>
-            + add starter schedules
-          </button>
+          <div className="tm-modal-title">Schedules</div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button
+              className="tm-btn tm-primary tm-sm"
+              onClick={saveFromToday}
+              title="save today's blocks as a reusable schedule"
+            >
+              + from today
+            </button>
+            <button
+              className="tm-btn tm-sm"
+              onClick={() => { setCreating(true); setEditingId(null); setApplyTarget(null); }}
+              title="create an empty schedule and edit blocks later"
+            >
+              blank
+            </button>
+            <button type="button" onClick={onClose} className="tm-btn tm-sm">close</button>
+          </div>
         </div>
 
         {creating && (
-          <div className="tm-card tm-dashed" style={{ padding: '10px 12px', marginBottom: 12 }}>
-            <div className="tm-mono tm-md" style={{ marginBottom: 6 }}>new schedule</div>
+          <div style={{ padding: '10px 12px', marginBottom: 10, background: 'var(--paper-warm, #FAF5EC)', borderRadius: 8, border: '1px dashed var(--rule)' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input
                 className="tm-composer-input"
@@ -126,19 +128,15 @@ export default function WheelsPanel({ api, wheels = [], taskTypes = [], onClose 
                 value={newDraft.name}
                 onChange={(e) => setNewDraft({ ...newDraft, name: e.target.value })}
                 autoFocus
-                style={{ minWidth: 200 }}
+                style={{ flex: '1 1 200px' }}
               />
-              <div className="tm-palette">
-                {PALETTE.map(c => (
-                  <button
-                    key={c}
-                    type="button"
-                    className={`tm-swatch${newDraft.color === c ? ' tm-swatch-on' : ''}`}
-                    style={{ background: c }}
-                    onClick={() => setNewDraft({ ...newDraft, color: c })}
-                  />
-                ))}
-              </div>
+              <input
+                type="color"
+                value={newDraft.color}
+                onChange={(e) => setNewDraft({ ...newDraft, color: e.target.value })}
+                style={{ width: 32, height: 28, padding: 0, border: '1px solid var(--rule)', borderRadius: 4, cursor: 'pointer' }}
+                title="pick a color"
+              />
               <button className="tm-btn tm-primary tm-sm" onClick={createEmpty} disabled={!newDraft.name.trim()}>create</button>
               <button className="tm-btn tm-sm" onClick={() => setCreating(false)}>cancel</button>
             </div>
@@ -146,170 +144,264 @@ export default function WheelsPanel({ api, wheels = [], taskTypes = [], onClose 
         )}
 
         {wheels.length === 0 && !creating && (
-          <div className="tm-card tm-dashed" style={{ padding: '16px 18px', marginBottom: 12, textAlign: 'center' }}>
-            <div style={{ fontSize: 22 }}>no schedules yet</div>
-            <div className="tm-mono tm-md" style={{ marginTop: 4 }}>
-              shape today how you want it, then use "save today as schedule". or grab starter schedules above.
+          <div style={{ padding: '24px 18px', textAlign: 'center' }}>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>No schedules yet</div>
+            <div className="tm-mono tm-sm" style={{ marginTop: 6, color: 'var(--ink-mute)' }}>
+              shape today, then "+ from today" — or grab a starter set below.
             </div>
+            <button
+              className="tm-btn tm-sm tm-ghost"
+              onClick={seedStarters}
+              style={{ marginTop: 12 }}
+            >
+              + add starter schedules
+            </button>
           </div>
         )}
 
-        <div className="tm-type-list">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {wheels.map(w => {
             const isEditing = editingId === w.id;
             const isApplying = applyTarget && applyTarget.wheelId === w.id;
+            const isExpanded = expandedId === w.id;
+            const isMenuOpen = menuOpenId === w.id;
+            const slotsForMini = (w.blocks || []).map(b => ({
+              startTime: b.startTime,
+              endTime: b.endTime,
+              color: b.color,
+            }));
             if (isEditing) {
               return (
-                <div key={w.id} className="tm-type-row tm-type-row-edit">
+                <div
+                  key={w.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '10px 12px',
+                    border: '1.5px solid var(--orange)',
+                    borderRadius: 8,
+                    background: 'var(--paper-warm, #FAF5EC)',
+                    flexWrap: 'wrap',
+                  }}
+                >
                   <input
                     className="tm-composer-input"
-                    style={{ flex: '1 1 160px', fontSize: 18 }}
+                    style={{ flex: '1 1 160px' }}
                     value={editDraft.name}
                     onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
                     onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingId(null); }}
+                    autoFocus
                   />
-                  <div className="tm-palette">
-                    {PALETTE.map(c => (
-                      <button
-                        key={c}
-                        type="button"
-                        className={`tm-swatch${editDraft.color === c ? ' tm-swatch-on' : ''}`}
-                        style={{ background: c }}
-                        onClick={() => setEditDraft({ ...editDraft, color: c })}
-                      />
-                    ))}
-                  </div>
+                  <input
+                    type="color"
+                    value={editDraft.color}
+                    onChange={(e) => setEditDraft({ ...editDraft, color: e.target.value })}
+                    style={{ width: 32, height: 28, padding: 0, border: '1px solid var(--rule)', borderRadius: 4, cursor: 'pointer' }}
+                  />
                   <button className="tm-btn tm-primary tm-sm" onClick={saveEdit}>save</button>
                   <button className="tm-btn tm-sm" onClick={() => setEditingId(null)}>cancel</button>
                 </div>
               );
             }
             return (
-              <div key={w.id} className="tm-type-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <span className="tm-type-swatch" style={{ background: w.color }} />
-                  <span className="tm-type-name">{w.name}</span>
-                  <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-                    {w.blocks.length} block{w.blocks.length === 1 ? '' : 's'}
-                  </span>
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                    <button
-                      className="tm-btn tm-primary tm-sm"
-                      onClick={() => {
-                        setApplyTarget({ wheelId: w.id });
-                        setEditingId(null);
-                      }}
-                    >
-                      apply
-                    </button>
+              <div
+                key={w.id}
+                style={{
+                  border: '1px solid var(--rule)',
+                  borderLeft: `4px solid ${w.color}`,
+                  borderRadius: 8,
+                  background: 'var(--paper)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => {
+                    setExpandedId(isExpanded ? null : w.id);
+                    setMenuOpenId(null);
+                  }}
+                  title="click to view blocks"
+                >
+                  <MiniWheel slots={slotsForMini} size={28} thickness={4} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+                      {w.name}
+                    </div>
+                    <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', fontSize: 11 }}>
+                      {w.blocks.length} block{w.blocks.length === 1 ? '' : 's'}
+                    </div>
+                  </div>
+                  <button
+                    className="tm-btn tm-primary tm-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setApplyTarget({ wheelId: w.id });
+                      setEditingId(null);
+                      setMenuOpenId(null);
+                    }}
+                  >
+                    apply
+                  </button>
+                  <button
+                    className="tm-btn tm-sm tm-ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpenId(isMenuOpen ? null : w.id);
+                    }}
+                    aria-label="more actions"
+                    style={{ padding: '2px 8px', fontSize: 16, lineHeight: 1 }}
+                  >
+                    ⋯
+                  </button>
+                </div>
+
+                {isMenuOpen && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 4,
+                      padding: '6px 12px 8px',
+                      borderTop: '1px solid var(--rule-soft)',
+                      background: 'var(--paper-warm, #FAF5EC)',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
                       className="tm-btn tm-sm"
                       onClick={() => {
                         setEditingId(w.id);
                         setEditDraft({ name: w.name, color: w.color });
                         setApplyTarget(null);
+                        setMenuOpenId(null);
                       }}
                     >
                       rename
                     </button>
-                    <button className="tm-btn tm-sm tm-danger" onClick={() => removeWheel(w.id)}>delete</button>
+                    <button
+                      className="tm-btn tm-sm tm-danger"
+                      onClick={() => { removeWheel(w.id); setMenuOpenId(null); }}
+                    >
+                      delete
+                    </button>
                   </div>
-                </div>
-                {w.blocks.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-                    {w.blocks.map((b, i) => {
+                )}
+
+                {isExpanded && w.blocks.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 2,
+                      padding: '8px 12px',
+                      borderTop: '1px solid var(--rule-soft)',
+                      background: 'var(--paper-warm, #FAF5EC)',
+                    }}
+                  >
+                    {w.blocks.slice().sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')).map((b, i) => {
                       const c = b.color || resolveTypeColor(taskTypes, b.slotType) || '#94A3B8';
                       return (
-                        <span
+                        <div
                           key={i}
-                          className="tm-mono tm-sm"
                           style={{
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            background: hexA(c, 0.18),
-                            border: `1px solid ${c}`,
-                            color: 'var(--ink)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            fontSize: 12,
                           }}
-                          title={`${b.label || b.slotType} · ${b.startTime}–${b.endTime}`}
                         >
-                          {b.startTime}–{b.endTime} {b.label || b.slotType || ''}
-                        </span>
+                          <span style={{ width: 8, height: 8, borderRadius: 2, background: c, flexShrink: 0 }} />
+                          <span className="tm-mono" style={{ fontSize: 11, color: 'var(--ink-mute)', minWidth: 90 }}>
+                            {b.startTime}–{b.endTime}
+                          </span>
+                          <span style={{ color: 'var(--ink)' }}>{b.label || b.slotType || 'block'}</span>
+                        </div>
                       );
                     })}
                   </div>
                 )}
 
                 {isApplying && (
-                  <div className="tm-card tm-dashed" style={{ padding: '10px 12px', marginTop: 8 }}>
-                    <div className="tm-mono tm-md" style={{ marginBottom: 6 }}>apply "{w.name}"</div>
-                    <div className="tm-seg" style={{ marginBottom: 8 }}>
-                      <button
-                        className={applyMode === 'single' ? 'tm-on' : ''}
-                        onClick={() => setApplyMode('single')}
-                      >single day</button>
-                      <button
-                        className={applyMode === 'range' ? 'tm-on' : ''}
-                        onClick={() => setApplyMode('range')}
-                      >date range</button>
-                    </div>
-
-                    {applyMode === 'single' ? (
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      padding: '10px 12px',
+                      borderTop: '1px solid var(--rule-soft)',
+                      background: 'var(--paper-warm, #FAF5EC)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div className="tm-seg">
+                        <button
+                          className={applyMode === 'single' ? 'tm-on' : ''}
+                          onClick={() => setApplyMode('single')}
+                        >day</button>
+                        <button
+                          className={applyMode === 'range' ? 'tm-on' : ''}
+                          onClick={() => setApplyMode('range')}
+                        >range</button>
+                      </div>
+                      {applyMode === 'single' ? (
                         <input
                           type="date"
                           className="tm-composer-num"
                           value={singleDate}
                           onChange={(e) => setSingleDate(e.target.value)}
-                          style={{ width: 160 }}
+                          style={{ width: 140 }}
                         />
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <input
-                          type="date"
-                          className="tm-composer-num"
-                          value={rangeStart}
-                          onChange={(e) => setRangeStart(e.target.value)}
-                          style={{ width: 160 }}
-                        />
-                        <span className="tm-mono tm-md">–</span>
-                        <input
-                          type="date"
-                          className="tm-composer-num"
-                          value={rangeEnd}
-                          onChange={(e) => setRangeEnd(e.target.value)}
-                          style={{ width: 160 }}
-                        />
-                        <div className="tm-seg">
-                          {['all', 'weekdays', 'weekends'].map(f => (
-                            <button
-                              key={f}
-                              className={rangeFilter === f ? 'tm-on' : ''}
-                              onClick={() => setRangeFilter(f)}
-                            >{f}</button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
-                      <div className="tm-seg">
+                      ) : (
+                        <>
+                          <input
+                            type="date"
+                            className="tm-composer-num"
+                            value={rangeStart}
+                            onChange={(e) => setRangeStart(e.target.value)}
+                            style={{ width: 140 }}
+                          />
+                          <span className="tm-mono">–</span>
+                          <input
+                            type="date"
+                            className="tm-composer-num"
+                            value={rangeEnd}
+                            onChange={(e) => setRangeEnd(e.target.value)}
+                            style={{ width: 140 }}
+                          />
+                          <div className="tm-seg">
+                            {['all', 'wkdy', 'wknd'].map((f, i) => (
+                              <button
+                                key={f}
+                                className={rangeFilter === ['all', 'weekdays', 'weekends'][i] ? 'tm-on' : ''}
+                                onClick={() => setRangeFilter(['all', 'weekdays', 'weekends'][i])}
+                                style={{ fontSize: 11 }}
+                              >{f}</button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      <div className="tm-seg" style={{ marginLeft: 'auto' }}>
                         <button
                           className={mergeMode === 'replace' ? 'tm-on' : ''}
                           onClick={() => setMergeMode('replace')}
-                          title="clear the day's existing blocks, then apply"
+                          title="clear existing blocks first"
+                          style={{ fontSize: 11 }}
                         >replace</button>
                         <button
                           className={mergeMode === 'merge' ? 'tm-on' : ''}
                           onClick={() => setMergeMode('merge')}
-                          title="layer on top of existing blocks (overlap allowed)"
+                          title="layer on top"
+                          style={{ fontSize: 11 }}
                         >merge</button>
                       </div>
                       <button className="tm-btn tm-primary tm-sm" onClick={apply}>apply</button>
                       <button className="tm-btn tm-sm" onClick={() => setApplyTarget(null)}>cancel</button>
-                    </div>
-                    <div className="tm-mono tm-sm" style={{ marginTop: 6, color: 'var(--ink-mute)' }}>
-                      days marked sick/holiday/vacation are skipped.
                     </div>
                   </div>
                 )}
