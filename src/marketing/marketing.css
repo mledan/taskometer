@@ -1,6 +1,6 @@
 /* ─────────────────────────────────────────────────────────────────────
    Marketing pages — landing + teams demo. Paper aesthetic shared with
-   the app, but more breathable. Headlines lean Plus Jakarta Sans; body uses the
+   the app, but more breathable. Headlines lean Inter; body uses the
    default sans; utility text is JetBrains Mono.
    ───────────────────────────────────────────────────────────────────── */
 
@@ -43,7 +43,7 @@
   border-bottom: 1px solid var(--rule-soft);
 }
 .mk-brand {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--ink);
@@ -75,7 +75,7 @@
 }
 .mk-hero-text { max-width: 580px; }
 .mk-h1 {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 64px;
   line-height: 1.05;
   font-weight: 700;
@@ -131,7 +131,7 @@
   background: var(--paper-warm, #FAF5EC);
 }
 .mk-hero-bigwheel-label {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 28px;
   color: var(--ink);
   line-height: 1;
@@ -170,7 +170,7 @@
 .mk-section-head { margin-bottom: 28px; }
 .mk-section-sub { font-size: 13px; }
 .mk-h2 {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 40px;
   line-height: 1.1;
   letter-spacing: -0.02em;
@@ -206,7 +206,7 @@
   margin-bottom: 12px;
 }
 .mk-step-title {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 22px;
   line-height: 1.2;
   font-weight: 600;
@@ -322,7 +322,7 @@
   margin-bottom: 14px;
 }
 .mk-card-title {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 28px;
   color: var(--ink);
   line-height: 1;
@@ -406,7 +406,7 @@
 .mk-shared-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .mk-shared-dot { width: 12px; height: 12px; border-radius: 50%; }
 .mk-shared-name {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 22px;
   line-height: 1;
   color: var(--ink);
@@ -431,7 +431,7 @@
   background: var(--paper);
 }
 .mk-sync-title {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 28px;
   color: var(--ink);
   line-height: 1;
@@ -469,14 +469,14 @@
   box-shadow: 0 4px 18px rgba(212, 102, 58, 0.10);
 }
 .mk-price-tier {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 22px;
   font-weight: 600;
   color: var(--ink);
   line-height: 1.1;
 }
 .mk-price-amount {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 40px;
   font-weight: 700;
   line-height: 1;

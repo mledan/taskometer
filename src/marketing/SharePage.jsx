@@ -372,7 +372,7 @@ function Comments() {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, alignItems: 'baseline' }}>
-                <strong style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 20, color: 'var(--ink)' }}>
+                <strong style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 20, color: 'var(--ink)' }}>
                   {c.name || 'Anonymous'}
                 </strong>
                 <span className="mk-mono" style={{ fontSize: 10, color: 'var(--ink-mute)' }}>

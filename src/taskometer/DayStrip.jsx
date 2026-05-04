@@ -93,7 +93,7 @@ export default function DayStrip({ selectedDate, tasks = [], onPickDate }) {
             </span>
             <span
               style={{
-                fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
+                fontFamily: 'Inter, system-ui, sans-serif',
                 fontSize: 22,
                 lineHeight: 1,
                 color: isSelected ? 'var(--orange)' : 'var(--ink)',

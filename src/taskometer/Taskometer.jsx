@@ -8,12 +8,12 @@ import { WeekTimeline, MonthInsights, QuarterInsights, YearInsights } from './Ti
 import DailyWrap from './DailyWrap.jsx';
 import WheelsPanel from './WheelsPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
-import { TaskComposer } from './Composers.jsx';
 import { QuickCapture, InboxPanel } from './Inbox.jsx';
 import RightNow from './RightNow.jsx';
 import SleepPSA from './SleepPSA.jsx';
 import DayStrip from './DayStrip.jsx';
 import ComingUp from './ComingUp.jsx';
+import BlockBoard from './BlockBoard.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
@@ -250,6 +250,77 @@ export default function Taskometer() {
       }
     })();
   }, [state, scale, api]);
+
+  // Carry-forward sweep: incomplete tasks scheduled for past days
+  // should not silently rot. On boot, find every pending task whose
+  // scheduledTime lands before today, and reschedule into the next
+  // available matching slot from today onwards. The user's words —
+  // "carry tasks with us when they aren't completed by scheduling
+  // in the next available slot."
+  const carriedRef = useRef(false);
+  useEffect(() => {
+    if (carriedRef.current) return;
+    if (state.isLoading || !state.isInitialized) return;
+    // Wait until the skeleton self-heal has settled — running both in
+    // the same tick races on settings updates.
+    if (!seededRef.current) return;
+
+    const now = new Date();
+    const todayKey = formatYMD(now);
+    const overdue = (state.tasks || []).filter(t => {
+      if (!t || t.status === 'completed' || t.status === 'cancelled') return false;
+      if (!t.scheduledTime) return false;
+      const d = new Date(t.scheduledTime);
+      if (Number.isNaN(d.getTime())) return false;
+      const dayKey = formatYMD(d);
+      // Past calendar day, OR earlier today and the scheduled window already ended.
+      if (dayKey < todayKey) return true;
+      if (dayKey === todayKey) {
+        const dur = typeof t.duration === 'number' ? t.duration : 30;
+        const end = d.getTime() + dur * 60 * 1000;
+        return end < now.getTime();
+      }
+      return false;
+    });
+
+    if (overdue.length === 0) {
+      carriedRef.current = true;
+      return;
+    }
+    carriedRef.current = true;
+
+    (async () => {
+      let moved = 0;
+      for (const t of overdue) {
+        const target = findScheduleTarget({
+          taskType: t.primaryType || t.taskType,
+          duration: t.duration || 30,
+          state,
+          preferDate: todayKey,
+        });
+        if (!target) continue; // No fit in next 60 days; leave as-is
+        let slotId = target.slot?.id || null;
+        if (target.kind === 'rhythm') {
+          const created = await api.slots.add(target.slotShape);
+          slotId = created.id;
+        }
+        const d = new Date(`${target.date}T00:00:00`);
+        d.setHours(Math.floor(target.startMin / 60), target.startMin % 60, 0, 0);
+        const iso = d.toISOString();
+        // eslint-disable-next-line no-await-in-loop
+        await api.tasks.update(t.id || t.key, {
+          scheduledTime: iso,
+          scheduledFor: iso,
+          scheduledSlotId: slotId,
+          metadata: { ...(t.metadata || {}), carriedForwardAt: new Date().toISOString() },
+        });
+        moved++;
+      }
+      if (moved > 0) {
+        telemetryLog('carry-forward', { moved, total: overdue.length });
+      }
+    })();
+  }, [state, api]);
 
   // Paper backdrop
   useEffect(() => {
@@ -834,7 +905,7 @@ export default function Taskometer() {
                   background: isLoggedIn ? 'var(--orange)' : 'var(--ink-mute)',
                   color: 'var(--paper)',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 16, fontWeight: 600, lineHeight: 1,
+                  fontFamily: 'Inter, system-ui, sans-serif', fontSize: 16, fontWeight: 600, lineHeight: 1,
                 }}
               >
                 {accountInitial}
@@ -882,98 +953,16 @@ export default function Taskometer() {
         <QuickStart onPick={handleQuickStart} />
       )}
 
-      {/* Heavy composer only surfaces when the user has actively picked
-          a block to plan into. Otherwise capture goes through the
-          always-on QuickCapture above and tasks land in the inbox. This
-          matches the "capture vs. plan" split — heavy details come out
-          only when the user is sitting down to plan a specific block. */}
-      {hasSlots && selectedSlot && selectedSlotIsForDay && (
-        <div
-          data-onboard="composer"
-          style={{
-            marginBottom: 18,
-            padding: '14px 18px',
-            border: '2px solid var(--orange)',
-            borderRadius: 12,
-            background: 'var(--paper-warm, #FAF5EC)',
-            boxShadow: '0 2px 8px rgba(212, 102, 58, 0.08)',
-          }}
-        >
-          <div
-            style={{
-              fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
-              fontSize: 26,
-              lineHeight: 1,
-              color: 'var(--orange)',
-              marginBottom: 8,
-            }}
-          >
-            Plan into this block
-          </div>
-          {selectedSlot && selectedSlotIsForDay && (
-            <div
-              className="tm-mono tm-sm"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginBottom: 8,
-                color: 'var(--ink-mute)',
-                flexWrap: 'wrap',
-              }}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  background: selectedSlot.color || 'var(--ink)',
-                }}
-              />
-              <span>
-                adding to <strong style={{ color: 'var(--ink)' }}>{selectedSlot.label || selectedSlot.slotType || 'block'}</strong>
-                {' · '}{selectedSlot.startTime}–{selectedSlot.endTime}
-              </span>
-              <button
-                type="button"
-                className="tm-btn tm-sm"
-                onClick={() => setSelectedSlotId(null)}
-                title="stop targeting this section"
-              >
-                clear
-              </button>
-            </div>
-          )}
-          <TaskComposer
-            onAdd={handleAddTask}
-            taskTypes={state.taskTypes || []}
-            autoFocus={!hasTasks}
-            type={selectedType}
-            onTypeChange={(id) => {
-              setSelectedType(id);
-              const match = (state.slots || []).find(
-                (s) => s.slotType === id && s.date === formatYMD(selectedDate),
-              );
-              setSelectedSlotId(match?.id || null);
-            }}
-          />
-          <ComposerPreview
-            taskType={selectedType}
-            state={state}
-            preferDate={viewKey}
-            preferSlotId={selectedSlot && selectedSlotIsForDay ? selectedSlot.id : null}
-          />
-        </div>
-      )}
+      {/* Heavy composer removed. There is now one task input — the
+          QuickCapture above. To plan a captured task into a specific
+          block, drag it from the Inbox onto a wedge or onto the
+          Right Now drop zone. One input, one mental model. */}
 
       {scale === 'block' && (
-        <SlotView
-          currentSlot={filteredDerived.currentSlot}
-          nextSlot={filteredDerived.nextSlot}
-          next={derived.next}
+        <BlockBoard
+          tasks={filteredState.tasks || []}
           slots={state.slots || []}
+          date={selectedDate}
           api={api}
           rowHandlers={rowHandlers}
         />
@@ -1250,7 +1239,7 @@ function QuickStart({ onPick }) {
 
   return (
     <div className="tm-card tm-dashed" style={{ padding: '20px 22px', marginBottom: 18 }}>
-      <div style={{ fontSize: 26, fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', lineHeight: 1, marginBottom: 4 }}>
+      <div style={{ fontSize: 26, fontFamily: 'Inter, system-ui, sans-serif', lineHeight: 1, marginBottom: 4 }}>
         What kind of day are you?
       </div>
       <div className="tm-mono tm-md" style={{ color: 'var(--ink-mute)', marginBottom: 14 }}>
@@ -1290,7 +1279,7 @@ function QuickStart({ onPick }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span aria-hidden style={{ fontSize: 18 }}>{archetype.icon}</span>
                 <span style={{
-                  fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
+                  fontFamily: 'Inter, system-ui, sans-serif',
                   fontSize: 22,
                   color: archetype.color,
                   lineHeight: 1.1,
@@ -1547,7 +1536,7 @@ function WeekView({ selectedDate, slots, tasks, wheels = [], dayAssignments = {}
             <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', letterSpacing: '.10em', textTransform: 'uppercase' }}>
               {wkLabel}
             </div>
-            <div style={{ fontFamily: 'Plus Jakarta Sans', fontSize: 22, lineHeight: 1, color: isToday ? 'var(--orange)' : 'var(--ink)' }}>
+            <div style={{ fontFamily: 'Inter', fontSize: 22, lineHeight: 1, color: isToday ? 'var(--orange)' : 'var(--ink)' }}>
               {dayNum}
             </div>
             <MiniWheel slots={daySlots} size={96} thickness={11} highlight={isToday} />

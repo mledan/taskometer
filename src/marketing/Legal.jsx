@@ -194,7 +194,7 @@ function Section({ heading, children }) {
   return (
     <div style={{ marginBottom: 28 }}>
       <h2 style={{
-        fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
+        fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 30,
         lineHeight: 1.1,
         color: 'var(--ink)',

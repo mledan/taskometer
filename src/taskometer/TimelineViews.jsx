@@ -110,7 +110,7 @@ export function CategoryBreakdownBar({ slots, taskTypes, label }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 22, color: 'var(--ink)' }}>
+        <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 22, color: 'var(--ink)' }}>
           where the {label} goes
         </span>
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--ink-mute)' }}>
@@ -270,7 +270,7 @@ function DayTimelineRow({ date, isToday, slots, tasks, taskTypes, onClick }) {
         </span>
         <span
           style={{
-            fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
+            fontFamily: 'Inter, system-ui, sans-serif',
             fontSize: 24,
             color: isToday ? 'var(--orange)' : 'var(--ink)',
           }}
@@ -592,7 +592,7 @@ function DayHoverCard({ date, slots, taskTypes, x, y }) {
         fontFamily: 'inherit',
       }}
     >
-      <div style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 22, lineHeight: 1, color: 'var(--ink)' }}>
+      <div style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 22, lineHeight: 1, color: 'var(--ink)' }}>
         {date.toLocaleDateString('en', { weekday: 'long' })}
       </div>
       <div style={{ fontSize: 12, color: 'var(--ink-mute)', fontFamily: 'JetBrains Mono, monospace', marginBottom: 8 }}>
@@ -897,7 +897,7 @@ function MonthCalendar({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {showHeader && (
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: compact ? 20 : 26, color: 'var(--ink)', lineHeight: 1 }}>
+          <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: compact ? 20 : 26, color: 'var(--ink)', lineHeight: 1 }}>
             {monthLabel}
           </span>
         </div>
@@ -1031,7 +1031,7 @@ function MonthCalendar({
               }}
             >
               <span style={{
-                fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
+                fontFamily: 'Inter, system-ui, sans-serif',
                 fontSize: dayFontSize + (compact ? 2 : 6),
                 lineHeight: 1,
                 color: isToday || isInLasso || isDragOver ? 'var(--orange)' : 'var(--ink)',
@@ -1060,7 +1060,7 @@ function MonthCalendar({
 function ScopeHeatmapHeader({ title }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-      <span style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 22, color: 'var(--ink)' }}>
+      <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 22, color: 'var(--ink)' }}>
         {title}
       </span>
       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--ink-mute)' }}>

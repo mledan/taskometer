@@ -288,7 +288,7 @@ function Waitlist() {
   if (status === 'done') {
     return (
       <div className="mk-card" style={{ maxWidth: 520, marginTop: 18 }}>
-        <div style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 28, color: 'var(--orange)', lineHeight: 1, marginBottom: 6 }}>
+        <div style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 28, color: 'var(--orange)', lineHeight: 1, marginBottom: 6 }}>
           Got it — thank you.
         </div>
         <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>

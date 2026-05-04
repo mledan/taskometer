@@ -249,7 +249,7 @@ export default function WheelPickerModal({
         >
           <span
             aria-hidden
-            style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 22, color: 'var(--orange)', alignSelf: 'center' }}
+            style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 22, color: 'var(--orange)', alignSelf: 'center' }}
           >
             Describe your day —
           </span>
@@ -452,7 +452,7 @@ function ArchetypeCard({ archetype, wheel, isCurrent, onApply }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
           <span aria-hidden style={{ fontSize: 18 }}>{archetype.icon}</span>
           <span style={{
-            fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
+            fontFamily: 'Inter, system-ui, sans-serif',
             fontSize: 22,
             color: 'var(--ink)',
             lineHeight: 1.1,
@@ -494,7 +494,7 @@ function WheelCard({ wheel, isCurrent, onApply, compact }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
+            fontFamily: 'Inter, system-ui, sans-serif',
             fontSize: compact ? 18 : 20,
             lineHeight: 1.1,
             color: 'var(--ink)',

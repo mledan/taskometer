@@ -23,7 +23,7 @@
 body.tm-body {
   background: var(--paper);
   color: var(--ink);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 18px;
   min-height: 100vh;
   overflow-x: hidden;
@@ -51,8 +51,8 @@ body.tm-body {
 }
 .tm-mono.tm-sm { font-size: 10px; }
 .tm-mono.tm-md { font-size: 12px; }
-.tm-caveat { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-.tm-flow { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+.tm-caveat { font-family: 'Inter', system-ui, sans-serif; }
+.tm-flow { font-family: 'Inter', system-ui, sans-serif; }
 
 .tm-root {
   max-width: 1320px;
@@ -99,7 +99,7 @@ body.tm-body {
   gap: 6px;
 }
 .tm-rail-title {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 24px;
   line-height: 1;
   color: var(--ink);
@@ -189,7 +189,7 @@ body.tm-body {
   border-radius: 999px;
   background: var(--paper-warm, #FAF5EC);
   cursor: pointer;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 20px;
   line-height: 1;
   color: var(--ink);
@@ -211,7 +211,7 @@ body.tm-body {
   gap: 8px;
 }
 .tm-wordmark-name {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 36px;
   line-height: 1;
   color: var(--ink);
@@ -234,7 +234,7 @@ body.tm-body {
   border-bottom: 1.5px solid var(--ink);
 }
 .tm-logo {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 34px;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -253,7 +253,7 @@ body.tm-body {
   align-items: center;
 }
 .tm-tab {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 22px;
   padding: 4px 14px 2px;
   border: 1.5px solid transparent;
@@ -300,7 +300,7 @@ body.tm-body {
 
 /* Buttons */
 .tm-btn {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 20px;
   padding: 4px 16px 2px;
   background: var(--paper);
@@ -334,7 +334,7 @@ body.tm-body {
 .tm-ck.tm-checked::after {
   content: "✓";
   color: var(--paper);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 16px;
   line-height: 1;
 }
@@ -391,7 +391,7 @@ body.tm-body {
 
 /* Sub heading flow */
 .tm-subhead {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 28px;
   color: var(--ink-soft);
   margin-bottom: 18px;
@@ -448,7 +448,7 @@ body.tm-body {
   border-radius: 12px;
   padding: 14px 16px;
   box-shadow: 0 6px 24px rgba(0,0,0,.08);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 17px;
   z-index: 100;
 }
@@ -468,7 +468,7 @@ body.tm-body {
 .tm-tweaks input[type=range] { width: 130px; }
 .tm-seg { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
 .tm-seg button {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 16px;
   padding: 2px 10px;
   border: 1.5px solid var(--rule);
@@ -484,7 +484,7 @@ body.tm-body {
   right: 16px;
   bottom: 16px;
   z-index: 101;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 16px;
   padding: 6px 12px;
   background: var(--paper);
@@ -510,7 +510,7 @@ body.tm-body {
 .tm-composer-input {
   flex: 1 1 220px;
   min-width: 140px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 20px;
   padding: 6px 10px;
   background: transparent;
@@ -599,7 +599,7 @@ body.tm-body {
 }
 .tm-slot-row .tm-slot-label {
   flex: 1;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 20px;
 }
 .tm-slot-row .tm-slot-time {
@@ -688,7 +688,7 @@ body.tm-body {
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 18px;
 }
 .tm-modal-head {
@@ -700,7 +700,7 @@ body.tm-body {
   margin-bottom: 12px;
 }
 .tm-modal-title {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 26px;
   font-weight: 500;
 }
@@ -731,7 +731,7 @@ body.tm-body {
 }
 .tm-type-name {
   flex: 1;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 20px;
   min-width: 120px;
 }
@@ -841,7 +841,7 @@ body.tm-body {
   border: none;
   padding: 0;
   cursor: inherit;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   letter-spacing: -.01em;
 }
 button.tm-cal-card-title {
@@ -1112,7 +1112,7 @@ button.tm-cal-card-title:hover { color: var(--orange); }
   border-radius: 10px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.15);
   padding: 10px 12px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   z-index: 210;
 }
 

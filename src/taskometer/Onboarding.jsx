@@ -341,7 +341,7 @@ export default function Onboarding({ onClose, signals = {} }) {
 
         <div
           style={{
-            fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
+            fontFamily: 'Inter, system-ui, sans-serif',
             fontSize: 26,
             lineHeight: 1.1,
             color: 'var(--orange)',

@@ -59,7 +59,7 @@
 }
 .yc-back:hover { color: var(--ink); }
 .yc-title {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 56px;
   line-height: 1;
   margin: 0;
@@ -106,7 +106,7 @@
   justify-content: space-between;
 }
 .yc-rail-title {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 26px;
   line-height: 1;
   color: var(--ink);
@@ -199,7 +199,7 @@
   background: var(--paper);
 }
 .yc-month-head {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 26px;
   line-height: 1;
   color: var(--ink);

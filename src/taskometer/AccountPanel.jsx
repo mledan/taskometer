@@ -190,7 +190,7 @@ export default function AccountPanel({
                     width: 56, height: 56, borderRadius: '50%',
                     background: 'var(--orange)', color: 'var(--paper)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 32, fontWeight: 600,
+                    fontFamily: 'Inter, system-ui, sans-serif', fontSize: 32, fontWeight: 600,
                     flexShrink: 0,
                   }}
                 >
@@ -198,7 +198,7 @@ export default function AccountPanel({
                 </div>
               )}
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif', fontSize: 26, lineHeight: 1, color: 'var(--ink)' }}>
+                <div style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 26, lineHeight: 1, color: 'var(--ink)' }}>
                   {profile.firstName} {profile.lastName}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--ink-mute)', marginTop: 2 }}>
