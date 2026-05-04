@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { MiniWheel } from './WheelView.jsx';
 import TimeBreakdown from './TimeBreakdown.jsx';
 
@@ -46,6 +46,29 @@ export default function WeekCanvas({
   onPaintRange,
 }) {
   const [paintWheelId, setPaintWheelId] = useState(() => wheels[0]?.id || '');
+  const [paintMaterial, setPaintMaterial] = useState('schedule'); // 'schedule' | 'blank'
+
+  // Lasso state — click-drag across days paints the selected paint
+  // material onto the range. The user said: "i want to do click and
+  // drag, wether it's a path, a single task, blankness, or a full
+  // day or week."
+  const [lassoAnchor, setLassoAnchor] = useState(null);
+  const [lassoEnd, setLassoEnd] = useState(null);
+  const lassoActive = !!(lassoAnchor && lassoEnd);
+  const lassoSelection = useMemo(() => {
+    if (!lassoActive) return new Set();
+    const a = new Date(`${lassoAnchor}T00:00:00`);
+    const b = new Date(`${lassoEnd}T00:00:00`);
+    const start = a.getTime() <= b.getTime() ? a : b;
+    const end = a.getTime() <= b.getTime() ? b : a;
+    const set = new Set();
+    const cur = new Date(start);
+    while (cur.getTime() <= end.getTime()) {
+      set.add(ymd(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+    return set;
+  }, [lassoAnchor, lassoEnd, lassoActive]);
   const monday = useMemo(() => startOfMonday(selectedDate), [selectedDate]);
   const days = useMemo(() => {
     const out = [];
@@ -93,6 +116,29 @@ export default function WeekCanvas({
 
   const paintWheel = wheels.find(w => w.id === paintWheelId) || wheels[0] || null;
 
+  // Mouseup anywhere finishes a lasso. If the anchor and end span >1
+  // day, fire the range-paint with the current material.
+  useEffect(() => {
+    if (!lassoAnchor) return;
+    const onUp = () => {
+      if (lassoAnchor && lassoEnd) {
+        const a = new Date(`${lassoAnchor}T00:00:00`);
+        const b = new Date(`${lassoEnd}T00:00:00`);
+        const startKey = a.getTime() <= b.getTime() ? lassoAnchor : lassoEnd;
+        const endKey = a.getTime() <= b.getTime() ? lassoEnd : lassoAnchor;
+        if (paintMaterial === 'blank') {
+          onPaintRange?.({ wheelId: null, material: 'blank', startKey, endKey });
+        } else if (paintWheel) {
+          onPaintRange?.({ wheelId: paintWheel.id, startKey, endKey });
+        }
+      }
+      setLassoAnchor(null);
+      setLassoEnd(null);
+    };
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, [lassoAnchor, lassoEnd, onPaintRange, paintMaterial, paintWheel]);
+
   const paintWeekdays = () => {
     if (!paintWheel) return;
     onPaintRange?.({
@@ -138,23 +184,45 @@ export default function WeekCanvas({
         <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
           paint this week
         </div>
-        <select
-          className="tm-composer-select"
-          value={paintWheelId}
-          onChange={(e) => setPaintWheelId(e.target.value)}
-          aria-label="schedule to paint"
-          style={{ fontSize: 13 }}
-        >
-          {wheels.length === 0 && <option value="">no schedules saved</option>}
-          {wheels.map(w => (
-            <option key={w.id} value={w.id}>{w.name}</option>
-          ))}
-        </select>
+        <div className="tm-seg">
+          <button
+            type="button"
+            className={paintMaterial === 'schedule' ? 'tm-on' : ''}
+            onClick={() => setPaintMaterial('schedule')}
+            title="paint a schedule onto the dragged days"
+            style={{ fontSize: 11 }}
+          >
+            schedule
+          </button>
+          <button
+            type="button"
+            className={paintMaterial === 'blank' ? 'tm-on' : ''}
+            onClick={() => setPaintMaterial('blank')}
+            title="erase blocks on the dragged days (clear the day)"
+            style={{ fontSize: 11 }}
+          >
+            blank
+          </button>
+        </div>
+        {paintMaterial === 'schedule' && (
+          <select
+            className="tm-composer-select"
+            value={paintWheelId}
+            onChange={(e) => setPaintWheelId(e.target.value)}
+            aria-label="schedule to paint"
+            style={{ fontSize: 13 }}
+          >
+            {wheels.length === 0 && <option value="">no schedules saved</option>}
+            {wheels.map(w => (
+              <option key={w.id} value={w.id}>{w.name}</option>
+            ))}
+          </select>
+        )}
         <button
           type="button"
           className="tm-btn tm-sm"
           onClick={paintWeekdays}
-          disabled={!paintWheel}
+          disabled={paintMaterial !== 'schedule' || !paintWheel}
           title="apply this schedule to Monday → Friday this week"
         >
           weekdays
@@ -163,7 +231,7 @@ export default function WeekCanvas({
           type="button"
           className="tm-btn tm-sm"
           onClick={paintWeekends}
-          disabled={!paintWheel}
+          disabled={paintMaterial !== 'schedule' || !paintWheel}
           title="apply this schedule to Saturday + Sunday"
         >
           weekends
@@ -172,13 +240,13 @@ export default function WeekCanvas({
           type="button"
           className="tm-btn tm-primary tm-sm"
           onClick={paintWeek}
-          disabled={!paintWheel}
+          disabled={paintMaterial !== 'schedule' || !paintWheel}
           title="apply this schedule to all 7 days"
         >
           full week
         </button>
         <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 'auto' }}>
-          {weekLabel}
+          {weekLabel} · click+drag days to paint
         </span>
       </div>
 
@@ -202,27 +270,37 @@ export default function WeekCanvas({
           const dayTasks = tasksByDay.get(key) || [];
           const doneTasks = dayTasks.filter(t => t.status === 'completed').length;
 
+          const isInLasso = lassoSelection.has(key);
           return (
-            <button
+            <div
               key={key}
-              type="button"
-              onClick={() => onPickDate?.(d)}
-              title={`open ${d.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => { if (!lassoActive) onPickDate?.(d); }}
+              onMouseDown={(e) => {
+                if (e.button !== 0) return;
+                if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+                setLassoAnchor(key);
+                setLassoEnd(key);
+              }}
+              onMouseEnter={() => {
+                if (lassoAnchor) setLassoEnd(key);
+              }}
+              title={`open ${d.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })} · click + drag to paint a range`}
               style={{
-                all: 'unset',
-                cursor: 'pointer',
+                cursor: lassoAnchor ? 'crosshair' : 'pointer',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 4,
                 padding: '10px 8px',
-                border: `1.5px ${isToday ? 'solid var(--orange)' : 'dashed var(--rule)'}`,
+                border: `1.5px ${isInLasso ? 'solid var(--orange)' : isToday ? 'solid var(--orange)' : 'dashed var(--rule)'}`,
                 borderRadius: 10,
-                background: isToday ? 'var(--paper-warm, #FAF5EC)' : 'var(--paper)',
-                transition: 'background 0.1s, transform 0.08s',
+                background: isInLasso ? 'var(--orange-pale, #FBE9DD)' : (isToday ? 'var(--paper-warm, #FAF5EC)' : 'var(--paper)'),
+                transition: 'background 0.1s',
+                userSelect: 'none',
               }}
-              onMouseEnter={(e) => { if (!isToday) e.currentTarget.style.background = 'var(--paper-warm, #FAF5EC)'; }}
-              onMouseLeave={(e) => { if (!isToday) e.currentTarget.style.background = 'var(--paper)'; }}
+              onMouseLeave={(e) => { if (!isToday && !isInLasso) e.currentTarget.style.background = 'var(--paper)'; }}
             >
               <div
                 className="tm-mono tm-sm"
@@ -260,7 +338,7 @@ export default function WeekCanvas({
               <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', fontSize: 10 }}>
                 {dayTasks.length > 0 ? `${doneTasks}/${dayTasks.length} task${dayTasks.length === 1 ? '' : 's'}` : '—'}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

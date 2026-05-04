@@ -434,6 +434,43 @@ export function makeTaskometerAPI({ dispatch, getState }) {
      *     and the range already has existing slots that would be destroyed.
      *     Return false to abort. If absent, destructive replace proceeds.
      */
+    /**
+     * Clear all slots in a date range. Used by the "blank" paint
+     * material — drag across days, every slot in those days
+     * disappears. Day assignments are also unset so the day reads
+     * as "no schedule" instead of "schedule painted but empty."
+     */
+    async clearRange(startDate, endDate, opts = {}) {
+      const { weekdaysOnly = false, weekendsOnly = false } = opts;
+      const state = getState();
+      const start = new Date(typeof startDate === 'string' ? `${startDate}T00:00:00` : startDate);
+      const end = new Date(typeof endDate === 'string' ? `${endDate}T00:00:00` : endDate);
+      const cursor = new Date(start);
+      const cleared = [];
+      const assignments = { ...days.assignments() };
+      let assignmentsChanged = false;
+      while (cursor.getTime() <= end.getTime()) {
+        const day = cursor.getDay();
+        const isWeekend = day === 0 || day === 6;
+        const skip = (weekdaysOnly && isWeekend) || (weekendsOnly && !isWeekend);
+        if (!skip) {
+          const dateKey = ymd(cursor);
+          const toRemove = (state.slots || []).filter(s => s.date === dateKey);
+          for (const s of toRemove) {
+            // eslint-disable-next-line no-await-in-loop
+            dispatch({ type: ACTION_TYPES.DELETE_SLOT, payload: { id: s.id } });
+          }
+          if (assignments[dateKey]) {
+            delete assignments[dateKey];
+            assignmentsChanged = true;
+          }
+          cleared.push(dateKey);
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      if (assignmentsChanged) mergeSettings({ dayAssignments: assignments });
+      return { cleared };
+    },
     async applyToRange(wheelId, startDate, endDate, opts = {}) {
       const overrides = days.overrides();
       const {

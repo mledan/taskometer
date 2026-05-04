@@ -1176,7 +1176,19 @@ export default function Taskometer() {
             setSelectedDate(d);
             setScale('day');
           }}
-          onPaintRange={async ({ wheelId, startKey, endKey, weekdaysOnly, weekendsOnly }) => {
+          onPaintRange={async ({ wheelId, material, startKey, endKey, weekdaysOnly, weekendsOnly }) => {
+            // Two materials: 'schedule' (default) paints a wheel,
+            // 'blank' clears the range. The user asked for "click and
+            // drag, wether it's a path, a single task, blankness, or
+            // a full day or week" — blank lives here.
+            if (material === 'blank') {
+              const result = await api.wheels.clearRange(startKey, endKey, {
+                weekdaysOnly: !!weekdaysOnly,
+                weekendsOnly: !!weekendsOnly,
+              });
+              telemetryLog('ui:week-paint-blank', { count: result?.cleared?.length || 0 });
+              return;
+            }
             if (!wheelId) return;
             const result = await api.wheels.applyToRange(wheelId, startKey, endKey, {
               weekdaysOnly: !!weekdaysOnly,
