@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react';
+import SleepCycleHint from './SleepCycleHint.jsx';
+import { isSleepSlot } from '../services/sleepCycles.js';
 
 function ymd(d) {
   const m = d.getMonth() + 1;
@@ -141,8 +143,45 @@ export default function BlockBoard({
     return { ordered, loose: looseScheduled };
   }, [tasksForDay, daySlots]);
 
+  // Sleep slots for the day — surfaced as their own section so the
+  // SleepCycleHint shows even when no tasks are scheduled (which is
+  // basically always for sleep blocks).
+  const sleepSlots = useMemo(
+    () => daySlots.filter(isSleepSlot),
+    [daySlots],
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {sleepSlots.length > 0 && (
+        <Section
+          title={`Sleep · ${sleepSlots.length} block${sleepSlots.length === 1 ? '' : 's'}`}
+          accent="#6B46C1"
+          subtitle="cycle-aware wake / bedtime suggestions for each sleep window."
+        >
+          {sleepSlots.map(s => (
+            <div
+              key={s.id}
+              style={{
+                borderLeft: `3px solid ${s.color || '#6B46C1'}`,
+                paddingLeft: 10,
+                marginBottom: 8,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 15, fontWeight: 600 }}>
+                  {s.label || s.slotType || 'sleep'}
+                </span>
+                <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                  {s.startTime}–{s.endTime}
+                </span>
+              </div>
+              <SleepCycleHint slot={s} />
+            </div>
+          ))}
+        </Section>
+      )}
+
       {/* Overdue */}
       {overdue.length > 0 && (
         <Section
@@ -272,6 +311,7 @@ function SlotGroup({ slot, tasks, api, slots, rowHandlers }) {
           </span>
         )}
       </div>
+      {slot && isSleepSlot(slot) && <SleepCycleHint slot={slot} compact />}
       {tasks.map(t => (
         <TaskRow
           key={t.id || t.key}

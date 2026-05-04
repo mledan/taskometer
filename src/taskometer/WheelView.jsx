@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import WheelPickerModal from './WheelPickerModal.jsx';
 import { TaskRow } from './shared.jsx';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
+import SleepCycleHint from './SleepCycleHint.jsx';
+import { isSleepSlot } from '../services/sleepCycles.js';
 
 const WHEEL_CATEGORY_BY_ID = (() => {
   const m = {};
@@ -709,6 +711,9 @@ function ExpandedWedgePanel({
                 <button className="tm-btn tm-sm" onClick={() => onCollapse(s.id)}>close</button>
               </div>
             </div>
+            {isSleepSlot(s) && (
+              <SleepCycleHint slot={s} />
+            )}
             <div style={{ marginTop: 8 }}>
               {slotTasks.length === 0 ? (
                 <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>

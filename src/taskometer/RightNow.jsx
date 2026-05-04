@@ -1,4 +1,6 @@
 import React from 'react';
+import SleepCycleHint from './SleepCycleHint.jsx';
+import { isSleepSlot } from '../services/sleepCycles.js';
 
 /**
  * RightNow — the top of the day-view sidebar. Answers two questions:
@@ -72,6 +74,8 @@ export default function RightNow({
           <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginTop: -8 }}>
             {slot.startTime}–{slot.endTime}
           </div>
+
+          {isSleepSlot(slot) && <SleepCycleHint slot={slot} compact />}
 
           {sortedTasks.length === 0 ? (
             <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', lineHeight: 1.5 }}>
