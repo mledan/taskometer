@@ -1017,6 +1017,15 @@ export default function Taskometer() {
             <InboxPanel
               tasks={filteredDerived.backlog || []}
               rowHandlers={{ onToggle: handleToggle, onDelete: handleDelete }}
+              onScheduleToDate={(taskId, dateKey) => {
+                // Schedule a captured task to any day at 9am — the
+                // user can drag onto a specific wedge afterwards if
+                // they want a precise block.
+                const [y, m, d] = dateKey.split('-').map(Number);
+                const dt = new Date(y, (m || 1) - 1, d || 1, 9, 0, 0, 0);
+                api.tasks.reschedule(taskId, dt.toISOString(), null);
+                telemetryLog('ui:inbox-schedule-to-date', { date: dateKey });
+              }}
             />
             <ComingUp
               tasks={state.tasks || []}
@@ -1026,6 +1035,10 @@ export default function Taskometer() {
                 setSelectedDate(d);
                 setRecentRollover(null);
                 telemetryLog('ui:coming-up-jump', { date: formatYMD(d) });
+              }}
+              onReschedule={(taskId, iso) => {
+                api.tasks.reschedule(taskId, iso, null);
+                telemetryLog('ui:coming-up-reschedule', { id: taskId });
               }}
             />
             <SleepPSA slots={state.slots || []} dateKey={viewKey} />

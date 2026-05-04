@@ -292,6 +292,19 @@ function TaskRow({ task, relativeDay, isInbox, showOverdue, api, slots, rowHandl
   const dt = task.scheduledTime ? new Date(task.scheduledTime) : null;
   const time = dt ? fmtClock(dt) : null;
 
+  const dateInputValue = dt ? ymd(dt) : '';
+  const timeInputValue = dt
+    ? `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`
+    : '09:00';
+
+  const rescheduleTo = (newDateStr, newTimeStr) => {
+    if (!newDateStr) return;
+    const [y, m, d] = newDateStr.split('-').map(Number);
+    const [h, mi] = (newTimeStr || timeInputValue || '09:00').split(':').map(Number);
+    const next = new Date(y, (m || 1) - 1, d || 1, h || 0, mi || 0, 0, 0);
+    api?.tasks?.reschedule?.(id, next.toISOString(), null);
+  };
+
   const moveTomorrow = () => {
     const base = dt || new Date();
     const next = new Date(base.getTime() + 24 * 60 * 60 * 1000);
@@ -312,7 +325,7 @@ function TaskRow({ task, relativeDay, isInbox, showOverdue, api, slots, rowHandl
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
+        gap: 8,
         padding: '8px 0',
         borderBottom: '1px solid var(--rule-soft)',
         opacity: done ? 0.55 : 1,
@@ -335,7 +348,7 @@ function TaskRow({ task, relativeDay, isInbox, showOverdue, api, slots, rowHandl
           flexShrink: 0,
         }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 160 }}>
         <div
           style={{
             fontSize: 15,
@@ -358,6 +371,28 @@ function TaskRow({ task, relativeDay, isInbox, showOverdue, api, slots, rowHandl
           {isInbox && <> · unscheduled</>}
         </div>
       </div>
+
+      {/* Inline date+time pickers — full cross-day control. The user
+          asked: "i don't have enough control ability to change them
+          to where i want them to show up." Now any task can be moved
+          to any day at any time without leaving the row. */}
+      <input
+        type="date"
+        className="tm-composer-num"
+        value={dateInputValue}
+        onChange={(e) => rescheduleTo(e.target.value, timeInputValue)}
+        title="move to a different day (preserves time-of-day; sets to 9:00 if previously unscheduled)"
+        style={{ fontSize: 12, width: 130 }}
+      />
+      <input
+        type="time"
+        className="tm-composer-num"
+        value={timeInputValue}
+        onChange={(e) => rescheduleTo(dateInputValue || ymd(new Date()), e.target.value)}
+        title="change the time"
+        style={{ fontSize: 12, width: 90 }}
+      />
+
       {slots.length > 0 && (
         <select
           className="tm-composer-select"
@@ -368,10 +403,10 @@ function TaskRow({ task, relativeDay, isInbox, showOverdue, api, slots, rowHandl
             api?.tasks?.moveToSlot?.(id, sid);
             e.target.value = '';
           }}
-          title="move to a block on this day"
+          title="snap into a block on this day"
           style={{ fontSize: 12 }}
         >
-          <option value="">move to…</option>
+          <option value="">snap to block…</option>
           {slots.map(s => (
             <option key={s.id} value={s.id}>
               {(s.label || s.slotType || 'block')} · {s.startTime}

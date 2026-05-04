@@ -83,7 +83,7 @@ export const QuickCapture = forwardRef(function QuickCapture(
  * channel. We don't auto-place — the whole point is the user picks
  * where it goes when they sit down to plan.
  */
-export function InboxPanel({ tasks = [], rowHandlers = {}, onScheduleAll }) {
+export function InboxPanel({ tasks = [], rowHandlers = {}, onScheduleAll, onScheduleToDate }) {
   const empty = tasks.length === 0;
 
   return (
@@ -132,12 +132,27 @@ export function InboxPanel({ tasks = [], rowHandlers = {}, onScheduleAll }) {
                 tags: t.tags,
               };
               return (
-                <TaskRow
-                  key={id}
-                  task={row}
-                  onToggle={rowHandlers.onToggle}
-                  onDelete={rowHandlers.onDelete}
-                />
+                <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <TaskRow
+                    task={row}
+                    onToggle={rowHandlers.onToggle}
+                    onDelete={rowHandlers.onDelete}
+                  />
+                  {onScheduleToDate && (
+                    <input
+                      type="date"
+                      className="tm-composer-num"
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (!v) return;
+                        onScheduleToDate(id, v);
+                        e.target.value = '';
+                      }}
+                      title="schedule this to any day (lands at 9:00 — drag onto a wedge for a specific block)"
+                      style={{ fontSize: 11, width: 130, alignSelf: 'flex-start', marginLeft: 30, marginBottom: 4 }}
+                    />
+                  )}
+                </div>
               );
             })}
           </div>

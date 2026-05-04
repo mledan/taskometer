@@ -38,7 +38,7 @@ function fmtClock(iso) {
  * they are added" — this is where they go. Always visible if anything
  * is scheduled outside today.
  */
-export default function ComingUp({ tasks = [], selectedDate, onJumpToDate, recentRollover, limit = 8 }) {
+export default function ComingUp({ tasks = [], selectedDate, onJumpToDate, onReschedule, recentRollover, limit = 8 }) {
   const todayKey = useMemo(() => ymd(new Date()), []);
   const selectedKey = ymd(selectedDate);
 
@@ -121,33 +121,62 @@ export default function ComingUp({ tasks = [], selectedDate, onJumpToDate, recen
 
       {upcoming.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {upcoming.map(t => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => onJumpToDate?.(new Date(`${t.dayKey}T00:00:00`))}
-              draggable
-              onDragStart={(ev) => {
-                ev.dataTransfer.setData('text/task-id', t.id);
-                ev.dataTransfer.effectAllowed = 'move';
-              }}
-              title={`jump to ${fmtRelative(t.dayKey)} · drag onto a wedge to reschedule`}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '6px 0',
-                borderBottom: '1px solid var(--rule-soft)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}
-            >
-              <span style={{ fontSize: 14, color: 'var(--ink)' }}>{t.text}</span>
-              <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-                {fmtRelative(t.dayKey)} · {fmtClock(t.when.toISOString())}
-              </span>
-            </button>
-          ))}
+          {upcoming.map(t => {
+            const absoluteDate = t.when.toLocaleDateString('en', { month: 'short', day: 'numeric' }).toLowerCase();
+            return (
+              <div
+                key={t.id}
+                draggable
+                onDragStart={(ev) => {
+                  ev.dataTransfer.setData('text/task-id', t.id);
+                  ev.dataTransfer.effectAllowed = 'move';
+                }}
+                style={{
+                  padding: '6px 0',
+                  borderBottom: '1px solid var(--rule-soft)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  cursor: 'grab',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => onJumpToDate?.(new Date(`${t.dayKey}T00:00:00`))}
+                  title={`jump to ${absoluteDate}`}
+                  style={{
+                    all: 'unset',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                  }}
+                >
+                  <span style={{ fontSize: 14, color: 'var(--ink)' }}>{t.text}</span>
+                  <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
+                    {absoluteDate} · {fmtClock(t.when.toISOString())} · {fmtRelative(t.dayKey)}
+                  </span>
+                </button>
+                {onReschedule && (
+                  <input
+                    type="date"
+                    className="tm-composer-num"
+                    value={t.dayKey}
+                    onChange={(e) => {
+                      const nextKey = e.target.value;
+                      if (!nextKey) return;
+                      // Preserve time-of-day
+                      const [y, m, d] = nextKey.split('-').map(Number);
+                      const next = new Date(y, (m || 1) - 1, d || 1, t.when.getHours(), t.when.getMinutes(), 0, 0);
+                      onReschedule(t.id, next.toISOString());
+                    }}
+                    title="move to a different day (keeps time-of-day)"
+                    style={{ fontSize: 11, width: 130, alignSelf: 'flex-start' }}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
