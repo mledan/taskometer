@@ -20,6 +20,7 @@ import TimeBreakdown from './TimeBreakdown.jsx';
 import Snoozed from './Snoozed.jsx';
 import FamousSpotlight from './FamousSpotlight.jsx';
 import PackPicker from './PackPicker.jsx';
+import PathPicker from './PathPicker.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
@@ -118,6 +119,7 @@ export default function Taskometer() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [packPickerOpen, setPackPickerOpen] = useState(false);
+  const [pathPickerOpen, setPathPickerOpen] = useState(false);
   // The wheel currently being painted across a range. Null = painter
   // closed. Object = { wheel } where wheel may need to be added to the
   // user's library before applyToRange can target it by ID.
@@ -1115,6 +1117,15 @@ export default function Taskometer() {
               >
                 task packs →
               </button>
+              <button
+                type="button"
+                className="tm-btn tm-sm tm-ghost"
+                onClick={() => setPathPickerOpen(true)}
+                title="adopt a path — schedule + pack + duration applied as one move"
+                style={{ color: 'var(--orange)', fontWeight: 600 }}
+              >
+                paths ★ →
+              </button>
             </div>
           </aside>
         </div>
@@ -1297,6 +1308,57 @@ export default function Taskometer() {
           anchorDate={selectedDate}
           onClose={() => setPainterTarget(null)}
           onApply={paintWheelAcrossRange}
+        />
+      )}
+
+      {pathPickerOpen && (
+        <PathPicker
+          onClose={() => setPathPickerOpen(false)}
+          onAdopt={async (path, wheel, pack) => {
+            // 1. Make sure the wheel is in the user's library so applyToRange
+            //    can address it by id (famous/archetype wheels need cloning in)
+            const existing = userWheels.find(w => w.id === wheel.id);
+            let actualId = existing?.id;
+            if (!actualId) {
+              const added = await api.wheels.add({
+                id: wheel.id, name: wheel.name, color: wheel.color, blocks: wheel.blocks,
+              });
+              actualId = added.id;
+            }
+            // 2. Paint the schedule across the path's duration
+            const start = new Date();
+            const end = new Date();
+            end.setDate(end.getDate() + (path.duration - 1));
+            const startKey = formatYMD(start);
+            const endKey = formatYMD(end);
+            await api.wheels.applyToRange(actualId, startKey, endKey, {
+              weekdaysOnly: !!path.weekdaysOnly,
+              mode: 'replace',
+            });
+            // 3. Drop the pack's tasks straight into the inbox so the
+            //    user can plan them themselves. Path adoption shouldn't
+            //    surprise-schedule a bunch of tasks; the user has just
+            //    committed to a structure, not a backlog.
+            for (const t of pack.tasks) {
+              // eslint-disable-next-line no-await-in-loop
+              await api.tasks.add({
+                text: t.text,
+                duration: t.duration,
+                primaryType: t.primaryType,
+                status: 'pending',
+                priority: 'medium',
+                recurrence: { frequency: 'none', interval: 1, daysOfWeek: [], dayOfMonth: null, endDate: null, occurrences: null },
+                autoSchedule: false,
+              });
+            }
+            telemetryLog('path:adopted', {
+              pathId: path.id,
+              wheelId: actualId,
+              packId: pack.id,
+              days: path.duration,
+              tasks: pack.tasks.length,
+            });
+          }}
         />
       )}
 
