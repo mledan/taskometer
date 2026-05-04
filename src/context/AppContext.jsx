@@ -912,7 +912,11 @@ function appReducer(state, action) {
     }
 
     case ACTION_TYPES.RESCHEDULE_TASK: {
-      const { taskId, scheduledTime, specificTime, specificDay } = action.payload;
+      // Accept both `taskId` (legacy) and `id` (newer call sites). Honor an
+      // explicit `scheduledSlotId` when caller passes one (e.g. moveToSlot
+      // hands a target slot id; reschedule-by-date passes null to detach).
+      const { taskId: payloadTaskId, id: payloadId, scheduledTime, specificTime, specificDay, scheduledSlotId } = action.payload;
+      const taskId = payloadTaskId ?? payloadId;
       const oldTask = state.tasks.find((task) => task.id === taskId || task.key?.toString() === taskId);
       const oldSlotId = oldTask?.scheduledSlotId;
       const updatedSlots = oldSlotId
@@ -922,6 +926,7 @@ function appReducer(state, action) {
         })
         : state.slots;
 
+      const nextSlotId = scheduledSlotId !== undefined ? scheduledSlotId : null;
       const newTasks = state.tasks.map(task => {
         if (task.id !== taskId && task.key?.toString() !== taskId) return task;
         return {
@@ -930,7 +935,7 @@ function appReducer(state, action) {
           scheduledFor: scheduledTime,
           specificTime,
           specificDay,
-          scheduledSlotId: null,
+          scheduledSlotId: nextSlotId,
           updatedAt: timestamp
         };
       });

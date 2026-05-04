@@ -73,9 +73,10 @@ export function makeTaskometerAPI({ dispatch, getState }) {
       }
     },
     async reschedule(id, scheduledTime, scheduledSlotId = null) {
+      // Reducer destructures `taskId`, not `id`. Keep both for forward compat.
       dispatch({
         type: ACTION_TYPES.RESCHEDULE_TASK,
-        payload: { id, scheduledTime, scheduledSlotId },
+        payload: { taskId: id, id, scheduledTime, scheduledSlotId },
       });
     },
     /**
@@ -142,6 +143,7 @@ export function makeTaskometerAPI({ dispatch, getState }) {
       dispatch({
         type: ACTION_TYPES.RESCHEDULE_TASK,
         payload: {
+          taskId,
           id: taskId,
           scheduledTime: d.toISOString(),
           scheduledSlotId: slotId,
