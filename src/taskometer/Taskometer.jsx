@@ -25,6 +25,7 @@ import DiscoveryStrip from './DiscoveryStrip.jsx';
 import WelcomePopup, { readAuth, AUTH_EVENT } from './WelcomePopup.jsx';
 import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
+import SpiralBoard from './SpiralBoard.jsx';
 import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
 import { matchScheduleType, nextOpenInType } from '../services/api/derive';
@@ -50,7 +51,7 @@ import './taskometer.css';
  * rules) is gone. Each scale picks its own body component.
  */
 
-const SCALES = ['block', 'day', 'week', 'month', 'quarter', 'year', 'life'];
+const SCALES = ['block', 'day', 'spiral', 'week', 'month', 'quarter', 'year', 'life'];
 const CALENDAR_SCOPES = new Set(['month', 'quarter', 'year', 'life']);
 
 const DEFAULT_UI = {
@@ -1284,6 +1285,16 @@ export default function Taskometer() {
             <SleepPSA slots={state.slots || []} dateKey={viewKey} />
           </aside>
         </div>
+      )}
+
+      {scale === 'spiral' && (
+        <SpiralBoard
+          settings={state.settings || {}}
+          slots={state.slots || []}
+          tasks={filteredState.tasks || []}
+          api={api}
+          onAdd={handleAddTask}
+        />
       )}
 
       {scale === 'week' && (
