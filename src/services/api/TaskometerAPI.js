@@ -208,6 +208,7 @@ export function makeTaskometerAPI({ dispatch, getState }) {
       dayOverrides: s?.dayOverrides || {},
       dayOverrideSnapshots: s?.dayOverrideSnapshots || {},
       scheduleRules: s?.scheduleRules || [],
+      scheduleTypes: s?.scheduleTypes || [],
       autoSchedule: s?.autoSchedule !== false,
     });
   const mergeSettings = (patch) => {
@@ -858,6 +859,57 @@ export function makeTaskometerAPI({ dispatch, getState }) {
     },
   };
 
+  // ---------- Schedule types (tag-driven time windows) -------------------
+  // settings.scheduleTypes: [{ id, name, tag, color, startTime, endTime, days[] }]
+  // A [tag] in a todo routes it into that type's next free window slot.
+  const scheduleTypes = {
+    list() {
+      return readSettings().scheduleTypes || [];
+    },
+    async add(t = {}) {
+      const item = {
+        id: t.id || genId('type'),
+        name: t.name || 'type',
+        tag: String(t.tag || '').toLowerCase(),
+        color: t.color || '#3B82F6',
+        startTime: t.startTime || '09:00',
+        endTime: t.endTime || '10:00',
+        days: Array.isArray(t.days) ? t.days : ['mon', 'tue', 'wed', 'thu', 'fri'],
+      };
+      mergeSettings({ scheduleTypes: [...scheduleTypes.list(), item] });
+      return item;
+    },
+    async update(id, updates = {}) {
+      mergeSettings({
+        scheduleTypes: scheduleTypes.list().map(x => x.id === id
+          ? { ...x, ...updates, tag: updates.tag != null ? String(updates.tag).toLowerCase() : x.tag }
+          : x),
+      });
+    },
+    async remove(id) {
+      mergeSettings({ scheduleTypes: scheduleTypes.list().filter(x => x.id !== id) });
+    },
+    /** Add a list of types (merge by default). Used by starters and share-import. */
+    async applyShared(types, { merge = true } = {}) {
+      const built = (types || []).map(t => ({
+        id: genId('type'),
+        name: t.name || 'type',
+        tag: String(t.tag || '').toLowerCase(),
+        color: t.color || '#3B82F6',
+        startTime: t.startTime || '09:00',
+        endTime: t.endTime || '10:00',
+        days: Array.isArray(t.days) ? t.days : ['mon', 'tue', 'wed', 'thu', 'fri'],
+      }));
+      mergeSettings({ scheduleTypes: merge ? [...scheduleTypes.list(), ...built] : built });
+    },
+    /** Stack a curated starter onto the user's existing types. */
+    async applyStarter(starterId, { merge = true } = {}) {
+      const starter = STARTER_SCHEDULES.find(s => s.id === starterId);
+      if (!starter) return;
+      await scheduleTypes.applyShared(starter.types, { merge });
+    },
+  };
+
   return {
     tasks,
     slots,
@@ -865,6 +917,7 @@ export function makeTaskometerAPI({ dispatch, getState }) {
     wheels,
     days,
     rules,
+    scheduleTypes,
     settings,
     backup,
     async getState() {
@@ -1026,3 +1079,65 @@ const DEFAULT_OVERRIDE_COLORS = Object.fromEntries(OVERRIDE_TYPES.map(o => [o.id
 export { DEFAULT_WHEELS as STARTER_WHEELS } from '../../defaults/defaultSchedule';
 
 export default makeTaskometerAPI;
+
+// Curated starter sets for tag-driven schedule types. Picking one stacks
+// its windows onto the user's existing types (never overwrites).
+const WD = ['mon', 'tue', 'wed', 'thu', 'fri'];
+const ALL = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+export const STARTER_SCHEDULES = [
+  {
+    id: 'maker',
+    name: 'Maker',
+    blurb: 'Long deep-work mornings, meetings corralled into the afternoon.',
+    types: [
+      { name: 'Sleep', tag: 'sleep', color: '#6B46C1', startTime: '23:30', endTime: '07:00', days: ALL },
+      { name: 'Deep work', tag: 'deep', color: '#3B82F6', startTime: '08:30', endTime: '12:30', days: WD },
+      { name: 'Lunch', tag: 'lunch', color: '#A8BF8C', startTime: '12:30', endTime: '13:30', days: ALL },
+      { name: 'Meetings', tag: 'mtg', color: '#F59E0B', startTime: '14:00', endTime: '17:00', days: WD },
+      { name: 'Exercise', tag: 'gym', color: '#10B981', startTime: '18:00', endTime: '19:00', days: ALL },
+    ],
+  },
+  {
+    id: 'nine_five',
+    name: '9 to 5',
+    blurb: 'Classic office day with a focused block and admin afternoon.',
+    types: [
+      { name: 'Sleep', tag: 'sleep', color: '#6B46C1', startTime: '23:00', endTime: '06:30', days: ALL },
+      { name: 'Focus', tag: 'focus', color: '#3B82F6', startTime: '09:00', endTime: '12:00', days: WD },
+      { name: 'Lunch', tag: 'lunch', color: '#A8BF8C', startTime: '12:00', endTime: '13:00', days: WD },
+      { name: 'Admin', tag: 'admin', color: '#F59E0B', startTime: '13:00', endTime: '17:00', days: WD },
+    ],
+  },
+  {
+    id: 'early_riser',
+    name: 'Early riser',
+    blurb: 'Up at five — workout, then peak focus before the world wakes.',
+    types: [
+      { name: 'Sleep', tag: 'sleep', color: '#6B46C1', startTime: '21:30', endTime: '05:00', days: ALL },
+      { name: 'Workout', tag: 'gym', color: '#10B981', startTime: '05:30', endTime: '06:30', days: ALL },
+      { name: 'Deep work', tag: 'deep', color: '#3B82F6', startTime: '07:00', endTime: '11:00', days: WD },
+      { name: 'Meetings', tag: 'mtg', color: '#F59E0B', startTime: '12:00', endTime: '15:00', days: WD },
+    ],
+  },
+  {
+    id: 'student',
+    name: 'Student',
+    blurb: 'Classes in the day, study blocks in the evening.',
+    types: [
+      { name: 'Sleep', tag: 'sleep', color: '#6B46C1', startTime: '00:00', endTime: '08:00', days: ALL },
+      { name: 'Classes', tag: 'class', color: '#3B82F6', startTime: '09:00', endTime: '15:00', days: WD },
+      { name: 'Study', tag: 'study', color: '#D4663A', startTime: '19:00', endTime: '22:00', days: ALL },
+    ],
+  },
+  {
+    id: 'night_owl',
+    name: 'Night owl',
+    blurb: 'Slow mornings, creative late nights.',
+    types: [
+      { name: 'Sleep', tag: 'sleep', color: '#6B46C1', startTime: '02:00', endTime: '10:00', days: ALL },
+      { name: 'Admin', tag: 'admin', color: '#F59E0B', startTime: '11:00', endTime: '14:00', days: WD },
+      { name: 'Deep work', tag: 'deep', color: '#3B82F6', startTime: '20:00', endTime: '01:00', days: ALL },
+    ],
+  },
+];

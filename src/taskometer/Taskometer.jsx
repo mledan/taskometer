@@ -27,6 +27,8 @@ import { hasSeenOnboarding, startOnboarding } from './Onboarding.jsx';
 import AccountPanel from './AccountPanel.jsx';
 import { useTaskometerAPI } from '../services/api';
 import { STARTER_WHEELS } from '../services/api/TaskometerAPI';
+import { matchScheduleType, nextOpenInType } from '../services/api/derive';
+import { readSharedScheduleTypesFromHash } from '../services/scheduleShare';
 import { DEFAULT_DAY_WHEEL_ID } from '../defaults/defaultSchedule';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
 import { ARCHETYPES, ARCHETYPE_WHEELS } from '../defaults/scheduleArchetypes';
@@ -424,6 +426,40 @@ export default function Taskometer() {
 
   const handleAddTask = async (data) => {
     const duration = data?.duration || 30;
+
+    // Tag-driven routing: if the text contains [tag] matching a schedule
+    // type, drop it into that window's next free slot (FIFO stacking).
+    // Falls through to the default scheduler if no tag matches or no slot
+    // fits in the next 2 weeks.
+    const typesList = state.settings?.scheduleTypes || [];
+    const matchedType = matchScheduleType(data?.text || '', typesList);
+    if (matchedType) {
+      const occ = nextOpenInType({ type: matchedType, tasks: state.tasks || [], now: new Date(), duration });
+      if (occ) {
+        const d = new Date(`${occ.dayKey}T00:00:00`);
+        d.setHours(Math.floor(occ.startMin / 60), occ.startMin % 60, 0, 0);
+        const iso = d.toISOString();
+        const existingTags = Array.isArray(data.tags) ? data.tags : [];
+        const payload = {
+          ...data,
+          scheduledTime: iso,
+          scheduledFor: iso,
+          tags: existingTags.includes(matchedType.tag) ? existingTags : [...existingTags, matchedType.tag],
+          metadata: { ...(data.metadata || {}), scheduleTypeId: matchedType.id },
+        };
+        telemetryLog('task:add', {
+          text: (payload.text || '').slice(0, 40),
+          type: payload.primaryType,
+          duration: payload.duration,
+          tagMatch: matchedType.tag,
+          kind: 'schedule-type',
+        });
+        emit(EVENTS.TASK_ADDED, { slotId: null });
+        return api.tasks.add(payload);
+      }
+      // No fit in this type's window over the next 2 weeks — fall back.
+    }
+
     // Scheduler walks today → tomorrow → ... up to 60 days, looking for
     // a real fit. If today's preferred block is full, the task rolls
     // forward to the next matching slot — concrete or rhythm-projected.
@@ -510,6 +546,23 @@ export default function Taskometer() {
   useEffect(() => () => {
     if (rolloverTimerRef.current) clearTimeout(rolloverTimerRef.current);
   }, []);
+
+  // A shared schedule-type set arrives as #sched=… — show an import banner.
+  const [sharedTypeImport, setSharedTypeImport] = useState(null);
+  useEffect(() => {
+    const decoded = readSharedScheduleTypesFromHash();
+    if (decoded && decoded.length) setSharedTypeImport(decoded);
+    if (decoded) {
+      // Strip the fragment so a refresh doesn't re-prompt.
+      const next = window.location.hash.replace(/[#&]sched=[A-Za-z0-9_-]+/, '').replace(/^#/, '');
+      window.history.replaceState(null, '', window.location.pathname + window.location.search + (next ? `#${next}` : ''));
+    }
+  }, []);
+  const acceptSharedTypes = async () => {
+    if (!sharedTypeImport) return;
+    await api.scheduleTypes.applyShared(sharedTypeImport, { merge: true });
+    setSharedTypeImport(null);
+  };
 
   const handleSeriesComplete = (id) => api.tasks.completeSeries(id);
   const handleSeriesDelete = (id) => {
@@ -850,6 +903,34 @@ export default function Taskometer() {
 
   return (
     <div id="tm-root-frame" className="tm-root tm-paper">
+      {sharedTypeImport && (
+        <div
+          role="region"
+          aria-label="shared schedule import"
+          style={{
+            margin: '12px 0 0',
+            padding: '10px 14px',
+            borderRadius: 10,
+            border: '1px solid var(--orange)',
+            background: 'var(--paper-warm)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: 15 }}>
+            someone shared a schedule — {sharedTypeImport.length} window{sharedTypeImport.length === 1 ? '' : 's'}
+            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 8 }}>
+              {sharedTypeImport.slice(0, 6).map(t => t.tag).filter(Boolean).join(' · ')}
+            </span>
+          </span>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            <button className="tm-btn tm-sm" onClick={acceptSharedTypes}>add to mine</button>
+            <button className="tm-btn tm-sm tm-ghost" onClick={() => setSharedTypeImport(null)}>dismiss</button>
+          </div>
+        </div>
+      )}
       <header
         style={{
           display: 'flex',
