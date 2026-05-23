@@ -12,11 +12,83 @@ import { getSlotDuration } from '../../models/CalendarSlot';
 
 // ---------- tiny helpers -------------------------------------------------
 
+export const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
 export function ymd(d) {
   const y = d.getFullYear();
   const m = d.getMonth() + 1;
   const day = d.getDate();
   return `${y}-${m < 10 ? '0' + m : m}-${day < 10 ? '0' + day : day}`;
+}
+
+export function hmToMin(hm) {
+  if (typeof hm !== 'string') return 0;
+  const [h, m] = hm.split(':').map(Number);
+  return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+}
+
+/** Extract lowercase tags written as [tag] in a todo's text. */
+export function parseTags(text) {
+  const tags = [];
+  const re = /\[([^\]]+)\]/g;
+  let m;
+  while ((m = re.exec(text || ''))) tags.push(m[1].trim().toLowerCase());
+  return tags;
+}
+
+/** Find the schedule type whose tag appears as a [tag] in the text. */
+export function matchScheduleType(text, types = []) {
+  const tags = parseTags(text);
+  if (tags.length === 0) return null;
+  return types.find(ty => ty && ty.tag && tags.includes(String(ty.tag).toLowerCase())) || null;
+}
+
+/**
+ * Walks forward up to 2 weeks on days the type applies to, skipping past
+ * already-scheduled tasks, and returns the first free start big enough for
+ * `duration`. Lets multiple [tag] tasks stack through the window FIFO.
+ * Returns { dayKey, startMin } or null.
+ */
+export function nextOpenInType({ type, tasks = [], now = new Date(), duration = 30 }) {
+  if (!type?.startTime) return null;
+  const startMin = hmToMin(type.startTime);
+  let endMin = hmToMin(type.endTime);
+  if (endMin <= startMin) endMin += 24 * 60;
+  const durMs = duration * 60000;
+  const QUARTER = 15 * 60000;
+
+  for (let d = 0; d < 14; d++) {
+    const date = new Date(now);
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + d);
+    const wk = WEEKDAY_KEYS[date.getDay()];
+    if (Array.isArray(type.days) && type.days.length && !type.days.includes(wk)) continue;
+
+    const dayMs = date.getTime();
+    const winStart = dayMs + startMin * 60000;
+    const winEnd = dayMs + endMin * 60000;
+
+    const busy = tasks
+      .filter(t => t?.scheduledTime && t.status !== 'completed' && t.status !== 'cancelled')
+      .map(t => {
+        const s = new Date(t.scheduledTime).getTime();
+        return [s, s + (typeof t.duration === 'number' ? t.duration : 30) * 60000];
+      })
+      .filter(([s, e]) => e > winStart && s < winEnd)
+      .sort((a, b) => a[0] - b[0]);
+
+    let cand = winStart;
+    if (d === 0) cand = Math.max(cand, Math.ceil(now.getTime() / QUARTER) * QUARTER);
+    for (const [bs, be] of busy) {
+      if (cand + durMs <= bs) break;
+      if (be > cand) cand = be;
+    }
+    if (cand + durMs <= winEnd) {
+      const dt = new Date(cand);
+      return { dayKey: ymd(dt), startMin: dt.getHours() * 60 + dt.getMinutes() };
+    }
+  }
+  return null;
 }
 
 function startOfWeek(d = new Date()) {

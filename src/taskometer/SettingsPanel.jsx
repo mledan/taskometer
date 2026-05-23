@@ -1,4 +1,6 @@
 import React, { useRef, useState } from 'react';
+import { STARTER_SCHEDULES } from '../services/api/TaskometerAPI';
+import { buildScheduleShareURL } from '../services/scheduleShare';
 
 /**
  * Consolidated settings surface. Replaces the old floating "tweaks" panel
@@ -20,6 +22,18 @@ export default function SettingsPanel({
   const [notifPerm, setNotifPerm] = useState(() =>
     typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
   );
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const scheduleTypes = api?.scheduleTypes?.list ? api.scheduleTypes.list() : [];
+
+  const shareScheduleTypes = async () => {
+    if (scheduleTypes.length === 0) return;
+    const link = buildScheduleShareURL(scheduleTypes);
+    if (!link) return;
+    try { await navigator.clipboard.writeText(link); } catch (_) {}
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2500);
+  };
 
   const pick = (e) => {
     const file = e.target.files?.[0];
@@ -98,6 +112,45 @@ export default function SettingsPanel({
             browser denied permission — enable it from the site settings first.
           </div>
         )}
+      </section>
+
+      <section style={{ marginTop: 14 }}>
+        <div className="tm-mono tm-md" style={{ color: 'var(--orange)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
+          schedule types
+        </div>
+        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', margin: '4px 0 8px' }}>
+          tag-driven time windows. write <span style={{ color: 'var(--orange)' }}>[keyword]</span> in a todo and it lands in that window's next free slot.
+        </div>
+
+        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginBottom: 4 }}>add a popular routine (stacks)</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+          {STARTER_SCHEDULES.map(s => (
+            <button key={s.id} className="tm-btn tm-sm" title={s.blurb}
+              onClick={() => api.scheduleTypes.applyStarter(s.id)}>+ {s.name}</button>
+          ))}
+        </div>
+
+        {scheduleTypes.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+            {scheduleTypes.map(ty => (
+              <div key={ty.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: ty.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 14 }}>{ty.name}</span>
+                <span className="tm-mono tm-sm" style={{ color: 'var(--orange)' }}>[{ty.tag}]</span>
+                <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{ty.startTime}–{ty.endTime}</span>
+                <button className="tm-btn tm-sm" style={{ marginLeft: 'auto' }}
+                  onClick={() => api.scheduleTypes.remove(ty.id)}>×</button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginBottom: 8 }}>none yet — pick a starter above.</div>
+        )}
+
+        <button className="tm-btn tm-sm" disabled={scheduleTypes.length === 0} onClick={shareScheduleTypes}
+          title="copy a link that lets someone else add these windows to their schedule">
+          {shareCopied ? 'link copied ✓' : 'share schedule (copy link)'}
+        </button>
       </section>
 
       <section style={{ marginTop: 14 }}>
