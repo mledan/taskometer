@@ -85,8 +85,19 @@ function readStoredUI() {
 
 export default function Taskometer() {
   const [scale, setScale] = useState(() => {
+    // One-time migration: anyone whose stored scale is the legacy default
+    // ('day') gets bumped onto the new spiral default. People who explicitly
+    // picked a different scale keep it.
+    try {
+      const flag = localStorage.getItem('tm.spiralDefault.applied');
+      if (!flag) {
+        const saved = localStorage.getItem('tm.scale');
+        if (!saved || saved === 'day') localStorage.setItem('tm.scale', 'spiral');
+        localStorage.setItem('tm.spiralDefault.applied', '1');
+      }
+    } catch (_) {}
     const saved = localStorage.getItem('tm.scale');
-    return SCALES.includes(saved) ? saved : 'day';
+    return SCALES.includes(saved) ? saved : 'spiral';
   });
   const [selectedDate, setSelectedDate] = useState(() => {
     // Allow deep-links from the year canvas: /app?date=YYYY-MM-DD
@@ -901,6 +912,62 @@ export default function Taskometer() {
 
     setPainterTarget(null);
   };
+
+  // Spiral-first shell: when the user is on the spiral scale, render a
+  // minimal layout (logo + the board) without scale buttons, sidebars, or
+  // welcome modal. Other scales keep the full chrome via the render below.
+  if (scale === 'spiral') {
+    return (
+      <div id="tm-root-frame" className="tm-root tm-paper">
+        {sharedTypeImport && (
+          <div
+            role="region"
+            aria-label="shared schedule import"
+            style={{
+              margin: '12px 0 0', padding: '10px 14px', borderRadius: 10,
+              border: '1px solid var(--orange)', background: 'var(--paper-warm)',
+              display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: 15 }}>
+              someone shared a schedule — {sharedTypeImport.length} window{sharedTypeImport.length === 1 ? '' : 's'}
+              <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginLeft: 8 }}>
+                {sharedTypeImport.slice(0, 6).map(t => t.tag).filter(Boolean).join(' · ')}
+              </span>
+            </span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+              <button className="tm-btn tm-sm" onClick={acceptSharedTypes}>add to mine</button>
+              <button className="tm-btn tm-sm tm-ghost" onClick={() => setSharedTypeImport(null)}>dismiss</button>
+            </div>
+          </div>
+        )}
+        <header
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+            marginBottom: 14, paddingTop: 18, paddingBottom: 10,
+            borderBottom: '1px solid var(--rule-soft)',
+          }}
+        >
+          <span style={{ fontFamily: 'Caveat, cursive', fontSize: 32, lineHeight: 1, color: 'var(--ink)' }}>taskometer</span>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              className="tm-btn tm-sm tm-ghost"
+              onClick={() => setScale('day')}
+              title="open the full app (day/week/month/etc. views)"
+            >more views →</button>
+          </div>
+        </header>
+        <SpiralBoard
+          settings={state.settings || {}}
+          slots={state.slots || []}
+          tasks={filteredState.tasks || []}
+          api={api}
+          onAdd={handleAddTask}
+        />
+      </div>
+    );
+  }
 
   return (
     <div id="tm-root-frame" className="tm-root tm-paper">
