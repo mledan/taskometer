@@ -20,6 +20,11 @@ function setPath(path) {
 
 beforeEach(() => {
   localStorage.clear();
+  // /app now defaults to the spiral shell. The tests below exercise the
+  // legacy full-chrome shell (welcome modal, account form, daily wrap, etc.);
+  // pin them to 'day' so they keep testing what they were written for.
+  localStorage.setItem('tm.spiralDefault.applied', '1');
+  localStorage.setItem('tm.scale', 'day');
 });
 
 afterEach(() => {
