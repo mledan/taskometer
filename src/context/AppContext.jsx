@@ -21,6 +21,7 @@ import { createTaskType, DEFAULT_TASK_TYPES } from '../models/TaskType';
 import { createSchedule } from '../models/Schedule';
 import { createAuditEntry, AUDIT_ACTIONS, ENTITY_TYPES, CHANGE_SOURCES } from '../models/AuditEntry';
 import { scheduleTask, scheduleMultipleTasks, applyEngineResults, backfillUnscheduledTasks } from '../services/scheduler';
+import { storage } from '../services/storage';
 import { log as telemetryLog, snapshotState } from '../services/telemetry';
 import {
   DEFAULT_WHEELS as SEED_WHEELS,
@@ -50,7 +51,7 @@ const getInitialDate = () => {
   };
 };
 
-const initialState = {
+export const initialState = {
   // Core entities
   tasks: [],
   slots: [],
@@ -268,7 +269,7 @@ function clearSlotAssignmentsForTaskIds(slots = [], taskIds = new Set(), timesta
 // REDUCER
 // ============================================
 
-function appReducer(state, action) {
+export function appReducer(state, action) {
   const now = new Date();
   const timestamp = now.toISOString();
 
@@ -614,14 +615,17 @@ function appReducer(state, action) {
       const taskId = payloadTaskId ?? payloadId;
       const oldTask = state.tasks.find((task) => task.id === taskId || task.key?.toString() === taskId);
       const oldSlotId = oldTask?.scheduledSlotId;
-      const updatedSlots = oldSlotId
-        ? state.slots.map((slot) => {
-          if (slot.id !== oldSlotId) return slot;
-          return { ...slot, assignedTaskId: null, updatedAt: timestamp };
-        })
-        : state.slots;
-
       const nextSlotId = scheduledSlotId !== undefined ? scheduledSlotId : null;
+      const movingTaskId = oldTask ? (oldTask.id || oldTask.key?.toString()) : taskId;
+      const updatedSlots = state.slots.map((slot) => {
+        if (slot.id === oldSlotId && slot.id !== nextSlotId) {
+          return { ...slot, assignedTaskId: null, updatedAt: timestamp };
+        }
+        if (slot.id === nextSlotId && !slot.assignedTaskId) {
+          return { ...slot, assignedTaskId: movingTaskId, updatedAt: timestamp };
+        }
+        return slot;
+      });
       const newTasks = state.tasks.map(task => {
         if (task.id !== taskId && task.key?.toString() !== taskId) return task;
         return {
@@ -818,12 +822,14 @@ function appReducer(state, action) {
       const deletedSlot = state.slots.find(s => s.id === slotId);
       const remainingSlots = state.slots.filter(s => s.id !== slotId);
 
-      // Unschedule any task assigned to the deleted slot so it can be rescheduled
+      // Unschedule every task living in the deleted slot, not just the
+      // first-occupant marker, so nothing keeps a dangling slot pointer.
       let newTasks = state.tasks;
-      if (deletedSlot?.assignedTaskId) {
+      if (deletedSlot) {
         newTasks = state.tasks.map(task => {
           const taskId = task.id || task.key?.toString();
-          if (taskId !== deletedSlot.assignedTaskId) return task;
+          const livesHere = task.scheduledSlotId === slotId || taskId === deletedSlot.assignedTaskId;
+          if (!livesHere) return task;
           return {
             ...task,
             scheduledTime: null,
@@ -876,12 +882,8 @@ function appReducer(state, action) {
         });
       }
 
-      // Backfill: freed slot and displaced task may find better placement
-      const intermediateState = { ...state, tasks: newTasks, slots: newSlots };
-      const backfilled = backfillUnscheduledTasks(intermediateState, timestamp);
-      if (backfilled) {
-        return { ...state, tasks: backfilled.tasks, slots: backfilled.slots, items: backfilled.tasks };
-      }
+      // No backfill here: the user asked for this block to be empty, and
+      // nothing else changed that could open a new placement.
       return { ...state, tasks: newTasks, slots: newSlots, items: newTasks };
     }
 
@@ -1443,7 +1445,7 @@ export function AppStateProvider({ children }) {
           date: state.date,
           activeSchedule: state.activeSchedule
         };
-        localStorage.setItem('state', JSON.stringify(legacyState));
+        storage.set('state', legacyState);
       } catch (error) {
         console.error('[AppContext] Save error:', error);
       }

@@ -15,6 +15,8 @@
  * individual lines directly from the console.
  */
 
+import storage from './storage';
+
 const MAX_ENTRIES = 500;
 const buffer = [];
 
@@ -29,7 +31,7 @@ const VERBOSE_CONSOLE = (() => {
     if (typeof import.meta !== 'undefined' && import.meta.env) {
       return import.meta.env.DEV === true;
     }
-  } catch (_) {}
+  } catch (_) { /* import.meta unavailable outside ESM */ }
   return typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
 })();
 
@@ -48,15 +50,12 @@ const REMOTE_ENABLED = (() => {
 // Per-tab session id, stored in sessionStorage so it survives reloads
 // but doesn't outlive the browser tab. No personal identifiers.
 const SESSION_ID = (() => {
-  try {
-    if (typeof sessionStorage === 'undefined') return null;
-    let id = sessionStorage.getItem('taskometer.telemetry.session');
-    if (!id) {
-      id = `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-      sessionStorage.setItem('taskometer.telemetry.session', id);
-    }
-    return id;
-  } catch (_) { return null; }
+  let id = storage.session.getRaw('taskometer.telemetry.session');
+  if (!id) {
+    id = `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    if (!storage.session.setRaw('taskometer.telemetry.session', id)) return null;
+  }
+  return id;
 })();
 
 function sendToEndpoint(entry) {

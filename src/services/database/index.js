@@ -31,8 +31,11 @@ const adapters = {
   // indexedDB: IndexedDBAdapter,
 };
 
-// Singleton instance
+// Singleton instance. The init promise is cached so concurrent callers
+// during boot all wait for the same initialize() instead of the second
+// one receiving a not-yet-initialized adapter.
 let currentAdapter = null;
+let initPromise = null;
 
 /**
  * Create a database adapter instance
@@ -57,11 +60,17 @@ export function createAdapter(type = 'localStorage', options = {}) {
  * @returns {Promise<DatabaseAdapter>}
  */
 export async function getAdapter(type = 'localStorage', options = {}) {
-  if (!currentAdapter) {
-    currentAdapter = createAdapter(type, options);
-    await currentAdapter.initialize();
+  if (!initPromise) {
+    const adapter = createAdapter(type, options);
+    initPromise = adapter.initialize().then(() => {
+      currentAdapter = adapter;
+      return adapter;
+    }).catch((err) => {
+      initPromise = null;
+      throw err;
+    });
   }
-  return currentAdapter;
+  return initPromise;
 }
 
 /**
@@ -70,8 +79,9 @@ export async function getAdapter(type = 'localStorage', options = {}) {
 export function resetAdapter() {
   if (currentAdapter) {
     currentAdapter.close();
-    currentAdapter = null;
   }
+  currentAdapter = null;
+  initPromise = null;
 }
 
 /**

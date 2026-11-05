@@ -78,15 +78,6 @@
   --r-lg: 16px;
   --r-pill: 999px;
   --bw: 1.5px;
-
-  /* Legacy aliases — only App.module.css still reads these. Remove when it's retired. */
-  --bg-color: var(--paper);
-  --border-color: var(--rule);
-  --input-color: var(--paper-warm);
-  --font-color: var(--ink);
-  --font-color-secondary: var(--ink-soft);
-  --accent-color: var(--orange);
-  --error-color: var(--danger);
 }
 
 /* Dark paper */

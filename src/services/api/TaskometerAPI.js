@@ -1049,7 +1049,8 @@ function stripTaskForExport(t) {
   // rest of the export.
   const { metadata, ...rest } = t;
   if (!metadata) return rest;
-  const { originalData: _ignored, ...cleanMeta } = metadata;
+  const cleanMeta = { ...metadata };
+  delete cleanMeta.originalData;
   return { ...rest, metadata: cleanMeta };
 }
 

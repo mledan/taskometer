@@ -134,6 +134,7 @@ export function applyEngineResults(tasks, slots, results, timestamp) {
  * pending tasks. Returns patched { tasks, slots } or null when nothing changed.
  */
 export function backfillUnscheduledTasks(state, timestamp) {
+  if (state.settings && state.settings.autoSchedule === false) return null;
   const unscheduled = state.tasks.filter(
     t => t.status === 'pending' && !t.scheduledTime && !t.specificTime && !t.isTemplateBlock
   );

@@ -96,11 +96,24 @@ describe('routing', () => {
     expect(await awaitWelcome()).toBeInTheDocument();
   });
 
-  test('/app defaults to the day scale for new users', async () => {
+  test('/app defaults to the day zoom + wheel lens for new users', async () => {
     setPath('/app');
     render(<App />);
     await awaitWelcome();
-    expect(localStorage.getItem('tm.scale')).toBe('day');
+    const ui = JSON.parse(localStorage.getItem('tm.ui'));
+    expect(ui.zoom).toBe('day');
+    expect(ui.lens).toBe('wheel');
+  });
+
+  test('/app migrates a legacy tm.scale into zoom + lens', async () => {
+    localStorage.setItem('tm.scale', 'spiral');
+    setPath('/app');
+    render(<App />);
+    await screen.findByPlaceholderText(/capture anything/i);
+    const ui = JSON.parse(localStorage.getItem('tm.ui'));
+    expect(ui.zoom).toBe('day');
+    expect(ui.lens).toBe('spiral');
+    expect(localStorage.getItem('tm.scale')).toBeNull();
   });
 
   test('/app/year renders the annual canvas', async () => {

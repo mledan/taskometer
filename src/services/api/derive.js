@@ -625,10 +625,3 @@ function truncate(s, n) {
   if (!s) return '';
   return s.length > n ? s.slice(0, n - 1) + '…' : s;
 }
-
-function minutesToHoursLabel(mins) {
-  if (!Number.isFinite(mins) || mins <= 0) return '0h';
-  const h = mins / 60;
-  if (h === Math.floor(h)) return `${h}h`;
-  return `${h.toFixed(1)}h`;
-}

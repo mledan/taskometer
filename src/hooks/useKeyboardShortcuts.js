@@ -25,6 +25,8 @@ export const DEFAULT_SHORTCUTS = {
   'p': { action: 'pause', description: 'Pause task', category: 'Tasks' },
 
   // View
+  '[': { action: 'zoomOut', description: 'Zoom out (day → week → month …)', category: 'View' },
+  ']': { action: 'zoomIn', description: 'Zoom in (… month → week → day)', category: 'View' },
   'd': { action: 'toggleDarkMode', description: 'Toggle dark mode', category: 'View' },
   '?': { action: 'showHelp', description: 'Show keyboard shortcuts', category: 'View' },
 };

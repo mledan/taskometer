@@ -16,6 +16,7 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"test": "vitest",
+		"lint": "eslint src --ext .js,.jsx",
 		"clean": "rm -rf dist",
 		"setup:stripe": "node scripts/setup-stripe.js",
 		"sync:vercel-env": "node scripts/sync-vercel-env.js"
