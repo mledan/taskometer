@@ -355,29 +355,52 @@ export function deriveBacklog({ tasks = [], limit = 10 }) {
  * Returns { id, label, slotType, color, startTime, endTime, startH, endH }
  * or null when no slot is active.
  */
+function slotShape(s, shiftH = 0) {
+  const start = parseSlotStart(s);
+  const end = parseSlotEnd(s);
+  if (!start || !end) return null;
+  let startH = start.getHours() + start.getMinutes() / 60;
+  let endH = end.getHours() + end.getMinutes() / 60;
+  if (endH <= startH) endH += 24;
+  startH += shiftH;
+  endH += shiftH;
+  return {
+    id: s.id,
+    label: slotTypeLabel(s),
+    slotType: s.slotType || null,
+    color: s.color || null,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    startH,
+    endH,
+  };
+}
+
+/**
+ * The slot that contains `now`. Overnight blocks count on both sides of
+ * midnight: a 23:00–06:00 block is "now" at 00:30 whether it was painted
+ * on today or on yesterday (yesterday's is returned shifted by -24h so
+ * startH/endH still describe where it sits relative to today).
+ */
 export function deriveCurrentSlot({ slots = [], date = new Date(), now = new Date() }) {
-  const dayKey = ymd(date);
   if (!sameDay(date, now)) return null;
-  const today = slots.filter(s => s?.date === dayKey);
+  const dayKey = ymd(date);
+  const yesterday = new Date(date); yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = ymd(yesterday);
   const nowHr = now.getHours() + now.getMinutes() / 60;
-  for (const s of today) {
-    const start = parseSlotStart(s);
-    const end = parseSlotEnd(s);
-    if (!start || !end) continue;
-    const startH = start.getHours() + start.getMinutes() / 60;
-    const endH = end.getHours() + end.getMinutes() / 60 + (end.getDate() !== start.getDate() ? 24 : 0);
-    if (nowHr >= startH && nowHr < endH) {
-      return {
-        id: s.id,
-        label: slotTypeLabel(s),
-        slotType: s.slotType || null,
-        color: s.color || null,
-        startTime: s.startTime,
-        endTime: s.endTime,
-        startH,
-        endH,
-      };
-    }
+
+  for (const s of slots) {
+    if (s?.date !== dayKey) continue;
+    const shape = slotShape(s);
+    if (!shape) continue;
+    const n = shape.endH > 24 && nowHr < shape.startH ? nowHr + 24 : nowHr;
+    if (n >= shape.startH && n < shape.endH) return shape;
+  }
+  for (const s of slots) {
+    if (s?.date !== yesterdayKey) continue;
+    const shape = slotShape(s, -24);
+    if (!shape || shape.endH <= 0) continue;
+    if (nowHr < shape.endH) return shape;
   }
   return null;
 }
@@ -393,7 +416,7 @@ export function deriveNextSlot({ slots = [], date = new Date(), now = new Date()
   const today = slots.filter(s => s?.date === dayKey);
   const current = deriveCurrentSlot({ slots, date, now });
   const nowHr = now.getHours() + now.getMinutes() / 60;
-  const cutoff = current ? current.endH : nowHr;
+  const cutoff = current ? (current.endH > 24 ? current.endH - 24 : current.endH) : nowHr;
 
   let best = null;
   for (const s of today) {
@@ -467,7 +490,8 @@ export function deriveCurrentSlotTasks({ tasks = [], slots = [], date = new Date
       const d = new Date(t.scheduledTime);
       if (Number.isNaN(d.getTime())) return false;
       if (ymd(d) !== dayKey) return false;
-      const h = d.getHours() + d.getMinutes() / 60;
+      let h = d.getHours() + d.getMinutes() / 60;
+      if (slot.endH > 24 && h < slot.startH) h += 24;
       return h >= slot.startH && h < slot.endH;
     })
     .sort((a, b) => {
@@ -624,11 +648,4 @@ function isInProgress(t, now) {
 function truncate(s, n) {
   if (!s) return '';
   return s.length > n ? s.slice(0, n - 1) + '…' : s;
-}
-
-function minutesToHoursLabel(mins) {
-  if (!Number.isFinite(mins) || mins <= 0) return '0h';
-  const h = mins / 60;
-  if (h === Math.floor(h)) return `${h}h`;
-  return `${h.toFixed(1)}h`;
 }

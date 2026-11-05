@@ -1,14 +1,7 @@
-/**
- * KeyboardShortcuts Component Styles
- */
-
 .overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  inset: 0;
+  background: var(--scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,96 +11,80 @@
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal {
-  background: var(--bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  background: var(--paper);
+  border: var(--bw) solid var(--ink);
+  border-radius: var(--r-lg);
   max-width: 600px;
   width: 100%;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
   animation: slideUp 0.2s ease-out;
+  font-family: var(--font-sans);
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
+  padding: 20px var(--space-5);
+  border-bottom: 1px dashed var(--rule);
 }
 
 .header h2 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--font-color);
+  font-size: var(--fs-5);
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .closeButton {
   background: none;
   border: none;
-  font-size: 28px;
-  color: var(--font-color);
-  opacity: 0.5;
+  font-size: var(--fs-5);
+  color: var(--ink-mute);
   cursor: pointer;
   padding: 0;
   line-height: 1;
-  transition: opacity 0.2s ease;
+  transition: color 0.2s ease;
 }
 
-.closeButton:hover {
-  opacity: 1;
-}
+.closeButton:hover { color: var(--ink); }
 
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 20px var(--space-5);
 }
 
-.category {
-  margin-bottom: 24px;
-}
-
-.category:last-child {
-  margin-bottom: 0;
-}
+.category { margin-bottom: var(--space-5); }
+.category:last-child { margin-bottom: 0; }
 
 .categoryTitle {
-  margin: 0 0 12px 0;
-  font-size: 12px;
-  font-weight: 600;
+  margin: 0 0 var(--space-3) 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--green);
+  letter-spacing: 0.14em;
+  color: var(--orange);
 }
 
 .shortcutList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .shortcut {
@@ -115,76 +92,59 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: var(--input-color);
-  border-radius: 6px;
+  background: var(--paper-warm);
+  border-radius: var(--r-sm);
 }
 
 .description {
-  font-size: 14px;
-  color: var(--font-color);
+  font-size: var(--fs-2);
+  color: var(--ink);
 }
 
 .key {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-family: monospace;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--font-color);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-xs);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border-color);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px dashed var(--rule);
   text-align: center;
 }
 
 .hint {
-  font-size: 13px;
-  color: var(--font-color);
-  opacity: 0.6;
+  font-size: var(--fs-2);
+  color: var(--ink-mute);
 }
 
 .hint kbd {
   padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid var(--border-color);
+  background: var(--paper-warm);
+  border: 1px solid var(--rule);
   border-radius: 3px;
-  font-family: monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
 }
 
-/* Mobile responsive */
 @media (max-width: 768px) {
-  .modal {
-    max-height: 90vh;
-  }
-
-  .header {
-    padding: 16px 20px;
-  }
-
-  .header h2 {
-    font-size: 18px;
-  }
-
-  .content {
-    padding: 16px 20px;
-  }
-
+  .modal { max-height: 90vh; }
+  .header { padding: var(--space-4) 20px; }
+  .header h2 { font-size: var(--fs-4); }
+  .content { padding: var(--space-4) 20px; }
   .shortcut {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
-    padding: 12px;
+    gap: var(--space-2);
+    padding: var(--space-3);
   }
-
-  .key {
-    align-self: flex-end;
-  }
+  .key { align-self: flex-end; }
 }

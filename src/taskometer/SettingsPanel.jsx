@@ -1,6 +1,13 @@
 import React, { useRef, useState } from 'react';
 import { STARTER_SCHEDULES } from '../services/api/TaskometerAPI';
 import { buildScheduleShareURL } from '../services/scheduleShare';
+import { useTheme, THEMES } from '../context/ThemeContext.jsx';
+
+const THEME_OPTIONS = [
+  { value: THEMES.LIGHT, label: 'light' },
+  { value: THEMES.DARK, label: 'dark' },
+  { value: THEMES.SYSTEM, label: 'system' },
+];
 
 /**
  * Consolidated settings surface. Replaces the old floating "tweaks" panel
@@ -23,6 +30,7 @@ export default function SettingsPanel({
     typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
   );
   const [shareCopied, setShareCopied] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   const scheduleTypes = api?.scheduleTypes?.list ? api.scheduleTypes.list() : [];
 
@@ -83,12 +91,33 @@ export default function SettingsPanel({
         settings
         <button
           onClick={onClose}
-          style={{ background: 'transparent', border: 'none', fontFamily: 'Inter', fontSize: 18, cursor: 'pointer', color: 'var(--ink-mute)' }}
+          style={{ background: 'transparent', border: 'none', fontFamily: 'inherit', fontSize: 'var(--fs-4)', cursor: 'pointer', color: 'var(--ink-mute)' }}
         >×</button>
       </h4>
 
       <section>
         <div className="tm-mono tm-md" style={{ marginTop: 6, color: 'var(--orange)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
+          look &amp; feel
+        </div>
+        <label>
+          theme
+          <div className="tm-seg" role="radiogroup" aria-label="theme">
+            {THEME_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={theme === opt.value}
+                className={theme === opt.value ? 'tm-on' : ''}
+                onClick={() => setTheme(opt.value)}
+              >{opt.label}</button>
+            ))}
+          </div>
+        </label>
+      </section>
+
+      <section style={{ marginTop: 14 }}>
+        <div className="tm-mono tm-md" style={{ color: 'var(--orange)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
           behavior
         </div>
         <label>

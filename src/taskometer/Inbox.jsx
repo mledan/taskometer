@@ -1,158 +1,137 @@
-import React, { forwardRef, useState } from 'react';
+import { forwardRef, useState } from 'react';
 import { TaskRow } from './shared.jsx';
+import PlaceMenu from './PlaceMenu.jsx';
+import { parseCapture, fmtDuration } from './quickAdd';
 import { log as telemetryLog } from '../services/telemetry.js';
+import './capture.css';
 
 /**
- * QuickCapture — a one-line input for "I just thought of something."
- *
- * Always visible. No type, no duration, no block. Submits create a
- * pending task with no scheduledTime; it lands in the inbox until the
- * user drags it into a block. The whole point is to keep the cost of
- * capture as low as the cost of forgetting.
- *
- * `onCapture(text)` fires on Enter or click. Hotkey `n` (wired by
- * Taskometer.jsx) focuses the input from anywhere.
+ * QuickCapture — one line in, a task out. Reads duration, time, day and
+ * tags as you type and shows what it understood; Enter schedules when
+ * it knows when, parks in the inbox when it doesn't.
  */
 export const QuickCapture = forwardRef(function QuickCapture(
   { onCapture, inboxCount = 0, placeholder },
   ref,
 ) {
   const [text, setText] = useState('');
+  const parsed = parseCapture(text);
+  const hasHints = parsed.parts.length > 0;
 
   const submit = () => {
-    const t = text.trim();
-    if (!t) return;
-    telemetryLog('inbox:capture', { length: t.length });
-    onCapture?.(t);
+    if (!parsed.text) return;
+    telemetryLog('inbox:capture', { length: text.length, scheduled: parsed.scheduled, parts: parsed.parts.map(p => p.kind) });
+    onCapture?.(text.trim());
     setText('');
   };
 
   return (
-    <div
-      data-onboard="quick-capture"
-      style={{
-        marginBottom: 14,
-        padding: '10px 14px',
-        border: '1.5px solid var(--rule)',
-        borderRadius: 12,
-        background: 'var(--paper)',
-        display: 'flex',
-        gap: 10,
-        alignItems: 'center',
-        flexWrap: 'wrap',
-      }}
-    >
-      <span aria-hidden style={{ fontSize: 18, lineHeight: 1 }}>📥</span>
-      <input
-        ref={ref}
-        className="tm-composer-input"
-        placeholder={placeholder || 'capture anything — press n to focus'}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-        style={{ flex: 1, minWidth: 200, fontSize: 16 }}
-        aria-label="quick capture"
-      />
-      <button
-        type="button"
-        className="tm-btn tm-primary tm-sm"
-        onClick={submit}
-        disabled={!text.trim()}
-        title="add to inbox · drag into a block to schedule"
-      >
-        add to inbox
-      </button>
-      {inboxCount > 0 && (
-        <span
-          className="tm-mono tm-sm"
-          style={{ color: 'var(--ink-mute)' }}
-          title={`${inboxCount} unscheduled · drag into a block when you're ready to plan`}
+    <div className="tm-capture" data-onboard="quick-capture">
+      <div className="tm-capture-row">
+        <span aria-hidden className="tm-capture-icon">📥</span>
+        <input
+          ref={ref}
+          className="tm-composer-input"
+          placeholder={placeholder || 'capture anything — "gym 6pm", "call mom tomorrow 20m", "#deep draft pricing"'}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+            if (e.key === 'Escape') setText('');
+          }}
+          aria-label="quick capture"
+        />
+        <button
+          type="button"
+          className="tm-btn tm-primary tm-sm"
+          onClick={submit}
+          disabled={!parsed.text}
+          title={parsed.scheduled ? 'schedule it' : 'add to inbox · place it when you plan'}
         >
-          {inboxCount} in inbox
-        </span>
+          {parsed.scheduled ? 'Schedule' : 'Add to inbox'}
+        </button>
+        {inboxCount > 0 && (
+          <span className="tm-mono tm-sm tm-capture-count" title={`${inboxCount} unscheduled`}>
+            {inboxCount} in inbox
+          </span>
+        )}
+      </div>
+      {hasHints && (
+        <div className="tm-capture-chips" aria-live="polite">
+          <span className="tm-capture-title">{parsed.text || '…'}</span>
+          {parsed.parts.map((p, i) => (
+            <span key={`${p.kind}-${i}`} className={`tm-chip tm-chip-${p.kind}`}>{p.label}</span>
+          ))}
+          <span className="tm-mono tm-sm tm-capture-hint">
+            {parsed.scheduled ? 'enter → schedule' : 'enter → inbox'}
+          </span>
+        </div>
       )}
     </div>
   );
 });
 
 /**
- * InboxPanel — the parking lot of unscheduled tasks.
- *
- * Each row is draggable; drop targets in WheelView snap the task into
- * the chosen slot via the existing `text/task-id` dataTransfer
- * channel. We don't auto-place — the whole point is the user picks
- * where it goes when they sit down to plan.
+ * InboxPanel — the parking lot of unscheduled tasks. Each row drags
+ * onto the wheel, or taps "place" for the same choices without a mouse.
  */
-export function InboxPanel({ tasks = [], rowHandlers = {}, onScheduleAll, onScheduleToDate }) {
+export function InboxPanel({
+  tasks = [],
+  rowHandlers = {},
+  daySlots = [],
+  dayKey,
+  onPlaceInSlot,
+  onPlaceOnDate,
+  onScheduleAll,
+}) {
   const empty = tasks.length === 0;
 
   return (
-    <div
-      className="tm-rail"
-      role="list"
-      aria-label="inbox"
-      data-onboard="inbox"
-      style={{ borderTop: '3px solid var(--orange)' }}
-    >
+    <div className="tm-rail" role="list" aria-label="inbox" data-onboard="inbox" style={{ borderTop: '3px solid var(--orange)' }}>
       <div className="tm-rail-head">
         <span className="tm-rail-title">Inbox</span>
-        {!empty && (
-          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-            {tasks.length}
-          </span>
-        )}
+        {!empty && <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{tasks.length}</span>}
       </div>
 
       {empty ? (
-        <div
-          className="tm-mono tm-sm"
-          style={{ color: 'var(--ink-mute)', lineHeight: 1.5, marginTop: -4 }}
-        >
+        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', lineHeight: 1.5, marginTop: -4 }}>
           nothing parked. type above to capture — sort it later.
         </div>
       ) : (
         <>
-          <div
-            className="tm-mono tm-sm"
-            style={{ color: 'var(--ink-mute)', marginTop: -8 }}
-          >
-            drag a task onto a block to schedule it.
+          <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginTop: -8 }}>
+            drag onto a block, or tap place.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {tasks.map(t => {
               const id = t.id || t.key;
+              const type = t.primaryType || t.taskType;
               const row = {
                 id,
                 title: t.text || t.title || 'untitled',
-                ctx: t.primaryType || t.taskType || 'inbox',
-                when: 'unscheduled',
+                ctx: type && type !== 'work' ? type : null,
+                when: typeof t.duration === 'number' && t.duration > 0 ? fmtDuration(t.duration) : null,
                 done: t.status === 'completed',
                 priority: t.priority,
                 duration: typeof t.duration === 'number' ? t.duration : null,
                 tags: t.tags,
               };
               return (
-                <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <TaskRow
-                    task={row}
-                    onToggle={rowHandlers.onToggle}
-                    onDelete={rowHandlers.onDelete}
-                  />
-                  {onScheduleToDate && (
-                    <input
-                      type="date"
-                      className="tm-composer-num"
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (!v) return;
-                        onScheduleToDate(id, v);
-                        e.target.value = '';
-                      }}
-                      title="schedule this to any day (lands at 9:00 — drag onto a wedge for a specific block)"
-                      style={{ fontSize: 11, width: 130, alignSelf: 'flex-start', marginLeft: 30, marginBottom: 4 }}
+                <TaskRow
+                  key={id}
+                  task={row}
+                  onToggle={rowHandlers.onToggle}
+                  onDelete={rowHandlers.onDelete}
+                  extraActions={(onPlaceInSlot || onPlaceOnDate) ? (
+                    <PlaceMenu
+                      taskId={id}
+                      daySlots={daySlots}
+                      dayKey={dayKey}
+                      onPlaceInSlot={onPlaceInSlot}
+                      onPlaceOnDate={onPlaceOnDate}
                     />
-                  )}
-                </div>
+                  ) : null}
+                />
               );
             })}
           </div>

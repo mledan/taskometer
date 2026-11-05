@@ -1,0 +1,22 @@
+/* Shell header at phone widths: two deliberate rows instead of a free wrap.
+   Row 1: schedule chip · Library · account. Row 2: zoom · lens · date nav. */
+@media (max-width: 760px) {
+  .tm-header { row-gap: var(--space-2); }
+  .tm-header > .tm-active-chip { order: 1; flex: 1 1 0; min-width: 0; max-width: 58%; overflow: hidden; white-space: nowrap; }
+  .tm-header > .tm-btn.tm-ghost { order: 2; }
+  .tm-header-right { display: contents; }
+  .tm-header .tm-account-btn { order: 3; margin-left: auto; }
+  .tm-header::before { content: ''; order: 4; flex-basis: 100%; height: 0; }
+  .tm-header .tm-zoom { order: 5; }
+  .tm-header .tm-lens { order: 6; }
+  .tm-header .tm-datenav { order: 7; margin-left: auto; }
+  .tm-header .tm-datenav .tm-crumbs { font-size: var(--fs-0); }
+  .tm-header-stats { display: none; }
+  .tm-header::after { content: ''; order: 8; flex-basis: 100%; height: 0; }
+  .tm-header .tm-header-search { order: 9; width: 100%; flex-basis: 100%; }
+}
+
+@media (max-width: 420px) {
+  .tm-header > .tm-active-chip { max-width: 50%; }
+  .tm-header .tm-datenav .tm-btn[title="jump to today"] { display: none; }
+}

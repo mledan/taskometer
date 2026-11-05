@@ -6,6 +6,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { storage } from '../services/storage';
 
 const ThemeContext = createContext(null);
 
@@ -40,13 +41,9 @@ function getEffectiveTheme(theme) {
 export function ThemeProvider({ children }) {
   // Initialize theme from localStorage or default to system
   const [theme, setThemeState] = useState(() => {
-    try {
-      const saved = localStorage.getItem(THEME_STORAGE_KEY);
-      if (saved && Object.values(THEMES).includes(saved)) {
-        return saved;
-      }
-    } catch (e) {
-      console.error('Failed to read theme from localStorage:', e);
+    const saved = storage.getRaw(THEME_STORAGE_KEY);
+    if (saved && Object.values(THEMES).includes(saved)) {
+      return saved;
     }
     return THEMES.SYSTEM;
   });
@@ -82,11 +79,7 @@ export function ThemeProvider({ children }) {
     setThemeState(newTheme);
     applyTheme(newTheme);
 
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, newTheme);
-    } catch (e) {
-      console.error('Failed to save theme to localStorage:', e);
-    }
+    storage.setRaw(THEME_STORAGE_KEY, newTheme);
   }, [applyTheme]);
 
   // Toggle between light and dark

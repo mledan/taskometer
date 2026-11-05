@@ -663,9 +663,9 @@ export function MonthInsights({ selectedDate, slots, taskTypes, onPickDate, onPa
         selected={ms.selected}
         actions={[
           {
-            label: 'Paint with wheel →',
+            label: 'Paint with schedule →',
             primary: true,
-            title: 'Apply a wheel to every selected day',
+            title: 'Paint a schedule onto every selected day',
             onClick: () => { onPaintDays?.([...ms.selected]); ms.clear(); },
           },
           {
@@ -718,9 +718,9 @@ export function QuarterInsights({ selectedDate, slots, taskTypes, onPickDate, on
         selected={ms.selected}
         actions={[
           {
-            label: 'Paint with wheel →',
+            label: 'Paint with schedule →',
             primary: true,
-            title: 'Apply a wheel to every selected day',
+            title: 'Paint a schedule onto every selected day',
             onClick: () => { onPaintDays?.([...ms.selected]); ms.clear(); },
           },
           {
@@ -772,9 +772,9 @@ export function YearInsights({ selectedDate, slots, taskTypes, onPickDate, onPai
         selected={ms.selected}
         actions={[
           {
-            label: 'Paint with wheel →',
+            label: 'Paint with schedule →',
             primary: true,
-            title: 'Apply a wheel to every selected day',
+            title: 'Paint a schedule onto every selected day',
             onClick: () => { onPaintDays?.([...ms.selected]); ms.clear(); },
           },
           {

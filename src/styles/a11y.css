@@ -17,6 +17,24 @@
     --rule-soft: #8E8278;
     --orange: #B5390F;
   }
+  :root[data-theme="dark"] {
+    --ink: #FFFFFF;
+    --ink-soft: #ECECEC;
+    --ink-mute: #C4C4C4;
+    --rule: #9A8E82;
+    --rule-soft: #7A6E62;
+    --orange: #FF9A6E;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #FFFFFF;
+      --ink-soft: #ECECEC;
+      --ink-mute: #C4C4C4;
+      --rule: #9A8E82;
+      --rule-soft: #7A6E62;
+      --orange: #FF9A6E;
+    }
+  }
   *:focus-visible {
     outline: 3px solid var(--ink) !important;
     outline-offset: 2px !important;

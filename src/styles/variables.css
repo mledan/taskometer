@@ -1,110 +1,160 @@
-/**
- * Theme Variables
- *
- * Supports both dark and light modes via data-theme attribute on :root
- */
+/* ─────────────────────────────────────────────────────────────────────
+   Design tokens — the single source of truth for color, type, spacing
+   and radius across the app and the marketing site.
+
+   Theme: light paper by default. Dark paper when the OS asks for it
+   (and the user hasn't forced light), or when <html data-theme="dark">.
+   ThemeContext sets/removes data-theme on <html>.
+   ───────────────────────────────────────────────────────────────────── */
 
 :root {
-	/* Default dark theme */
-	--bg: #403f4d;
-	--bg-color: #403f4d;
-	--green: #62dca5;
-	--yellow: #f7f879;
-	--red: #e1675a;
-	--accent-color: #3b82f6;
+  color-scheme: light;
 
-	--input-color: #2e2d33;
-	--item-color: #4e4d5c;
-	--font-color: #fbfafb;
-	--font-color-secondary: rgba(251, 250, 251, 0.6);
-	--border-color: rgba(255, 255, 255, 0.1);
+  /* Paper palette */
+  --paper: #FAF3EB;
+  --paper-warm: #F5EBE0;
+  --ink: #1C1A16;
+  --ink-soft: #4A433C;
+  --ink-mute: #8A8078;
+  --rule: #D8CEC0;
+  --rule-soft: #E8DFD2;
 
-	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-	--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
-	--shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+  --orange: #D4663A;
+  --orange-soft: #F2C4A6;
+  --orange-pale: #F9DFCB;
+  --sage: #A8BF8C;
+  --sage-deep: #7A9560;
+  --sage-soft: #CFDCBC;
+  --sage-pale: #E2EAD3;
+  --sand: #D9C98C;
+  --sand-soft: #E8DDB0;
+  --lilac: #C7BEDD;
+  --lilac-soft: #E2DCED;
 
-	--big-font-size: 64px;
-	--heading-font-size: 24px;
-	--item-font-size: 20px;
+  /* Wedge fills for untyped blocks on the wheel */
+  --wedge-rest: #EAE4DA;
+  --wedge-soft: #F3EFE5;
 
-	/* Transition for theme changes */
-	--theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  /* Semantic */
+  --danger: #C0492F;
+  --success: #7A9560;
+  --warning: #B08A2E;
+  --on-accent: #FFFFFF;
+  --scrim: rgba(28, 26, 22, 0.45);
+  --hover-tint: rgba(0, 0, 0, 0.06);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.25);
+
+  /* Type */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Type scale. --fs-0 is a micro size reserved for dense data labels
+     (calendar day numbers, SVG tick labels) — never for prose. */
+  --fs-0: 10px;
+  --fs-1: 12px;
+  --fs-2: 14px;
+  --fs-3: 16px;
+  --fs-4: 19px;
+  --fs-5: 24px;
+  --fs-6: 32px;
+  --fs-7: 44px;
+  --fs-8: 64px;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Radius + border */
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+  --bw: 1.5px;
 }
 
-/* Dark Theme (explicit) */
+/* Dark paper */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --paper: #1C1A16;
+    --paper-warm: #26231E;
+    --ink: #F2EBE1;
+    --ink-soft: #CFC6B9;
+    --ink-mute: #8F867B;
+    --rule: #3B362F;
+    --rule-soft: #2E2A24;
+
+    --orange: #E07A4E;
+    --orange-soft: #6B3A26;
+    --orange-pale: #3A271E;
+    --sage: #A8BF8C;
+    --sage-deep: #A8BF8C;
+    --sage-soft: #3E4A33;
+    --sage-pale: #2C3526;
+    --sand: #D9C98C;
+    --sand-soft: #4A4330;
+    --lilac: #C7BEDD;
+    --lilac-soft: #3A3547;
+
+    --wedge-rest: #2A2722;
+    --wedge-soft: #24211C;
+
+    --danger: #E07A4E;
+    --success: #A8BF8C;
+    --warning: #D9C98C;
+    --on-accent: #1C1A16;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --hover-tint: rgba(255, 255, 255, 0.08);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.6);
+  }
+}
+
 :root[data-theme="dark"] {
-	--bg: #403f4d;
-	--bg-color: #403f4d;
-	--green: #62dca5;
-	--yellow: #f7f879;
-	--red: #e1675a;
-	--accent-color: #3b82f6;
+  color-scheme: dark;
 
-	--input-color: #2e2d33;
-	--item-color: #4e4d5c;
-	--font-color: #fbfafb;
-	--font-color-secondary: rgba(251, 250, 251, 0.6);
-	--border-color: rgba(255, 255, 255, 0.1);
+  --paper: #1C1A16;
+  --paper-warm: #26231E;
+  --ink: #F2EBE1;
+  --ink-soft: #CFC6B9;
+  --ink-mute: #8F867B;
+  --rule: #3B362F;
+  --rule-soft: #2E2A24;
 
-	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-	--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
-	--shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
-}
+  --orange: #E07A4E;
+  --orange-soft: #6B3A26;
+  --orange-pale: #3A271E;
+  --sage: #A8BF8C;
+  --sage-deep: #A8BF8C;
+  --sage-soft: #3E4A33;
+  --sage-pale: #2C3526;
+  --sand: #D9C98C;
+  --sand-soft: #4A4330;
+  --lilac: #C7BEDD;
+  --lilac-soft: #3A3547;
 
-/* Light Theme */
-:root[data-theme="light"] {
-	--bg: #f8fafc;
-	--bg-color: #f8fafc;
-	--green: #10b981;
-	--yellow: #f59e0b;
-	--red: #ef4444;
-	--accent-color: #3b82f6;
+  --wedge-rest: #2A2722;
+  --wedge-soft: #24211C;
 
-	--input-color: #ffffff;
-	--item-color: #e2e8f0;
-	--font-color: #1e293b;
-	--font-color-secondary: rgba(30, 41, 59, 0.6);
-	--border-color: rgba(0, 0, 0, 0.1);
+  --danger: #E07A4E;
+  --success: #A8BF8C;
+  --warning: #D9C98C;
+  --on-accent: #1C1A16;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --hover-tint: rgba(255, 255, 255, 0.08);
 
-	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-	--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-	--shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
-}
-
-/* System preference - auto theme */
-@media (prefers-color-scheme: light) {
-	:root:not([data-theme]) {
-		--bg: #f8fafc;
-		--bg-color: #f8fafc;
-		--green: #10b981;
-		--yellow: #f59e0b;
-		--red: #ef4444;
-		--accent-color: #3b82f6;
-
-		--input-color: #ffffff;
-		--item-color: #e2e8f0;
-		--font-color: #1e293b;
-		--font-color-secondary: rgba(30, 41, 59, 0.6);
-		--border-color: rgba(0, 0, 0, 0.1);
-
-		--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-		--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-		--shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
-	}
-}
-
-@keyframes click {
-	0% {
-		opacity: 0;
-		width: 0;
-		height: 0;
-	}
-	50% {
-		opacity: 0.5;
-	}
-	100% {
-		opacity: 0;
-		width: 30px;
-		height: 30px;
-	}
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.6);
 }

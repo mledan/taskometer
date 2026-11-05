@@ -1,17 +1,13 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { PLANS, PLAN_ORDER, planIsCheckoutReady, formatPrice } from '../config/plans.js';
 import { CLERK_ENABLED } from '../services/auth.js';
+import { startCheckout } from './checkout.js';
 import '../taskometer/taskometer.css';
 import './marketing.css';
-// These imports are tree-shaken when CLERK_ENABLED is false at runtime,
-// but the static import is required so the bundle compiles either way.
-// Only the components that actually render touch the Clerk runtime.
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  useAuth as useClerkAuth,
-} from '@clerk/clerk-react';
+
+// The only Clerk-aware piece of this page, loaded on demand so the
+// marketing bundle stays free of @clerk/*.
+const PricingAuthIsland = lazy(() => import('./PricingAuthIsland.jsx'));
 
 /**
  * Public pricing page at /pricing.
@@ -58,8 +54,8 @@ export default function Pricing() {
         <h2 className="mk-h2">Why we charge for sharing.</h2>
         <p className="mk-lede" style={{ maxWidth: 720 }}>
           The local app costs us nothing to run because it runs on your machine.
-          The community feature — publishing wheels, browsing what others share,
-          team-wide rhythms — runs on Azure. Cosmos DB, Functions, Application
+          The community feature — publishing schedules, browsing what others share,
+          team-wide schedules — runs on Azure. Cosmos DB, Functions, Application
           Insights. Those bills come due. The paid plans are how we pay for the
           consumption your usage drives without selling your data or running
           ads.
@@ -105,18 +101,9 @@ function PlanCard({ plan, featured }) {
   // Pro path. Auth gate when Clerk is on; otherwise checkout-or-mailto.
   return <CardShell plan={plan} featured={featured}>
     {CLERK_ENABLED ? (
-      <>
-        <SignedIn>
-          <ProCheckoutButton plan={plan} ready={ready} featured={featured} />
-        </SignedIn>
-        <SignedOut>
-          <SignInButton mode="modal" forceRedirectUrl="/pricing">
-            <button type="button" className={`tm-btn ${featured ? 'tm-primary' : ''} mk-cta`}>
-              Sign in to upgrade
-            </button>
-          </SignInButton>
-        </SignedOut>
-      </>
+      <Suspense fallback={<button type="button" className={`tm-btn ${featured ? 'tm-primary' : ''} mk-cta`} disabled>{plan.cta}</button>}>
+        <PricingAuthIsland plan={plan} ready={ready} featured={featured} />
+      </Suspense>
     ) : (
       <ProCheckoutButton plan={plan} ready={ready} featured={featured} />
     )}
@@ -145,48 +132,23 @@ function CardShell({ plan, featured, children }) {
   );
 }
 
-/**
- * Authenticated checkout starter. When Clerk is wired, we POST to
- * /api/checkout-session with the user's session token in the
- * Authorization header so the server can attach userId to Stripe
- * metadata. Falls back to a mailto when STRIPE_PRICE_PRO isn't set.
- */
+// Unauthenticated checkout starter (Clerk off). The Clerk-aware variant
+// lives in PricingAuthIsland.jsx.
 function ProCheckoutButton({ plan, ready, featured }) {
   const [busy, setBusy] = useState(false);
-  // useClerkAuth is only safe when ClerkProvider is mounted. The
-  // <SignedIn> wrapper above guarantees that; the non-Clerk branch
-  // calls this component without a wrapper, so we guard here too.
-  const clerkAuth = CLERK_ENABLED ? useClerkAuth() : null;
 
   const handleClick = async (e) => {
     e.preventDefault();
     if (busy) return;
-
-    if (!ready) {
-      window.location.href = `mailto:hello@taskometer.app?subject=Notify%20me%20when%20${encodeURIComponent(plan.name)}%20launches`;
-      return;
-    }
-
     setBusy(true);
     try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (clerkAuth?.getToken) {
-        const token = await clerkAuth.getToken();
-        if (token) headers.Authorization = `Bearer ${token}`;
-      }
-      const res = await fetch('/api/checkout-session', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ planId: plan.id }),
-      });
-      if (!res.ok) throw new Error(`checkout failed: ${res.status}`);
-      const { url } = await res.json();
-      if (url) window.location.href = url;
+      await startCheckout({ plan, ready });
     } catch (err) {
       // eslint-disable-next-line no-alert
       window.alert(
         'We couldn\'t start the checkout. Email hello@taskometer.app and we\'ll set you up manually.',
       );
+    } finally {
       setBusy(false);
     }
   };
@@ -198,7 +160,7 @@ function ProCheckoutButton({ plan, ready, featured }) {
       className={`tm-btn ${featured ? 'tm-primary' : ''} mk-cta`}
       disabled={busy}
     >
-      {busy ? 'redirecting…' : plan.cta}
+      {busy ? 'Redirecting…' : plan.cta}
     </button>
   );
 }

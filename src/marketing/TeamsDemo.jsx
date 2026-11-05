@@ -76,10 +76,10 @@ export default function TeamsDemo() {
           <div className="mk-mono mk-eyebrow">taskometer · teams (concept)</div>
           <h1 className="mk-h1">
             Your team's day,<br />
-            <span className="mk-h1-accent">in one wheel.</span>
+            <span className="mk-h1-accent">in one schedule.</span>
           </h1>
           <p className="mk-lede">
-            Shared rhythms beat shared calendars. We want to ship this — pick
+            Shared schedules beat shared calendars. We want to ship this — pick
             a "no-meeting Tuesday" once and have the whole team see it; sync
             to Outlook so meetings can't crash focus blocks; see where the
             team's time actually went, not where it was supposed to go.
@@ -147,7 +147,7 @@ export default function TeamsDemo() {
         {/* Team grid */}
         <div className="mk-card">
           <div className="mk-card-head">
-            <span className="mk-card-title">Team rhythms</span>
+            <span className="mk-card-title">Team schedules</span>
             <span className="mk-mono">tap a teammate to view their week</span>
           </div>
           <div className="mk-team-grid">
@@ -171,10 +171,10 @@ export default function TeamsDemo() {
           </div>
         </div>
 
-        {/* Shared shapes */}
+        {/* Shared schedules */}
         <div className="mk-card">
           <div className="mk-card-head">
-            <span className="mk-card-title">Shared shapes</span>
+            <span className="mk-card-title">Shared schedules</span>
             <span className="mk-mono">applied across the team's calendars</span>
           </div>
           <div className="mk-shared">

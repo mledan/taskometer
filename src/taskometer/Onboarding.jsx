@@ -45,7 +45,7 @@ function writeStep(i) {
 // Tour script — capture, plan, repeat.
 // We start with capture because the most common failure mode is a
 // blank planner: type something now, decide where it goes later. Then
-// drag from the inbox into a block. Then point at the shapes rail for
+// drag from the inbox into a block. Then point at the schedule picker for
 // when the skeleton needs to change. Each step optionally watches a
 // signal so the tour auto-advances when the user actually performs
 // the action.
@@ -64,7 +64,7 @@ const STEPS = [
   },
   {
     title: '2. Drag into a block',
-    body: "When you're ready to plan, drag a task from the inbox onto a colored wedge in your day. That's it — the task is scheduled.",
+    body: "When you're ready to plan, drag a task from the inbox onto a block in your day. That's it — the task is scheduled.",
     target: '[data-onboard="inbox"]',
     awaitEvent: EVENTS.SLOT_SELECTED,
     progressHint: 'drag a task onto a block · or hit Next',
@@ -78,7 +78,7 @@ const STEPS = [
   },
   {
     title: "You're set",
-    body: 'Press n to capture, Cmd+K for the palette, ? to replay this tour. The rest is just doing.',
+    body: 'Press n to capture, Cmd+K for the palette, ? for shortcuts. Replay this tour anytime from your account menu. The rest is just doing.',
     target: null,
   },
 ];
@@ -248,7 +248,7 @@ export default function Onboarding({ onClose, signals = {} }) {
               style={{
                 position: 'fixed',
                 inset: 0,
-                background: 'rgba(20, 18, 14, 0.55)',
+                background: 'var(--scrim)',
                 zIndex: 250,
                 pointerEvents: 'none',
               }}
@@ -306,11 +306,11 @@ export default function Onboarding({ onClose, signals = {} }) {
           position: 'fixed',
           width: 340,
           maxWidth: 'calc(100vw - 40px)',
-          background: 'var(--paper)',
+          background: 'var(--paper-warm)',
           border: '2px solid var(--orange)',
           borderRadius: 12,
           padding: '16px 18px',
-          boxShadow: '0 16px 40px rgba(0,0,0,0.28)',
+          boxShadow: 'var(--shadow-lg)',
           zIndex: 260,
           fontFamily: 'inherit',
           ...placement,
@@ -331,11 +331,11 @@ export default function Onboarding({ onClose, signals = {} }) {
             type="button"
             className="tm-btn tm-sm"
             onClick={finish}
-            aria-label="skip onboarding"
-            title="skip"
+            aria-label="Skip onboarding"
+            title="Skip"
             style={{ fontSize: 12 }}
           >
-            skip
+            Skip
           </button>
         </div>
 
@@ -397,16 +397,16 @@ export default function Onboarding({ onClose, signals = {} }) {
           </div>
           {i > 0 && (
             <button type="button" className="tm-btn tm-sm" onClick={() => setI(i - 1)}>
-              back
+              Back
             </button>
           )}
           {!isLast ? (
             <button type="button" className="tm-btn tm-primary tm-sm" onClick={() => setI(i + 1)}>
-              next
+              Next
             </button>
           ) : (
             <button type="button" className="tm-btn tm-primary tm-sm" onClick={finish}>
-              got it
+              Got it
             </button>
           )}
         </div>

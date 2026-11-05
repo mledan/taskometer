@@ -11,51 +11,34 @@
 .notification {
   min-width: 300px;
   padding: 15px;
-  border-radius: 3px;
-  color: white;
+  border-radius: var(--r-sm);
+  color: var(--on-accent);
+  font-family: var(--font-sans);
+  font-size: var(--fs-2);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: var(--shadow-md);
   animation: slideIn 0.3s ease-out;
 }
 
 .notification button {
   background: none;
   border: none;
-  color: white;
-  font-size: 20px;
+  color: inherit;
+  font-size: var(--fs-4);
   cursor: pointer;
   padding: 0 5px;
 }
 
-.notification button:hover {
-  opacity: 0.8;
-}
+.notification button:hover { opacity: 0.8; }
 
-/* Notification types */
-.info {
-  background: var(--accent-color);
-}
-
-.success {
-  background: var(--success-color);
-}
-
-.error {
-  background: var(--error-color);
-}
-
-.warning {
-  background: var(--warning-color);
-}
+.info { background: var(--orange); }
+.success { background: var(--success); }
+.error { background: var(--danger); }
+.warning { background: var(--warning); }
 
 @keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }

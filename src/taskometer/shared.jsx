@@ -129,6 +129,7 @@ export function TaskRow({
   onSeriesComplete,
   onSeriesDelete,
   onSeriesBump,
+  extraActions = null,
 }) {
   const isNow = !!task.now;
   const isPushed = task.status === 'pushed';
@@ -141,8 +142,9 @@ export function TaskRow({
 
   const inSeries = task.seriesId && (task.segmentsTotal || 0) > 1;
 
-  const actions = (onEdit || onDelete || inSeries) ? (
+  const actions = (onEdit || onDelete || inSeries || extraActions) ? (
     <div className="tm-row-actions" onClick={(e) => e.stopPropagation()}>
+      {extraActions}
       {onEdit && (
         <button onClick={() => onEdit(task.id)} title="edit">edit</button>
       )}
@@ -192,9 +194,12 @@ export function TaskRow({
           <span>{titleOverride || task.title}</span>
         </div>
         <div className="tm-mono tm-task-meta" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-          <span>{task.ctx}</span>
-          <span>·</span>
-          <span>{task.when}</span>
+          {[task.ctx, task.when].filter(Boolean).map((part, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span>·</span>}
+              <span>{part}</span>
+            </React.Fragment>
+          ))}
           {task.warn ? (
             <>
               <span>·</span>

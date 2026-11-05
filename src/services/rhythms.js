@@ -38,26 +38,20 @@
  * without touching the legacy state machine.
  */
 
+import storage from './storage';
+
 const RHYTHMS_KEY = 'taskometer.rhythms';
 const EXCEPTIONS_KEY = 'taskometer.exceptions';
 
-// ───────────────────────── localStorage CRUD ─────────────────────────
+// ───────────────────────── storage CRUD ─────────────────────────
 
 function safeRead(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (_) {
-    return [];
-  }
+  const parsed = storage.get(key);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 function safeWrite(key, list) {
-  try {
-    localStorage.setItem(key, JSON.stringify(list));
-  } catch (_) { /* quota / disabled */ }
+  storage.set(key, list);
 }
 
 function genId(prefix) {

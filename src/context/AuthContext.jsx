@@ -11,6 +11,7 @@
  */
 
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import { storage } from '../services/storage';
 
 // Auth action types
 const AUTH_ACTIONS = {
@@ -111,25 +112,20 @@ export function AuthProvider({ children }) {
 
   // Load persisted auth state on mount
   useEffect(() => {
-    const savedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (savedAuth) {
-      try {
-        const parsed = JSON.parse(savedAuth);
-        // Validate token is still valid
-        if (parsed.user && parsed.tokenExpiry && new Date(parsed.tokenExpiry) > new Date()) {
-          dispatch({
-            type: AUTH_ACTIONS.LOGIN_SUCCESS,
-            payload: {
-              user: parsed.user,
-              provider: parsed.provider
-            }
-          });
-        } else {
-          // Token expired, clear storage
-          localStorage.removeItem(AUTH_STORAGE_KEY);
-        }
-      } catch (e) {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
+    const parsed = storage.get(AUTH_STORAGE_KEY);
+    if (parsed) {
+      // Validate token is still valid
+      if (parsed.user && parsed.tokenExpiry && new Date(parsed.tokenExpiry) > new Date()) {
+        dispatch({
+          type: AUTH_ACTIONS.LOGIN_SUCCESS,
+          payload: {
+            user: parsed.user,
+            provider: parsed.provider
+          }
+        });
+      } else {
+        // Token expired, clear storage
+        storage.remove(AUTH_STORAGE_KEY);
       }
     }
   }, []);
@@ -142,7 +138,7 @@ export function AuthProvider({ children }) {
         provider: state.provider,
         tokenExpiry: state.user.tokenExpiry
       };
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(toSave));
+      storage.set(AUTH_STORAGE_KEY, toSave);
     }
   }, [state.isAuthenticated, state.user, state.provider]);
 
@@ -224,7 +220,7 @@ export function AuthProvider({ children }) {
     // Clear any provider-specific tokens
     // TODO: Revoke Google/Apple tokens if needed
 
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+    storage.remove(AUTH_STORAGE_KEY);
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
   }, []);
 

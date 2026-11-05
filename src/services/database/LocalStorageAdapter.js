@@ -34,7 +34,7 @@ import {
   getSlotsForDateRange
 } from '../../models/CalendarSlot';
 import { createTag, mergeWithDefaultTags, DEFAULT_TAGS } from '../../models/Tag';
-import { createTaskType, mergeWithDefaultTypes, DEFAULT_TASK_TYPES } from '../../models/TaskType';
+import { createTaskType, DEFAULT_TASK_TYPES } from '../../models/TaskType';
 import { createSchedule, migrateLegacySchedule } from '../../models/Schedule';
 import { createAuditEntry, filterAuditEntries } from '../../models/AuditEntry';
 import { FAMOUS_SCHEDULES } from '../../utils/scheduleTemplates';

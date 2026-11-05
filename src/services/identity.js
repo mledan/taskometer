@@ -14,32 +14,28 @@
  * docs, expire in 24h."
  */
 
+import storage from './storage';
+
 const DEVICE_KEY = 'taskometer.deviceId';
 const EPH_PREFIX = 'eph_';
 
 /**
  * Get the current device id, generating one if absent. Returns null
- * if localStorage isn't available (private mode, SSR, etc.) — caller
+ * if storage isn't available (private mode, SSR, etc.) — caller
  * should treat that as "no device id, send no header."
  */
 export function getDeviceId() {
-  if (typeof localStorage === 'undefined') return null;
-  try {
-    let id = localStorage.getItem(DEVICE_KEY);
-    if (!id || !/^eph_[A-Za-z0-9_-]{8,64}$/.test(id)) {
-      id = `${EPH_PREFIX}${randomId()}`;
-      localStorage.setItem(DEVICE_KEY, id);
-    }
-    return id;
-  } catch (_) {
-    return null;
+  let id = storage.getRaw(DEVICE_KEY);
+  if (!id || !/^eph_[A-Za-z0-9_-]{8,64}$/.test(id)) {
+    id = `${EPH_PREFIX}${randomId()}`;
+    if (!storage.setRaw(DEVICE_KEY, id)) return null;
   }
+  return id;
 }
 
 /** Clear the device id — called after a successful claim flow. */
 export function clearDeviceId() {
-  if (typeof localStorage === 'undefined') return;
-  try { localStorage.removeItem(DEVICE_KEY); } catch (_) { /* noop */ }
+  storage.remove(DEVICE_KEY);
 }
 
 /**

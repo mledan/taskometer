@@ -1,9 +1,7 @@
 /**
- * Idempotent storage-key migrations. Self-runs on import so both
- * `main.jsx` and `App.jsx` (and the test harness, via App.jsx) get
- * the migration without any caller needing to remember to invoke it.
- *
- * Each migration self-checks and no-ops if it has already run.
+ * Idempotent storage-key migrations. main.jsx calls this once before the
+ * first render; tests call it directly. Each migration self-checks and
+ * no-ops if it has already run.
  */
 
 export function runStorageMigrations() {
@@ -24,6 +22,3 @@ export function runStorageMigrations() {
     /* localStorage may be disabled — no-op */
   }
 }
-
-// Run on first import so callers don't have to.
-runStorageMigrations();
