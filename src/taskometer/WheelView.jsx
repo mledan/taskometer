@@ -1,20 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import WheelPickerModal from './WheelPickerModal.jsx';
 import { TaskRow } from './shared.jsx';
-import { FAMOUS_WHEELS } from '../defaults/famousWheels';
 import SleepCycleHint from './SleepCycleHint.jsx';
 import { isSleepSlot } from '../services/sleepCycles.js';
-
-const WHEEL_CATEGORY_BY_ID = (() => {
-  const m = {};
-  for (const w of FAMOUS_WHEELS) m[w.id] = w.category;
-  return m;
-})();
 import {
   SlotComposer,
   SlotTypeManager,
   TaskRowEditor,
-  getEffectiveTypes,
   resolveTypeColor,
 } from './Composers.jsx';
 
@@ -76,20 +68,6 @@ export default function WheelView({
   const viewKey = ymd(viewDate);
   const realTodayKey = ymd(now);
   const isToday = viewKey === realTodayKey;
-
-  // Use live-derived wedges only for .current/.count annotations. When we're
-  // on another day the upstream "wedges" prop is still today-shaped, so
-  // skip those annotations and let the drawn slots stand alone.
-  const currentWedge = isToday ? wedges.find(w => w.current) : null;
-  const currentLabel = isToday
-    ? (currentWedge
-        ? `now · ${currentWedge.label} · ${fmtHr(currentWedge.start)}–${fmtHr(currentWedge.end % 24)}`
-        : `now · ${fmtHr(nowHour)}`)
-    : viewDate.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }).toLowerCase();
-
-  const nowTaskRow = isToday && nowTask ? toRow(nowTask, { now: true }) : null;
-  const upcomingRows = isToday ? (upcoming || []).map(t => toRow(t)) : [];
-  const pushedRows = isToday ? (pushed || []).map(t => toRow(t, { pushed: true })) : [];
 
   const rowProps = () => ({
     onToggle, onEdit, onDelete,
@@ -283,19 +261,48 @@ export default function WheelView({
 
   const mergeTarget = findMergeTarget();
 
+  const center = (() => {
+    if (!isToday) {
+      return {
+        kicker: viewDate.toLocaleDateString('en', { weekday: 'long' }),
+        title: viewDate.toLocaleDateString('en', { month: 'short', day: 'numeric' }),
+        sub: `${viewSlots.length} block${viewSlots.length === 1 ? '' : 's'}`,
+      };
+    }
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const cur = viewSlots.find(s => {
+      const { sMin, eMin } = slotSpan(s);
+      const m = nowMin < sMin ? nowMin + DAY_MIN : nowMin;
+      return m >= sMin && m < eMin;
+    });
+    const nextSlot = viewSlots
+      .map(s => ({ s, start: hhmmToMin(s.startTime) }))
+      .filter(x => x.start > nowMin)
+      .sort((a, b) => a.start - b.start)[0]?.s;
+    const nextLabel = nextSlot ? `next · ${(nextSlot.label || nextSlot.slotType || 'block').slice(0, 14)} ${fmtHr(hhmmToMin(nextSlot.startTime) / 60)}` : null;
+    if (!cur) {
+      return { kicker: 'right now', title: 'Free', sub: nextSlot ? `until ${fmtHr(hhmmToMin(nextSlot.startTime) / 60)}` : 'no more blocks today', next: nextLabel };
+    }
+    const { sMin, eMin } = slotSpan(cur);
+    const m = nowMin < sMin ? nowMin + DAY_MIN : nowMin;
+    return {
+      kicker: 'right now',
+      title: cur.label || cur.slotType || 'block',
+      sub: `${fmtMinutes(eMin - m)} left · until ${fmtHr((eMin % DAY_MIN) / 60)}`,
+      task: nowTask ? (nowTask.text || nowTask.title || null) : null,
+      next: nextLabel,
+      color: cur.color || null,
+    };
+  })();
+
   return (
     <div className="tm-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {viewOverride && (
         <div
+          className="tm-wheel-override"
           style={{
-            padding: '10px 14px',
-            borderRadius: 10,
-            border: `1.5px solid ${viewOverride.color || 'var(--ink-mute)'}`,
-            background: hexAlpha(viewOverride.color || '#94A3B8', 0.18),
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
+            borderColor: viewOverride.color || 'var(--ink-mute)',
+            background: `color-mix(in oklab, ${viewOverride.color || 'var(--ink-mute)'} 18%, var(--paper))`,
           }}
         >
           <span
@@ -339,6 +346,7 @@ export default function WheelView({
           selectedSlotId={selectedSlotId}
           editingSlotId={editingSlotId}
           onTaskMoveTo={rowHandlers?.onTaskMoveTo}
+          center={center}
         />
         </div>
         {viewSlots.length === 0 && (
@@ -351,20 +359,8 @@ export default function WheelView({
         )}
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          paddingTop: 10,
-          borderTop: '1px dashed var(--rule)',
-        }}
-      >
-        <span
-          className="tm-mono tm-sm"
-          style={{ color: 'var(--ink-mute)', letterSpacing: '.10em', textTransform: 'uppercase' }}
-        >
+      <div className="tm-wheel-toolbar">
+        <span className="tm-mono tm-sm tm-wheel-count">
           {viewSlots.length} block{viewSlots.length === 1 ? '' : 's'}
           {isToday ? '' : ` · ${viewDate.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase()}`}
         </span>
@@ -387,8 +383,8 @@ export default function WheelView({
             save day
           </button>
         )}
-        <span className="tm-mono tm-sm" style={{ marginLeft: 'auto', color: 'var(--ink-mute)' }}>
-          click a wedge to expand · drag to move · click empty ring to add
+        <span className="tm-mono tm-sm tm-wheel-hint">
+          click a block for its tasks and handles · drag to move · click the empty ring to add
         </span>
       </div>
 
@@ -781,13 +777,6 @@ function wedgesFromSlots(slots) {
     });
 }
 
-function todayYMD() {
-  const d = new Date();
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  return `${d.getFullYear()}-${m < 10 ? '0' + m : m}-${day < 10 ? '0' + day : day}`;
-}
-
 function toRow(t, extras = {}) {
   const dur = typeof t.duration === 'number' ? t.duration : 30;
   const meta = t.metadata || {};
@@ -974,6 +963,7 @@ function WheelSvg({
   editingSlotId,
   selectedSlotId,
   onTaskMoveTo,
+  center,
 }) {
   const cx = 320, cy = 320, rOuter = 295, rInner = 110;
   const labelR = (rOuter + rInner) / 2;
@@ -1069,7 +1059,7 @@ function WheelSvg({
   const fillFor = (slot, wedge) => {
     const typeColor = slot.color || resolveTypeColor(taskTypes, slot.slotType);
     const isSelected = selectedSlotId && slot.id === selectedSlotId;
-    if (typeColor) return hexWithAlpha(typeColor, isSelected ? 0.72 : 0.45);
+    if (typeColor) return `color-mix(in oklab, ${typeColor} var(${isSelected ? '--wedge-mix-selected' : '--wedge-mix'}), var(--paper))`;
     if (wedge?.current) return 'var(--orange-pale)';
     if (wedge?.kind === 'hot') return 'var(--orange-pale)';
     if (wedge?.kind === 'light') return 'var(--sage-pale)';
@@ -1083,7 +1073,7 @@ function WheelSvg({
     const isSelected = selectedSlotId && slot.id === selectedSlotId;
     if (isSelected) return 'var(--ink)';
     const typeColor = slot.color || resolveTypeColor(taskTypes, slot.slotType);
-    if (typeColor && !isCurrent) return typeColor;
+    if (typeColor && !isCurrent) return `color-mix(in oklab, ${typeColor} var(--wedge-edge-mix), var(--ink))`;
     return isCurrent ? 'var(--ink)' : 'var(--rule)';
   };
 
@@ -1172,14 +1162,13 @@ function WheelSvg({
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag?.id, drag?.mode]);
 
   const onWedgePointerDown = (ev, slot) => {
     if (ev.button !== 0) return;
     ev.stopPropagation();
     ev.preventDefault();
-    try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch (_) {}
+    try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch (_) { /* capture unsupported */ }
     const info = pointerToHour(ev);
     if (!info) return;
     const { sMin, eMin } = slotSpan(slot);
@@ -1200,7 +1189,7 @@ function WheelSvg({
   const onHandlePointerDown = (ev, slot, which) => {
     ev.stopPropagation();
     ev.preventDefault();
-    try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch (_) {}
+    try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch (_) { /* capture unsupported */ }
     const info = pointerToHour(ev);
     if (!info) return;
     const { sMin, eMin } = slotSpan(slot);
@@ -1440,20 +1429,6 @@ function WheelSvg({
                 </text>
               );
             })()}
-            {isOvernight && (
-              // faint connector text
-              <text
-                x={cx}
-                y={cy + 48}
-                fontFamily="JetBrains Mono"
-                fontSize="9"
-                fill="var(--ink-mute)"
-                textAnchor="middle"
-                style={{ pointerEvents: 'none' }}
-              >
-                {label} crosses midnight
-              </text>
-            )}
             <text
               x={lx}
               y={ly - 2}
@@ -1462,10 +1437,14 @@ function WheelSvg({
               fill="var(--ink)"
               textAnchor="middle"
               fontStyle={isCurrent || isEditing ? 'italic' : 'normal'}
-              fontWeight={isCurrent || isEditing ? 600 : 400}
+              fontWeight={isCurrent || isEditing ? 600 : 500}
+              paintOrder="stroke"
+              stroke={fill}
+              strokeWidth={4}
+              strokeLinejoin="round"
               style={{ pointerEvents: 'none' }}
             >
-              {label}
+              {label}{isOvernight ? ' ↷' : ''}
             </text>
             <WedgeTaskChips
               slotId={slot.id}
@@ -1489,27 +1468,32 @@ function WheelSvg({
               </text>
             ) : null}
 
-            {/* resize handles with hover ±15m nudge buttons */}
-            <HandleWithNudge
-              cx={sxH}
-              cy={syH}
-              slotId={slot.id}
-              which="start"
-              hover={hoverHandle}
-              setHover={setHoverHandle}
-              onDown={(ev) => onHandlePointerDown(ev, slot, 'start')}
-              onNudge={onNudgeEdge}
-            />
-            <HandleWithNudge
-              cx={exH}
-              cy={eyH}
-              slotId={slot.id}
-              which="end"
-              hover={hoverHandle}
-              setHover={setHoverHandle}
-              onDown={(ev) => onHandlePointerDown(ev, slot, 'end')}
-              onNudge={onNudgeEdge}
-            />
+            {/* Resize handles (with ±15m nudges) only on the block the
+                user picked — twelve pairs of white dots were noise. */}
+            {(isSelected || isEditing || isDragging) && (
+              <>
+                <HandleWithNudge
+                  cx={sxH}
+                  cy={syH}
+                  slotId={slot.id}
+                  which="start"
+                  hover={hoverHandle}
+                  setHover={setHoverHandle}
+                  onDown={(ev) => onHandlePointerDown(ev, slot, 'start')}
+                  onNudge={onNudgeEdge}
+                />
+                <HandleWithNudge
+                  cx={exH}
+                  cy={eyH}
+                  slotId={slot.id}
+                  which="end"
+                  hover={hoverHandle}
+                  setHover={setHoverHandle}
+                  onDown={(ev) => onHandlePointerDown(ev, slot, 'end')}
+                  onNudge={onNudgeEdge}
+                />
+              </>
+            )}
           </g>
         );
       })}
@@ -1556,6 +1540,39 @@ function WheelSvg({
 
       <line x1={cx} y1={cy} x2={nxEnd} y2={nyEnd} stroke="var(--orange)" strokeWidth="2" opacity="0.5" pointerEvents="none" />
       <circle cx={nxEnd} cy={nyEnd} r="5" fill="var(--orange)" pointerEvents="none" />
+
+      {/* The hub is the Do surface: what block you're in, how long it has
+          left, the task that's up, and what comes next. */}
+      {center && !drag && (
+        <g pointerEvents="none">
+          {center.color && (
+            <circle cx={cx} cy={cy} r={rInner - 6} fill="none" stroke={center.color} strokeWidth="2" opacity="0.6" />
+          )}
+          {center.kicker && (
+            <text x={cx} y={cy - 30} fontFamily="JetBrains Mono" fontSize="9.5" letterSpacing="1.5" fill="var(--ink-mute)" textAnchor="middle">
+              {center.kicker.toUpperCase()}
+            </text>
+          )}
+          <text x={cx} y={cy - 6} fontFamily="Inter" fontSize={center.title.length > 12 ? 17 : 21} fontWeight="600" fill="var(--ink)" textAnchor="middle">
+            {center.title.slice(0, 18)}
+          </text>
+          {center.sub && (
+            <text x={cx} y={cy + 12} fontFamily="JetBrains Mono" fontSize="10.5" fill="var(--ink-mute)" textAnchor="middle">
+              {center.sub}
+            </text>
+          )}
+          {center.task && (
+            <text x={cx} y={cy + 32} fontFamily="Inter" fontSize="12" fill="var(--ink-soft)" textAnchor="middle">
+              ▸ {center.task.slice(0, 24)}{center.task.length > 24 ? '…' : ''}
+            </text>
+          )}
+          {center.next && (
+            <text x={cx} y={cy + (center.task ? 50 : 32)} fontFamily="JetBrains Mono" fontSize="9.5" fill="var(--ink-mute)" textAnchor="middle">
+              {center.next}
+            </text>
+          )}
+        </g>
+      )}
 
 
       {drag && (() => {
@@ -1648,148 +1665,4 @@ function NudgeChip({ cx, cy, label, onClick }) {
       </text>
     </g>
   );
-}
-
-/**
- * HelixStrip — makes the "wheel is actually a helix" idea visible.
- *
- * The 24h wheel loops on itself visually but not conceptually: the sleep
- * block that starts at 22:00 ends at 06:00 *tomorrow*, not at 06:00 today.
- * This strip renders the handoff: today's overnight tail, then tomorrow's
- * first few blocks, with a small "→ tomorrow" arrow between them.
- *
- * Tomorrow's shape is resolved through `resolveDay` so rules are
- * respected — a ruled tomorrow shows up even before the user paints it.
- */
-function HelixStrip({
-  viewKey,
-  viewSlots,
-  allSlots,
-  wheels,
-  dayAssignments,
-  dayOverrides,
-  resolveDay,
-  taskTypes,
-}) {
-  const tomorrowKey = addDaysKey(viewKey, 1);
-  const tomorrowEffective = resolveDay
-    ? resolveDay(tomorrowKey)
-    : {
-        wheelId: dayAssignments[tomorrowKey] || null,
-        override: dayOverrides[tomorrowKey] || null,
-        source: dayAssignments[tomorrowKey] || dayOverrides[tomorrowKey] ? 'pin' : 'none',
-      };
-  const tomorrowWheel = wheels.find(w => w.id === tomorrowEffective.wheelId) || null;
-  const tomorrowOverride = tomorrowEffective.override;
-  const fromRule = tomorrowEffective.source === 'rule';
-
-  // Real slots already scheduled for tomorrow
-  const existingTomorrow = (allSlots || [])
-    .filter(s => s.date === tomorrowKey)
-    .slice()
-    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-
-  // If tomorrow's slots haven't been materialised but a wheel is resolved
-  // (pinned or ruled), preview the wheel's own blocks so the strip still
-  // shows something useful.
-  const previewBlocks = existingTomorrow.length > 0
-    ? existingTomorrow.map(s => ({
-        startTime: s.startTime,
-        endTime: s.endTime,
-        label: s.label || s.slotType || 'block',
-        color: s.color || null,
-        slotType: s.slotType || null,
-      }))
-    : (tomorrowWheel?.blocks || []).slice().sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-
-  const overnight = viewSlots.find(s => isOvernightSlot(s));
-
-  const noTomorrow = !tomorrowWheel && !tomorrowOverride && previewBlocks.length === 0;
-
-  return (
-    <div
-      className="tm-card tm-flush"
-      style={{
-        marginTop: 10,
-        padding: '10px 12px',
-        borderTop: '1px dashed var(--rule)',
-      }}
-      title="today's wheel hands off to tomorrow — the day is a helix, not a loop"
-    >
-      <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 4 }}>
-        → tomorrow ({tomorrowKey})
-      </div>
-      {overnight && (
-        <div className="tm-mono tm-sm" style={{ marginBottom: 4 }}>
-          <span style={{ color: overnight.color || 'var(--ink)' }}>
-            {overnight.label || overnight.slotType || 'block'}
-          </span>{' '}
-          crosses midnight — ends <strong>{overnight.endTime}</strong> tomorrow
-        </div>
-      )}
-      {tomorrowOverride && (
-        <div className="tm-mono tm-sm" style={{ color: tomorrowOverride.color }}>
-          tomorrow is set to <strong>{tomorrowOverride.label || tomorrowOverride.type}</strong>
-          {fromRule ? ' (from rule)' : ''}
-        </div>
-      )}
-      {tomorrowWheel && (
-        <div className="tm-mono tm-sm" style={{ color: tomorrowWheel.color }}>
-          wheel: <strong>{tomorrowWheel.name}</strong>{fromRule ? ' (from rule)' : ''}
-        </div>
-      )}
-      {previewBlocks.length > 0 ? (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-          {previewBlocks.slice(0, 6).map((b, i) => {
-            const color = b.color || resolveTypeColor(taskTypes, b.slotType) || '#94A3B8';
-            return (
-              <span
-                key={i}
-                className="tm-mono tm-sm"
-                style={{
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                  background: hexWithAlpha(color, 0.18),
-                  border: `1px ${fromRule && existingTomorrow.length === 0 ? 'dashed' : 'solid'} ${color}`,
-                  color: 'var(--ink)',
-                }}
-              >
-                {b.startTime}–{b.endTime} {b.label || ''}
-              </span>
-            );
-          })}
-          {previewBlocks.length > 6 && (
-            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-              +{previewBlocks.length - 6} more
-            </span>
-          )}
-        </div>
-      ) : noTomorrow ? (
-        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-          nothing planned yet — pin a wheel to tomorrow or add a rule so it flows through automatically.
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function addDaysKey(dateKey, delta) {
-  const [y, m, d] = dateKey.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setDate(date.getDate() + delta);
-  const mm = date.getMonth() + 1;
-  const dd = date.getDate();
-  return `${date.getFullYear()}-${mm < 10 ? '0' + mm : mm}-${dd < 10 ? '0' + dd : dd}`;
-}
-
-function hexWithAlpha(hex, alpha) {
-  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return hex;
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function hexAlpha(hex, alpha) {
-  return hexWithAlpha(hex, alpha);
 }

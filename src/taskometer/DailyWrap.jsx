@@ -1,101 +1,59 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { CategoryBreakdownBar } from './TimelineViews.jsx';
+import { formatYMD } from '../utils/time.js';
+import './screens.css';
 
 /**
- * End-of-day reflection card. Shows:
- *  - tasks done / scheduled
- *  - total time scheduled
- *  - top 3 categories (via CategoryBreakdownBar)
- *  - a short story-telling line about how the day went
- *
- * Lives below the wheel on the day scope. Dismissible per-day via
- * sessionStorage so we don't nag.
+ * End-of-day reflection: done / scheduled, completion, blocks, and a
+ * one-line read on how the day went. Sits below the wheel.
  */
-
-function pad(n) { return n < 10 ? `0${n}` : `${n}`; }
-function ymd(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-
 export default function DailyWrap({ selectedDate, slots = [], tasks = [], taskTypes = [] }) {
-  const dateKey = ymd(selectedDate);
+  const dateKey = formatYMD(selectedDate);
   const daySlots = useMemo(() => slots.filter(s => s.date === dateKey), [slots, dateKey]);
   const dayTasks = useMemo(
-    () => tasks.filter(t => {
-      const st = t.scheduledTime ? new Date(t.scheduledTime) : null;
-      return st && ymd(st) === dateKey;
-    }),
+    () => tasks.filter(t => t.scheduledTime && formatYMD(new Date(t.scheduledTime)) === dateKey && t.status !== 'cancelled'),
     [tasks, dateKey],
   );
 
   const done = dayTasks.filter(t => t.status === 'completed').length;
   const total = dayTasks.length;
   const pct = total ? Math.round((done / total) * 100) : 0;
-  const isToday = dateKey === ymd(new Date());
-  const isPast = new Date(dateKey).getTime() < new Date(ymd(new Date())).getTime();
+  const todayKey = formatYMD(new Date());
+  const isToday = dateKey === todayKey;
+  const isPast = dateKey < todayKey;
 
-  // Story-telling headline picks based on completion + load.
   const headline = (() => {
-    if (!total && !daySlots.length) return "blank slate — paint a wheel and add a task to start.";
-    if (!total) return "wheel is set, no tasks yet — drop something into a block.";
-    if (pct === 100) return isPast ? "every task done. clean wrap." : "every task done so far. keep it rolling.";
-    if (pct >= 75) return "most of the day cleared. nice work.";
-    if (pct >= 50) return "halfway there. push through the next block.";
-    if (pct > 0) return "a few wins down. plenty of day left.";
-    return isPast ? "no tasks closed today. tomorrow's a reset." : "nothing crossed off yet — pick the easiest one.";
+    if (!total && !daySlots.length) return 'Blank slate — paint a schedule and capture a task to start.';
+    if (!total) return 'Schedule is set, no tasks yet — drop something into a block.';
+    if (pct === 100) return isPast ? 'Every task done. Clean wrap.' : 'Every task done so far. Keep it rolling.';
+    if (pct >= 75) return 'Most of the day cleared. Nice work.';
+    if (pct >= 50) return 'Halfway there. Push through the next block.';
+    if (pct > 0) return 'A few wins down. Plenty of day left.';
+    return isPast ? 'No tasks closed that day. The next one is a reset.' : 'Nothing crossed off yet — pick the easiest one.';
   })();
 
   return (
-    <div
-      style={{
-        marginTop: 18,
-        padding: '16px 20px',
-        border: '1.5px solid var(--rule)',
-        borderRadius: 12,
-        background: 'var(--paper-warm, #FAF5EC)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 26, color: 'var(--ink)', lineHeight: 1 }}>
-          {isToday ? "Today's wrap" : isPast ? 'How that day went' : 'A look ahead'}
-        </span>
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--ink-mute)' }}>
-          {selectedDate.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
-        </span>
+    <section className="tm-wrap" aria-label="daily wrap">
+      <div className="tm-wrap-head">
+        <span className="tm-wrap-title">{isToday ? "Today's wrap" : isPast ? 'How that day went' : 'A look ahead'}</span>
+        <span className="tm-mono tm-sm">{selectedDate.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
       </div>
-
-      <div style={{ fontSize: 16, color: 'var(--ink)', marginBottom: 14, lineHeight: 1.4 }}>
-        {headline}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 14 }}>
-        <Stat label="tasks done" value={`${done} / ${total}`} accent={pct === 100 ? 'var(--orange)' : undefined} />
+      <div className="tm-wrap-headline">{headline}</div>
+      <div className="tm-wrap-stats">
+        <Stat label="tasks done" value={`${done} / ${total}`} accent={total > 0 && pct === 100} />
         <Stat label="completion" value={`${pct}%`} />
-        <Stat label="blocks scheduled" value={daySlots.length} />
+        <Stat label="blocks" value={daySlots.length} />
       </div>
-
       <CategoryBreakdownBar slots={daySlots} taskTypes={taskTypes} label="day" />
-    </div>
+    </section>
   );
 }
 
 function Stat({ label, value, accent }) {
   return (
-    <div
-      style={{
-        padding: '10px 12px',
-        background: 'var(--paper)',
-        border: '1px solid var(--rule)',
-        borderRadius: 10,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
-      }}
-    >
-      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'var(--ink-mute)', letterSpacing: 0.6, textTransform: 'uppercase' }}>
-        {label}
-      </span>
-      <span style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 28, lineHeight: 1, color: accent || 'var(--ink)' }}>
-        {value}
-      </span>
+    <div className="tm-wrap-stat">
+      <span className="tm-wrap-stat-label">{label}</span>
+      <span className={`tm-wrap-stat-value${accent ? ' tm-accent' : ''}`}>{value}</span>
     </div>
   );
 }

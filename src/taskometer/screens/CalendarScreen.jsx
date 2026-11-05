@@ -1,8 +1,8 @@
-import React from 'react';
 import TimeBreakdown from '../TimeBreakdown.jsx';
 import PaintMaterialToolbar from '../PaintMaterialToolbar.jsx';
 import { MonthInsights, QuarterInsights, YearInsights } from '../TimelineViews.jsx';
 import { monthRangeFor, quarterRangeFor, quarterLabel, yearRangeFor } from '../../utils/time.js';
+import '../screens.css';
 
 const ZOOM_CONFIG = {
   month: {
@@ -25,7 +25,7 @@ const ZOOM_CONFIG = {
   },
 };
 
-/** Month, quarter and year share one shape: a breakdown on top, a paintable calendar below. */
+/** Month, quarter and year share one shape: paint the calendar, reflect on the breakdown below. */
 export default function CalendarScreen({
   zoom,
   selectedDate,
@@ -43,29 +43,27 @@ export default function CalendarScreen({
   const cfg = ZOOM_CONFIG[zoom] || ZOOM_CONFIG.month;
   const { Insights } = cfg;
   return (
-    <>
+    <div className="tm-screen">
       <PaintMaterialToolbar material={paintMaterial} setMaterial={setPaintMaterial} />
-      <div className="tm-stack">
-        <TimeBreakdown
-          slots={state.slots || []}
-          tasks={filteredState.tasks || []}
-          taskTypes={state.taskTypes || []}
-          range={cfg.range(selectedDate)}
-          title={cfg.title}
-          subtitle={cfg.subtitle(selectedDate)}
-        />
-        <Insights
-          selectedDate={selectedDate}
-          slots={state.slots || []}
-          taskTypes={state.taskTypes || []}
-          onPickDate={onPickDate}
-          onPaintDay={(wheelId, dateKey) => onPaintDay(wheelId, dateKey, paintMaterial)}
-          onPaintRange={(startDate, endDate) => onPaintRange(startDate, endDate, paintMaterial)}
-          onPaintDays={(dates) => onPaintDays(dates, paintMaterial)}
-          onSaveDaysAsRhythm={onSaveDaysAsRhythm}
-          multiSelect={multiSelect}
-        />
-      </div>
-    </>
+      <Insights
+        selectedDate={selectedDate}
+        slots={state.slots || []}
+        taskTypes={state.taskTypes || []}
+        onPickDate={onPickDate}
+        onPaintDay={(wheelId, dateKey) => onPaintDay(wheelId, dateKey, paintMaterial)}
+        onPaintRange={(startDate, endDate) => onPaintRange(startDate, endDate, paintMaterial)}
+        onPaintDays={(dates) => onPaintDays(dates, paintMaterial)}
+        onSaveDaysAsRhythm={onSaveDaysAsRhythm}
+        multiSelect={multiSelect}
+      />
+      <TimeBreakdown
+        slots={state.slots || []}
+        tasks={filteredState.tasks || []}
+        taskTypes={state.taskTypes || []}
+        range={cfg.range(selectedDate)}
+        title={cfg.title}
+        subtitle={cfg.subtitle(selectedDate)}
+      />
+    </div>
   );
 }

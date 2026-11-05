@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import WheelPainter from './WheelPainter.jsx';
 import SaveAsRhythmModal from './year/SaveAsRhythmModal.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
@@ -58,6 +58,8 @@ function readStoredUI() {
     }
   } catch (_) { /* restricted storage */ }
   const ui = { ...DEFAULT_UI, ...stored };
+  // Phones get the one-handed lens until the user picks one themselves.
+  if (!stored.lens && typeof window !== 'undefined' && window.matchMedia?.('(max-width: 760px)').matches) ui.lens = 'blocks';
   return { ...ui, ...normalizeView(ui) };
 }
 
@@ -396,7 +398,10 @@ export default function Taskometer() {
           derived={derived}
           userWheels={userWheels}
           onPickDate={(d) => pickDate(d, 'day')}
-          onPaintRange={paint.paintWeekRange}
+          paintMaterial={paintMaterial}
+          setPaintMaterial={setPaintMaterial}
+          onPaintRange={handlePaintRange}
+          onPaintDays={handlePaintDays}
         />
       )}
 

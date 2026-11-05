@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { hmToMin, WEEKDAY_KEYS } from '../services/api/derive';
-import { ymd, isoAt, parseQuickAdd, fmtClock } from './quickAdd';
+import { ymd, isoAt, parseCapture, fmtClock } from './quickAdd';
+import PlaceMenu from './PlaceMenu.jsx';
 
 /**
  * SpiralBoard — a 2D time-spiral canvas paired with a todo list.
@@ -133,6 +134,8 @@ export default function SpiralBoard({
   tasks = [],
   api,
   onAdd, // (data) => Promise — main's handleAddTask, for tag-routing etc.
+  onPlaceOnDate,
+  onPlaceInSlot,
   now = new Date(),
 }) {
   const [addText, setAddText] = useState('');
@@ -176,7 +179,7 @@ export default function SpiralBoard({
 
   const setZoom = (px) => {
     const v = Math.min(MAX_PXPERDAY, Math.max(MIN_PXPERDAY, px));
-    try { localStorage.setItem('tm.spiralZoom', String(v)); } catch (_) {}
+    try { localStorage.setItem('tm.spiralZoom', String(v)); } catch (_) { /* storage unavailable */ }
     setPxPerDay(v);
     return v;
   };
@@ -285,21 +288,26 @@ export default function SpiralBoard({
 
   const submitAdd = (e) => {
     e?.preventDefault?.();
-    const { label, startMin } = parseQuickAdd(addText);
+    const parsed = parseCapture(addText, now);
+    const label = parsed.text;
     if (!label) return;
+    const base = { text: label, duration: parsed.durationMin || 30 };
+    if (parsed.tags.length) base.tags = parsed.tags;
     if (pending) {
       const iso = isoAt(pending.dayKey, pending.startMin);
-      api.tasks.add({ text: label, scheduledTime: iso, scheduledFor: iso, duration: 30, autoSchedule: false });
+      api.tasks.add({ ...base, scheduledTime: iso, scheduledFor: iso, autoSchedule: false });
       setPending(null);
-    } else if (startMin != null) {
-      const iso = isoAt(dayModels[0].dayKey, startMin);
-      api.tasks.add({ text: label, scheduledTime: iso, scheduledFor: iso, duration: 30, autoSchedule: false });
+    } else if (parsed.startMin != null) {
+      const iso = isoAt(parsed.dateKey || dayModels[0].dayKey, parsed.startMin);
+      api.tasks.add({ ...base, scheduledTime: iso, scheduledFor: iso, autoSchedule: false });
+    } else if (parsed.dateKey) {
+      const iso = isoAt(parsed.dateKey, 9 * 60);
+      api.tasks.add({ ...base, scheduledTime: iso, scheduledFor: iso, autoSchedule: false });
     } else if (typeof onAdd === 'function') {
-      // Delegate to main's handleAddTask so [tag] routing + the existing
-      // scheduler (rhythms, packs, etc) both still apply.
-      onAdd({ text: label, duration: 30 });
+      // Delegate to main's handleAddTask so tag routing + the scheduler apply.
+      onAdd(base);
     } else {
-      api.tasks.add({ text: label, duration: 30, autoSchedule: false });
+      api.tasks.add({ ...base, autoSchedule: false });
     }
     setAddText('');
   };
@@ -406,7 +414,7 @@ export default function SpiralBoard({
           onChange={(e) => setAddText(e.target.value)}
           placeholder={pending
             ? `name for ${fmtClock(pending.startMin)} ${dayLabel(pendingIdx)}…`
-            : 'add a todo… "gym 6pm", or "[deep] write spec"'}
+            : 'add a todo… "gym 6pm", "call mom tomorrow 20m", "#deep write spec"'}
         />
         <button type="submit" className="tm-btn tm-primary">add</button>
         {pending && <button type="button" className="tm-btn tm-spiral-cancel" onClick={() => setPending(null)}>×</button>}
@@ -448,7 +456,7 @@ export default function SpiralBoard({
               const mid = showLabel ? project((T0 + T1) / 2) : null;
               return (
                 <g key={`${dm.dayKey}-b-${b.id}`}>
-                  <path d={arcPath(T0, Math.min(T1, maxT))} fill="none" stroke={b.color || '#94A3B8'}
+                  <path d={arcPath(T0, Math.min(T1, maxT))} fill="none" stroke={b.color || 'var(--ink-mute)'}
                     strokeOpacity={b.source === 'type' ? 0.2 : 0.34}
                     strokeWidth={bandWidth} strokeLinecap="round"
                     strokeDasharray={b.source === 'type' ? '1 6' : undefined}>
@@ -565,7 +573,16 @@ export default function SpiralBoard({
                 onRename={() => startRename(t)} onSaveRename={() => saveRename(t.id)}
                 onToggle={() => api.tasks.toggleComplete(t.id)}
                 onShorter={() => bump(t, -15)} onLonger={() => bump(t, 15)}
-                onSchedule={() => scheduleLater(t)} onCancel={() => api.tasks.remove(t.id)} />
+                onSchedule={() => scheduleLater(t)} onCancel={() => api.tasks.remove(t.id)}
+                placeMenu={(
+                  <PlaceMenu
+                    taskId={t.id}
+                    daySlots={slots.filter(s => s.date === dayModels[0]?.dayKey)}
+                    dayKey={dayModels[0]?.dayKey}
+                    onPlaceInSlot={onPlaceInSlot || ((id, sid) => api.tasks.moveToSlot?.(id, sid))}
+                    onPlaceOnDate={onPlaceOnDate || ((id, day) => placeAt(id, day, 9 * 60))}
+                  />
+                )} />
             ))}
           </Section>
         </div>
@@ -589,7 +606,7 @@ function Empty({ children }) {
 function TodoRow({
   t, scheduled, selected, editing, editText, setEditText, colorForTask,
   onSelect, onRename, onSaveRename, onToggle, onShorter, onLonger,
-  onPush, onKick, onFocus, onUnschedule, onSchedule, onCancel,
+  onPush, onKick, onFocus, onUnschedule, onSchedule, onCancel, placeMenu,
 }) {
   const done = t.status === 'completed';
   const time = t.scheduledTime ? new Date(t.scheduledTime) : null;
@@ -611,6 +628,7 @@ function TodoRow({
         )}
         {timeLabel && <span className="tm-mono tm-sm">{timeLabel}</span>}
         <span className="tm-mono tm-sm tm-spiral-dur">{t.duration || 30}m</span>
+        {placeMenu}
       </div>
       {selected && (
         <div className="tm-spiral-actions">

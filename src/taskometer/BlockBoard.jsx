@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import SleepCycleHint from './SleepCycleHint.jsx';
+import PlaceMenu from './PlaceMenu.jsx';
 import { isSleepSlot } from '../services/sleepCycles.js';
+import { fmtDuration } from './quickAdd';
 
 function ymd(d) {
   const m = d.getMonth() + 1;
@@ -39,19 +41,14 @@ function isOverdue(task, now) {
 }
 
 /**
- * BlockBoard — the consolidated task workspace.
- *
- * The "block" scale used to be a tiny "now / up next" duo. The user
- * asked for one place where tasks live whether scheduled or not, with
- * granular actions. So this view answers four questions in order:
+ * BlockBoard — the day as a list, built to work one-handed.
  *
  *   1. What did I miss? (overdue)
- *   2. What am I doing right now? (current slot)
- *   3. What's coming today? (the rest of today, by slot)
- *   4. What's still loose? (inbox)
+ *   2. What's in each block today?
+ *   3. What's still loose? (inbox)
  *
- * Each row exposes: toggle done, delete, push to tomorrow, move to a
- * specific slot, and is itself draggable to drop onto a wheel wedge.
+ * Every row has one placement control (the shared PlaceMenu) instead of
+ * a date input, a time input, a select and a button.
  */
 export default function BlockBoard({
   tasks = [],
@@ -59,13 +56,13 @@ export default function BlockBoard({
   date,
   api,
   rowHandlers = {},
+  onPlaceOnDate,
 }) {
-  const now = useMemo(() => new Date(), [tasks.length, slots.length]);
+  const now = new Date();
   const todayKey = ymd(now);
   const dateKey = date ? ymd(date) : todayKey;
   const isToday = dateKey === todayKey;
 
-  // Today's slots in time order
   const daySlots = useMemo(
     () => (slots || [])
       .filter(s => s?.date === dateKey)
@@ -74,10 +71,9 @@ export default function BlockBoard({
     [slots, dateKey],
   );
 
-  // Bucket tasks
   const { overdue, scheduledByDay, inbox } = useMemo(() => {
     const overdue = [];
-    const scheduledByDay = new Map(); // dayKey -> [{slot, tasks: []}]
+    const scheduledByDay = new Map();
     const inbox = [];
 
     for (const t of tasks) {
@@ -93,7 +89,6 @@ export default function BlockBoard({
         overdue.push(t);
         continue;
       }
-      // Group only the day in view (today by default)
       if (dKey !== dateKey) continue;
       if (!scheduledByDay.has(dKey)) scheduledByDay.set(dKey, []);
       scheduledByDay.get(dKey).push(t);
@@ -101,11 +96,10 @@ export default function BlockBoard({
 
     overdue.sort((a, b) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime());
     return { overdue, scheduledByDay, inbox };
-  }, [tasks, dateKey, isToday, todayKey, now]);
+  }, [tasks, dateKey, isToday, todayKey]);
 
   const tasksForDay = scheduledByDay.get(dateKey) || [];
 
-  // Group today's scheduled tasks by slot
   const slotGroups = useMemo(() => {
     const bySlot = new Map();
     const looseScheduled = [];
@@ -117,7 +111,6 @@ export default function BlockBoard({
         if (!bySlot.has(slot.id)) bySlot.set(slot.id, { slot, tasks: [] });
         bySlot.get(slot.id).tasks.push(t);
       } else {
-        // Snap by time window
         const dt = new Date(t.scheduledTime);
         const min = dt.getHours() * 60 + dt.getMinutes();
         const matched = daySlots.find(s => {
@@ -136,45 +129,55 @@ export default function BlockBoard({
         }
       }
     }
-    // Order groups by slot start
-    const ordered = daySlots
-      .map(s => bySlot.get(s.id))
-      .filter(Boolean);
+    const ordered = daySlots.map(s => bySlot.get(s.id)).filter(Boolean);
     return { ordered, loose: looseScheduled };
   }, [tasksForDay, daySlots]);
 
-  // Sleep slots for the day — surfaced as their own section so the
-  // SleepCycleHint shows even when no tasks are scheduled (which is
-  // basically always for sleep blocks).
-  const sleepSlots = useMemo(
-    () => daySlots.filter(isSleepSlot),
-    [daySlots],
-  );
+  const sleepSlots = useMemo(() => daySlots.filter(isSleepSlot), [daySlots]);
+
+  const rowProps = { api, daySlots, dateKey, rowHandlers, onPlaceOnDate };
+  const nothing = overdue.length === 0 && slotGroups.ordered.length === 0 && slotGroups.loose.length === 0 && inbox.length === 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {sleepSlots.length > 0 && (
+    <div className="tm-blocks">
+      {overdue.length > 0 && (
+        <Section title={`Overdue · ${overdue.length}`} accent="var(--orange)" tone="warn" subtitle="these didn't fit anywhere — give each a block, or let them go.">
+          {overdue.map(t => (
+            <TaskRow key={t.id || t.key} task={t} relativeDay={fmtRelDay(ymd(new Date(t.scheduledTime)), todayKey)} showOverdue {...rowProps} />
+          ))}
+        </Section>
+      )}
+
+      {slotGroups.ordered.length > 0 && (
         <Section
-          title={`Sleep · ${sleepSlots.length} block${sleepSlots.length === 1 ? '' : 's'}`}
-          accent="#6B46C1"
-          subtitle="cycle-aware wake / bedtime suggestions for each sleep window."
+          title={`${isToday ? 'Today' : fmtRelDay(dateKey, todayKey)} · ${tasksForDay.length} task${tasksForDay.length === 1 ? '' : 's'}`}
+          accent="var(--ink)"
+          subtitle="by block. tap move to put a task somewhere else."
         >
+          {slotGroups.ordered.map(({ slot, tasks: slotTasks }) => (
+            <SlotGroup key={slot.id} slot={slot} tasks={slotTasks} {...rowProps} />
+          ))}
+          {slotGroups.loose.length > 0 && (
+            <SlotGroup key="loose" slot={null} tasks={slotGroups.loose} {...rowProps} />
+          )}
+        </Section>
+      )}
+
+      {inbox.length > 0 && (
+        <Section title={`Inbox · ${inbox.length}`} accent="var(--sage-deep)" subtitle="unscheduled. tap place to give each one a block.">
+          {inbox.map(t => (
+            <TaskRow key={t.id || t.key} task={t} isInbox {...rowProps} />
+          ))}
+        </Section>
+      )}
+
+      {sleepSlots.length > 0 && (
+        <Section title={`Sleep · ${sleepSlots.length} block${sleepSlots.length === 1 ? '' : 's'}`} accent={sleepSlots[0].color || 'var(--lilac)'} subtitle="cycle-aware wake / bedtime suggestions.">
           {sleepSlots.map(s => (
-            <div
-              key={s.id}
-              style={{
-                borderLeft: `3px solid ${s.color || '#6B46C1'}`,
-                paddingLeft: 10,
-                marginBottom: 8,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 15, fontWeight: 600 }}>
-                  {s.label || s.slotType || 'sleep'}
-                </span>
-                <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-                  {s.startTime}–{s.endTime}
-                </span>
+            <div key={s.id} className="tm-blocks-group" style={{ '--group-color': s.color || 'var(--lilac)' }}>
+              <div className="tm-blocks-group-head">
+                <span className="tm-blocks-group-name">{s.label || s.slotType || 'sleep'}</span>
+                <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{s.startTime}–{s.endTime}</span>
               </div>
               <SleepCycleHint slot={s} />
             </div>
@@ -182,83 +185,11 @@ export default function BlockBoard({
         </Section>
       )}
 
-      {/* Overdue */}
-      {overdue.length > 0 && (
-        <Section
-          title={`Overdue · ${overdue.length}`}
-          accent="var(--orange)"
-          tone="warn"
-          subtitle="rescheduled into the next matching block automatically — these are the ones that didn't have a fit."
-        >
-          {overdue.map(t => (
-            <TaskRow
-              key={t.id || t.key}
-              task={t}
-              relativeDay={fmtRelDay(ymd(new Date(t.scheduledTime)), todayKey)}
-              api={api}
-              slots={daySlots}
-              rowHandlers={rowHandlers}
-              showOverdue
-            />
-          ))}
-        </Section>
-      )}
-
-      {/* Today's scheduled, grouped by slot */}
-      {slotGroups.ordered.length > 0 && (
-        <Section
-          title={`${isToday ? 'Today' : fmtRelDay(dateKey, todayKey)} · ${tasksForDay.length} task${tasksForDay.length === 1 ? '' : 's'}`}
-          accent="var(--ink)"
-          subtitle="grouped by block — drag a task to move it · click a row for actions"
-        >
-          {slotGroups.ordered.map(({ slot, tasks: slotTasks }) => (
-            <SlotGroup
-              key={slot.id}
-              slot={slot}
-              tasks={slotTasks}
-              api={api}
-              slots={daySlots}
-              rowHandlers={rowHandlers}
-            />
-          ))}
-          {slotGroups.loose.length > 0 && (
-            <SlotGroup
-              key="loose"
-              slot={null}
-              tasks={slotGroups.loose}
-              api={api}
-              slots={daySlots}
-              rowHandlers={rowHandlers}
-            />
-          )}
-        </Section>
-      )}
-
-      {/* Inbox — unscheduled */}
-      {inbox.length > 0 && (
-        <Section
-          title={`Inbox · ${inbox.length}`}
-          accent="var(--sage)"
-          subtitle="unscheduled. drag onto a block to plan, or use the day view."
-        >
-          {inbox.map(t => (
-            <TaskRow
-              key={t.id || t.key}
-              task={t}
-              api={api}
-              slots={daySlots}
-              rowHandlers={rowHandlers}
-              isInbox
-            />
-          ))}
-        </Section>
-      )}
-
-      {overdue.length === 0 && slotGroups.ordered.length === 0 && slotGroups.loose.length === 0 && inbox.length === 0 && (
-        <div className="tm-card tm-dashed" style={{ padding: '20px 22px', textAlign: 'center' }}>
-          <div style={{ fontSize: 22, marginBottom: 6 }}>nothing to act on</div>
+      {nothing && (
+        <div className="tm-card tm-dashed tm-blocks-empty">
+          <div className="tm-blocks-empty-title">Nothing to act on</div>
           <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-            no overdue tasks, nothing scheduled for {isToday ? 'today' : fmtRelDay(dateKey, todayKey)}, inbox empty.
+            nothing overdue, nothing scheduled for {isToday ? 'today' : fmtRelDay(dateKey, todayKey)}, inbox empty.
           </div>
         </div>
       )}
@@ -268,215 +199,87 @@ export default function BlockBoard({
 
 function Section({ title, accent, subtitle, tone, children }) {
   return (
-    <div
-      className="tm-card"
-      style={{
-        padding: '14px 18px',
-        borderTop: `4px solid ${accent}`,
-        background: tone === 'warn' ? 'var(--paper-warm, #FAF5EC)' : 'var(--paper)',
-      }}
-    >
-      <div style={{ fontSize: 18, fontWeight: 600, color: accent, marginBottom: subtitle ? 2 : 8 }}>
-        {title}
-      </div>
-      {subtitle && (
-        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginBottom: 10 }}>
-          {subtitle}
-        </div>
-      )}
+    <div className={`tm-card tm-blocks-section${tone === 'warn' ? ' tm-warn' : ''}`} style={{ '--section-accent': accent }}>
+      <div className="tm-blocks-title">{title}</div>
+      {subtitle && <div className="tm-mono tm-sm tm-blocks-sub">{subtitle}</div>}
       <div style={{ display: 'flex', flexDirection: 'column' }}>{children}</div>
     </div>
   );
 }
 
-function SlotGroup({ slot, tasks, api, slots, rowHandlers }) {
-  const color = slot?.color || 'var(--ink-mute)';
+function SlotGroup({ slot, tasks, ...rowProps }) {
   return (
-    <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10, marginBottom: 8 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          gap: 8,
-          marginBottom: 4,
-          flexWrap: 'wrap',
-        }}
-      >
-        <span style={{ fontSize: 15, fontWeight: 600 }}>
-          {slot ? (slot.label || slot.slotType || 'block') : 'unmatched'}
-        </span>
-        {slot && (
-          <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-            {slot.startTime}–{slot.endTime}
-          </span>
-        )}
+    <div className="tm-blocks-group" style={{ '--group-color': slot?.color || 'var(--ink-mute)' }}>
+      <div className="tm-blocks-group-head">
+        <span className="tm-blocks-group-name">{slot ? (slot.label || slot.slotType || 'block') : 'unmatched'}</span>
+        {slot && <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{slot.startTime}–{slot.endTime}</span>}
       </div>
       {slot && isSleepSlot(slot) && <SleepCycleHint slot={slot} compact />}
       {tasks.map(t => (
-        <TaskRow
-          key={t.id || t.key}
-          task={t}
-          api={api}
-          slots={slots}
-          rowHandlers={rowHandlers}
-        />
+        <TaskRow key={t.id || t.key} task={t} {...rowProps} />
       ))}
     </div>
   );
 }
 
-function TaskRow({ task, relativeDay, isInbox, showOverdue, api, slots, rowHandlers }) {
+function TaskRow({ task, relativeDay, isInbox, showOverdue, api, daySlots, dateKey, rowHandlers, onPlaceOnDate }) {
   const id = task.id || task.key;
   const done = task.status === 'completed';
   const dur = typeof task.duration === 'number' ? task.duration : 30;
   const dt = task.scheduledTime ? new Date(task.scheduledTime) : null;
   const time = dt ? fmtClock(dt) : null;
 
-  const dateInputValue = dt ? ymd(dt) : '';
-  const timeInputValue = dt
-    ? `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`
-    : '09:00';
-
-  const rescheduleTo = (newDateStr, newTimeStr) => {
-    if (!newDateStr) return;
-    const [y, m, d] = newDateStr.split('-').map(Number);
-    const [h, mi] = (newTimeStr || timeInputValue || '09:00').split(':').map(Number);
-    const next = new Date(y, (m || 1) - 1, d || 1, h || 0, mi || 0, 0, 0);
-    api?.tasks?.reschedule?.(id, next.toISOString(), null);
-  };
-
-  const moveTomorrow = () => {
-    const base = dt || new Date();
-    const next = new Date(base.getTime() + 24 * 60 * 60 * 1000);
-    api?.tasks?.reschedule?.(id, next.toISOString(), null);
-  };
-
   const moveToInbox = () => {
     api?.tasks?.update?.(id, { scheduledTime: null, scheduledFor: null, scheduledSlotId: null });
+  };
+  const placeInSlot = (taskId, slotId) => {
+    if (rowHandlers.onTaskMoveTo) rowHandlers.onTaskMoveTo(taskId, slotId);
+    else api?.tasks?.moveToSlot?.(taskId, slotId);
   };
 
   return (
     <div
+      className={`tm-blocks-row${done ? ' tm-done' : ''}`}
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData('text/task-id', id);
         e.dataTransfer.effectAllowed = 'move';
       }}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '8px 0',
-        borderBottom: '1px solid var(--rule-soft)',
-        opacity: done ? 0.55 : 1,
-        cursor: 'grab',
-        flexWrap: 'wrap',
-      }}
     >
       <button
         type="button"
+        className={`tm-rightnow-check${done ? ' tm-on' : ''}`}
         onClick={() => rowHandlers.onToggle?.(id)}
         title={done ? 'undo' : 'mark done'}
-        style={{
-          all: 'unset',
-          cursor: 'pointer',
-          width: 18,
-          height: 18,
-          borderRadius: 4,
-          border: `1.5px solid ${done ? 'var(--sage)' : 'var(--ink-mute)'}`,
-          background: done ? 'var(--sage)' : 'transparent',
-          flexShrink: 0,
-        }}
+        aria-label={done ? 'mark not done' : 'mark done'}
       />
-      <div style={{ flex: 1, minWidth: 160 }}>
-        <div
-          style={{
-            fontSize: 15,
-            textDecoration: done ? 'line-through' : 'none',
-            color: 'var(--ink)',
-          }}
-        >
-          {task.text || task.title || 'untitled'}
-        </div>
-        <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-          {showOverdue && relativeDay && (
-            <>
-              <span style={{ color: 'var(--orange)', fontWeight: 600 }}>{relativeDay} · {time}</span>
-              {' · '}
-            </>
-          )}
+      <div className="tm-blocks-body">
+        <div className="tm-blocks-text">{task.text || task.title || 'untitled'}</div>
+        <div className="tm-mono tm-sm tm-blocks-meta">
+          {showOverdue && relativeDay && <><span className="tm-blocks-late">{relativeDay} · {time}</span>{' · '}</>}
           {!showOverdue && time && <>{time} · </>}
-          {dur}m
-          {task.primaryType && <> · {task.primaryType}</>}
-          {isInbox && <> · unscheduled</>}
+          {fmtDuration(dur)}
+          {task.primaryType && task.primaryType !== 'work' && <> · {task.primaryType}</>}
         </div>
       </div>
 
-      {/* Inline date+time pickers — full cross-day control. The user
-          asked: "i don't have enough control ability to change them
-          to where i want them to show up." Now any task can be moved
-          to any day at any time without leaving the row. */}
-      <input
-        type="date"
-        className="tm-composer-num"
-        value={dateInputValue}
-        onChange={(e) => rescheduleTo(e.target.value, timeInputValue)}
-        title="move to a different day (preserves time-of-day; sets to 9:00 if previously unscheduled)"
-        style={{ fontSize: 12, width: 130 }}
-      />
-      <input
-        type="time"
-        className="tm-composer-num"
-        value={timeInputValue}
-        onChange={(e) => rescheduleTo(dateInputValue || ymd(new Date()), e.target.value)}
-        title="change the time"
-        style={{ fontSize: 12, width: 90 }}
-      />
-
-      {slots.length > 0 && (
-        <select
-          className="tm-composer-select"
-          value=""
-          onChange={(e) => {
-            const sid = e.target.value;
-            if (!sid) return;
-            api?.tasks?.moveToSlot?.(id, sid);
-            e.target.value = '';
-          }}
-          title="snap into a block on this day"
-          style={{ fontSize: 12 }}
-        >
-          <option value="">snap to block…</option>
-          {slots.map(s => (
-            <option key={s.id} value={s.id}>
-              {(s.label || s.slotType || 'block')} · {s.startTime}
-            </option>
-          ))}
-        </select>
-      )}
-      <button
-        className="tm-btn tm-sm"
-        onClick={moveTomorrow}
-        title="push to tomorrow (same time)"
-      >
-        tmrw →
-      </button>
-      {!isInbox && (
-        <button
-          className="tm-btn tm-sm tm-ghost"
-          onClick={moveToInbox}
-          title="unschedule — send back to inbox"
-        >
-          ↩ inbox
-        </button>
-      )}
-      <button
-        className="tm-btn tm-sm tm-danger"
-        onClick={() => rowHandlers.onDelete?.(id)}
-        title="delete"
-      >
-        ×
-      </button>
+      <div className="tm-blocks-actions">
+        <PlaceMenu
+          taskId={id}
+          daySlots={daySlots}
+          dayKey={dateKey}
+          onPlaceInSlot={placeInSlot}
+          onPlaceOnDate={onPlaceOnDate || ((taskId, day) => {
+            const [y, m, d] = day.split('-').map(Number);
+            api?.tasks?.reschedule?.(taskId, new Date(y, (m || 1) - 1, d || 1, 9, 0, 0, 0).toISOString(), null);
+          })}
+          label={isInbox ? 'place ▾' : 'move ▾'}
+        />
+        {!isInbox && (
+          <button className="tm-place-btn" onClick={moveToInbox} title="unschedule — send back to inbox">↩ inbox</button>
+        )}
+        <button className="tm-place-btn" onClick={() => rowHandlers.onDelete?.(id)} title="delete" aria-label="delete">×</button>
+      </div>
     </div>
   );
 }

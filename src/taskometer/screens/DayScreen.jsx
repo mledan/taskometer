@@ -50,6 +50,7 @@ export default function DayScreen({
         currentTasks={filteredDerived.currentSlot?.tasks || []}
         nextSlot={filteredDerived.nextSlot?.slot || null}
         hoursLeft={hoursLeftToday(slots, viewKey, new Date())}
+        inboxTasks={filteredDerived.backlog || []}
         onMoveTaskHere={handleTaskMoveToSlot}
         onToggle={handleToggle}
       />
@@ -70,23 +71,25 @@ export default function DayScreen({
           setRecentRollover(null);
           telemetryLog('ui:coming-up-jump', { date: formatYMD(d) });
         }}
-        onReschedule={(taskId, iso) => {
-          api.tasks.reschedule(taskId, iso, null);
-          telemetryLog('ui:coming-up-reschedule', { id: taskId });
-        }}
+        onToggle={handleToggle}
+        daySlots={daySlots}
+        dayKey={viewKey}
+        onPlaceInSlot={handleTaskMoveToSlot}
+        onPlaceOnDate={handlePlaceOnDate}
       />
       <Snoozed
         tasks={tasks}
-        onReschedule={(taskId, iso) => {
-          api.tasks.reschedule(taskId, iso, null);
-          telemetryLog('ui:snoozed-reschedule', { id: taskId });
-        }}
-        onComplete={(taskId) => api.tasks.toggleComplete(taskId)}
+        onToggle={handleToggle}
+        onDelete={handleDelete}
         onPushTomorrow={(taskId, when) => {
           const base = when || new Date();
           api.tasks.reschedule(taskId, new Date(base.getTime() + 86400000).toISOString(), null);
+          telemetryLog('ui:snoozed-push-tomorrow', { id: taskId });
         }}
-        onDelete={(taskId) => api.tasks.remove(taskId)}
+        daySlots={daySlots}
+        dayKey={viewKey}
+        onPlaceInSlot={handleTaskMoveToSlot}
+        onPlaceOnDate={handlePlaceOnDate}
       />
       <SleepPSA slots={slots} dateKey={viewKey} />
     </aside>
@@ -104,6 +107,8 @@ export default function DayScreen({
           tasks={filteredState.tasks || []}
           api={api}
           onAdd={handleAddTask}
+          onPlaceOnDate={handlePlaceOnDate}
+          onPlaceInSlot={handleTaskMoveToSlot}
         />
       ) : (
         <div className="tm-dash">
@@ -115,6 +120,7 @@ export default function DayScreen({
                 date={selectedDate}
                 api={api}
                 rowHandlers={rowHandlers}
+                onPlaceOnDate={handlePlaceOnDate}
               />
             ) : (
               <WheelView

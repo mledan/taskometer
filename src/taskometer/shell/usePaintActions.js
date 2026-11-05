@@ -91,21 +91,6 @@ export function usePaintActions({ api, userWheels, viewKey }) {
     telemetryLog('painter:applied', { wheelId: actualId, count: result?.painted?.length || 0, weekdaysOnly, weekendsOnly });
   }, [api, ensureWheel]);
 
-  // Week canvas drag-paint.
-  const paintWeekRange = useCallback(async ({ wheelId, material, startKey, endKey, weekdaysOnly, weekendsOnly }) => {
-    if (material === 'blank') {
-      const result = await api.wheels.clearRange(startKey, endKey, { weekdaysOnly: !!weekdaysOnly, weekendsOnly: !!weekendsOnly });
-      telemetryLog('ui:week-paint-blank', { count: result?.cleared?.length || 0 });
-      return;
-    }
-    if (!wheelId) return;
-    const result = await api.wheels.applyToRange(wheelId, startKey, endKey, {
-      weekdaysOnly: !!weekdaysOnly, weekendsOnly: !!weekendsOnly, mode: 'replace',
-    });
-    telemetryLog('ui:week-paint', { wheelId, count: result?.painted?.length || 0, weekdaysOnly: !!weekdaysOnly, weekendsOnly: !!weekendsOnly });
-    emit(EVENTS.WHEEL_APPLIED, { wheelId });
-  }, [api]);
-
   const clearDays = useCallback(async (dates) => {
     for (const dateKey of dates) {
       // eslint-disable-next-line no-await-in-loop
@@ -126,7 +111,6 @@ export function usePaintActions({ api, userWheels, viewKey }) {
     paintWheelOverDays,
     paintWheelOverRange,
     paintWheelAcrossRange,
-    paintWeekRange,
     clearDays,
     clearRange,
   };
