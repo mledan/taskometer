@@ -53,7 +53,12 @@ export default function WelcomePopup({ onDone }) {
   const [view, setView] = useState('welcome');
   const [form, setForm] = useState({ firstName: '', email: '' });
 
-  const pickGuest = () => onDone?.();
+  // Persist the choice so returning guests aren't re-prompted. AuthBoot
+  // only clears mode:'clerk' records, so this survives Clerk's boot pass.
+  const pickGuest = () => {
+    if (!readAuth()) writeAuth({ mode: 'guest', createdAt: new Date().toISOString() });
+    onDone?.();
+  };
   const setField = (k) => (e) => setForm(prev => ({ ...prev, [k]: e.target.value }));
 
   const submit = (e) => {

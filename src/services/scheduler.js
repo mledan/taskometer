@@ -74,6 +74,89 @@ export function previewTaskSchedule(task, state) {
   return scheduleTask(task, state);
 }
 
+function getTaskIdentifier(task) {
+  if (!task) return null;
+  return task.id?.toString() || task.key?.toString() || null;
+}
+
+/**
+ * Apply scheduleMultipleTasks() results to a task/slot collection.
+ * Returns patched { tasks, slots } or null when nothing was placed.
+ */
+export function applyEngineResults(tasks, slots, results, timestamp) {
+  const scheduledMap = new Map();
+  const slotUpdates = new Map();
+
+  results.forEach(({ task, result }) => {
+    if (!result) return;
+    const taskId = getTaskIdentifier(task);
+    if (!taskId) return;
+    scheduledMap.set(taskId, {
+      scheduledTime: result.scheduledTime,
+      scheduledFor: result.scheduledTime,
+      specificTime: result.specificTime,
+      specificDay: result.specificDay,
+      scheduledSlotId: result.slotId || null,
+      metadata: {
+        ...(task.metadata || {}),
+        schedulingReason: result.reason,
+        schedulingConfidence: result.confidence,
+        scheduledLabel: result.label,
+        scheduledDate: result.date,
+        overflowed: result.overflowed || false,
+        overflowDaysAhead: result.overflowDaysAhead || 0,
+      },
+    });
+    if (result.slotId) {
+      slotUpdates.set(result.slotId, taskId);
+    }
+  });
+
+  if (scheduledMap.size === 0) return null;
+
+  const newTasks = tasks.map(task => {
+    const updates = scheduledMap.get(getTaskIdentifier(task));
+    if (!updates) return task;
+    return { ...task, ...updates, updatedAt: timestamp };
+  });
+
+  const newSlots = slots.map(slot => {
+    const assignedTaskId = slotUpdates.get(slot.id);
+    if (!assignedTaskId) return slot;
+    return { ...slot, assignedTaskId, updatedAt: timestamp };
+  });
+
+  return { tasks: newTasks, slots: newSlots };
+}
+
+/**
+ * Backfill: after slots are created or freed, try to place all unscheduled
+ * pending tasks. Returns patched { tasks, slots } or null when nothing changed.
+ */
+export function backfillUnscheduledTasks(state, timestamp) {
+  const unscheduled = state.tasks.filter(
+    t => t.status === 'pending' && !t.scheduledTime && !t.specificTime && !t.isTemplateBlock
+  );
+  if (unscheduled.length === 0) return null;
+
+  const unscheduledIds = new Set(
+    unscheduled.map(t => getTaskIdentifier(t)).filter(Boolean)
+  );
+
+  const stateForEngine = {
+    slots: state.slots,
+    tasks: state.tasks.filter(t => {
+      const id = getTaskIdentifier(t);
+      return id ? !unscheduledIds.has(id) : true;
+    }),
+    settings: state.settings,
+    taskTypes: state.taskTypes,
+  };
+
+  const results = scheduleMultipleTasks(unscheduled, stateForEngine);
+  return applyEngineResults(state.tasks, state.slots, results, timestamp);
+}
+
 // ---------------------------------------------------------------------------
 // Internal: framework detection
 // ---------------------------------------------------------------------------
@@ -93,7 +176,6 @@ function hasActiveFramework(slots, settings) {
 
 function scheduleWithFramework(task, existingSlots, existingTasks, settings, taskTypes, breakDuration = 0) {
   const now = new Date();
-  const todayStr = format(now, 'yyyy-MM-dd');
   const taskType = task.primaryType || task.taskType || 'work';
   const taskTags = task.tags || [];
   const taskDuration = task.duration || DEFAULT_DURATION;
@@ -530,100 +612,3 @@ function getAdHocDayEnd(day, typeConfig) {
 function formatHHMM(date) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
-
-/**
- * Apply a one-off event to the calendar, overriding any framework slots that
- * overlap. Returns information about which slots were displaced so their
- * assigned tasks can be rescheduled.
- *
- * @param {Object} event - { date, start, end, name, id }
- * @param {Object} state - { slots, tasks, settings, taskTypes }
- * @returns {{ eventSlot: Object, displacedTasks: Object[], rescheduled: Object[] }}
- */
-export function applyEventOverride(event, state) {
-  const { slots = [], tasks = [], settings = {}, taskTypes = [] } = state;
-  const eventStartMin = toMinutes(event.start);
-  const eventEndMin = toMinutes(event.end);
-
-  const displacedTasks = [];
-  const affectedSlotIds = new Set();
-
-  // Find slots on the event date that overlap with the event time
-  slots.forEach(slot => {
-    if (slot.date !== event.date) return;
-    const slotStart = toMinutes(slot.startTime);
-    const slotEnd = toMinutes(slot.endTime);
-    if (slotStart < eventEndMin && slotEnd > eventStartMin) {
-      affectedSlotIds.add(slot.id);
-      if (slot.assignedTaskId) {
-        const task = tasks.find(t =>
-          (t.id || t.key)?.toString() === slot.assignedTaskId?.toString()
-        );
-        if (task) {
-          displacedTasks.push({
-            ...task,
-            displacedFromSlotId: slot.id,
-            displacedFromSlotType: slot.slotType,
-            scheduledTime: null,
-            scheduledFor: null,
-            specificTime: null,
-            scheduledSlotId: null,
-          });
-        }
-      }
-    }
-  });
-
-  // Reschedule displaced tasks to next available matching slot
-  const rescheduled = [];
-  const remainingState = {
-    ...state,
-    slots: slots.filter(s => !affectedSlotIds.has(s.id)),
-    tasks: tasks.filter(t =>
-      !displacedTasks.some(d => (d.id || d.key)?.toString() === (t.id || t.key)?.toString())
-    ),
-  };
-
-  displacedTasks.forEach(task => {
-    const result = scheduleTask(task, remainingState);
-    if (result) {
-      rescheduled.push({
-        task,
-        newTime: result.scheduledTime,
-        newSlotId: result.slotId,
-        reason: `Rescheduled from ${event.date} due to "${event.name}"`,
-      });
-      remainingState.tasks.push({
-        ...task,
-        scheduledTime: result.scheduledTime,
-        scheduledSlotId: result.slotId,
-      });
-    } else {
-      rescheduled.push({
-        task,
-        newTime: null,
-        newSlotId: null,
-        reason: `Could not find alternative slot after displacement by "${event.name}"`,
-      });
-    }
-  });
-
-  return {
-    affectedSlotIds: Array.from(affectedSlotIds),
-    displacedTasks,
-    rescheduled,
-  };
-}
-
-function toMinutes(timeStr) {
-  if (!timeStr || typeof timeStr !== 'string') return 0;
-  const [h, m] = timeStr.split(':').map(Number);
-  return (h || 0) * 60 + (m || 0);
-}
-
-export default {
-  scheduleTask,
-  scheduleMultipleTasks,
-  previewTaskSchedule,
-  applyEventOverride,
-};

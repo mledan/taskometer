@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────
-   Year canvas — the new annual-first surface at /app/year.
+   Year canvas — the annual-first surface at /app/year.
    Paper aesthetic shared with the rest of the app, generous breathing
    room, dashboard layout. Sticky header + side rail; main grid scrolls.
    ───────────────────────────────────────────────────────────────────── */
@@ -15,21 +15,21 @@
 .yc-skiplink {
   position: absolute;
   left: -9999px;
-  top: 8px;
-  padding: 8px 14px;
+  top: var(--space-2);
+  padding: var(--space-2) 14px;
   background: var(--ink);
   color: var(--paper);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
   text-decoration: none;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   z-index: 100;
 }
-.yc-skiplink:focus { left: 8px; outline: 3px solid var(--orange); }
+.yc-skiplink:focus { left: var(--space-2); outline: 3px solid var(--orange); }
 
 .yc-mono {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
   letter-spacing: 0.04em;
   color: var(--ink-mute);
 }
@@ -40,42 +40,42 @@
   top: 0;
   z-index: 30;
   background: var(--paper);
-  border-bottom: 1.5px solid var(--ink);
-  padding: 18px 32px;
+  border-bottom: var(--bw) solid var(--ink);
+  padding: 18px var(--space-6);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
 }
-.yc-header-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.yc-header-left { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
 .yc-header-right { display: flex; gap: 10px; align-items: center; }
 .yc-back {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
   color: var(--ink-mute);
   text-decoration: none;
   letter-spacing: 0.06em;
 }
 .yc-back:hover { color: var(--ink); }
 .yc-title {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 56px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-8);
   line-height: 1;
   margin: 0;
   color: var(--ink);
   letter-spacing: -0.02em;
 }
-.yc-yearnav { display: flex; gap: 4px; }
+.yc-yearnav { display: flex; gap: var(--space-1); }
 
 /* Body — rail + grid */
 .yc-body {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
-  gap: 24px;
+  gap: var(--space-5);
   max-width: 1500px;
   margin: 0 auto;
-  padding: 24px 32px 0;
+  padding: var(--space-5) var(--space-6) 0;
 }
 @media (max-width: 1024px) {
   .yc-body { grid-template-columns: 1fr; }
@@ -98,7 +98,7 @@
 .yc-rail-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .yc-rail-head {
   display: flex;
@@ -106,18 +106,18 @@
   justify-content: space-between;
 }
 .yc-rail-title {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 26px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-5);
   line-height: 1;
   color: var(--ink);
 }
 .yc-rail-empty {
-  padding: 12px 14px;
-  font-size: 13px;
+  padding: var(--space-3) 14px;
+  font-size: var(--fs-2);
   line-height: 1.5;
   color: var(--ink-soft);
   border: 1px dashed var(--rule);
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--paper);
 }
 .yc-rail-list {
@@ -126,19 +126,19 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .yc-rail-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: var(--space-2) 10px;
   border: 1px solid var(--rule);
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--paper);
   transition: border-color 0.12s;
 }
-.yc-rail-item:hover { border-color: var(--ink-mute); background: var(--paper-warm, #FAF5EC); }
+.yc-rail-item:hover { border-color: var(--ink-mute); background: var(--paper-warm); }
 .yc-rail-dot {
   width: 14px;
   height: 14px;
@@ -147,12 +147,12 @@
 }
 .yc-rail-dot-exc {
   border-radius: 3px;
-  border: 1.5px dashed var(--ink);
+  border: var(--bw) dashed var(--ink);
   background: transparent !important;
 }
 .yc-rail-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .yc-rail-name {
-  font-size: 14px;
+  font-size: var(--fs-2);
   color: var(--ink);
   font-weight: 500;
   white-space: nowrap;
@@ -160,7 +160,7 @@
   text-overflow: ellipsis;
 }
 .yc-rail-cadence {
-  font-size: 10px;
+  font-size: var(--fs-0);
   color: var(--ink-mute);
   white-space: nowrap;
   overflow: hidden;
@@ -174,12 +174,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  font-size: 13px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-2);
   color: var(--ink-mute);
   flex-shrink: 0;
 }
-.yc-rail-action:hover { background: rgba(0, 0, 0, 0.06); color: var(--ink); }
+.yc-rail-action:hover { background: var(--hover-tint); color: var(--ink); }
 .yc-rail-danger:hover { background: rgba(212, 102, 58, 0.18); color: var(--orange); }
 
 /* 12-month grid */
@@ -195,12 +195,12 @@
   gap: 6px;
   padding: 14px 14px 10px;
   border: 1px solid var(--rule);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--paper);
 }
 .yc-month-head {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 26px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-5);
   line-height: 1;
   color: var(--ink);
   letter-spacing: -0.01em;
@@ -212,7 +212,7 @@
   text-align: center;
 }
 .yc-month-dows > div {
-  font-size: 9px !important;
+  font-size: var(--fs-0) !important;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 2px 0;
@@ -228,17 +228,17 @@
   position: relative;
   aspect-ratio: 1;
   border: 1px solid var(--rule-soft);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 4px 2px 2px;
+  padding: var(--space-1) 2px 2px;
   text-decoration: none;
   color: inherit;
   transition: transform 0.06s, border-color 0.12s;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
   cursor: pointer;
   overflow: hidden;
 }
@@ -261,14 +261,14 @@
    ───────────────────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
   .yc-header {
-    padding: 14px 16px;
+    padding: 14px var(--space-4);
     gap: 10px;
   }
-  .yc-title { font-size: 38px; }
-  .yc-back { font-size: 11px; }
+  .yc-title { font-size: var(--fs-6); }
+  .yc-back { font-size: var(--fs-1); }
 
   .yc-body {
-    padding: 16px 16px 0;
+    padding: var(--space-4) var(--space-4) 0;
     gap: 14px;
   }
 
@@ -280,7 +280,7 @@
     padding-right: 0;
   }
   .yc-rail-section { gap: 6px; }
-  .yc-rail-empty { padding: 10px 12px; font-size: 13px; }
+  .yc-rail-empty { padding: 10px var(--space-3); font-size: var(--fs-2); }
 
   /* Months: one per row, each one filling the available width. */
   .yc-grid {
@@ -289,9 +289,9 @@
   }
 
   .yc-month {
-    padding: 12px 12px 8px;
+    padding: var(--space-3) var(--space-3) var(--space-2);
   }
-  .yc-month-head { font-size: 22px; }
+  .yc-month-head { font-size: var(--fs-4); }
 
   /* Cells: ditch aspect-ratio to give a 44px tappable minimum height
      without making them oversized squares on a wide tablet. */
@@ -300,22 +300,22 @@
     min-height: 44px;
     padding: 6px 2px 4px;
   }
-  .yc-cell-num { font-size: 13px; }
-  .yc-cell-dots { gap: 3px; margin-top: 4px; }
+  .yc-cell-num { font-size: var(--fs-2); }
+  .yc-cell-dots { gap: 3px; margin-top: var(--space-1); }
   .yc-cell-dot { width: 5px; height: 5px; }
 }
 
 /* Tighten further for small phones. */
 @media (max-width: 380px) {
-  .yc-cell { min-height: 40px; padding: 4px 1px 2px; }
-  .yc-month-dows > div { font-size: 8px !important; }
-  .yc-rail-item { padding: 6px 8px; }
-  .yc-rail-name { font-size: 13px; }
+  .yc-cell { min-height: 40px; padding: var(--space-1) 1px 2px; }
+  .yc-month-dows > div { font-size: var(--fs-0) !important; }
+  .yc-rail-item { padding: 6px var(--space-2); }
+  .yc-rail-name { font-size: var(--fs-2); }
 }
 .yc-cell-empty { background: transparent; border: none; cursor: default; }
 .yc-cell-empty:hover { transform: none; }
 .yc-cell-num {
-  font-size: 11px;
+  font-size: var(--fs-1);
   font-weight: 500;
   color: var(--ink);
   line-height: 1;
@@ -331,8 +331,8 @@
     45deg,
     var(--paper),
     var(--paper) 4px,
-    rgba(0, 0, 0, 0.06) 4px,
-    rgba(0, 0, 0, 0.06) 8px
+    var(--hover-tint) 4px,
+    var(--hover-tint) 8px
   ) !important;
   opacity: 0.7;
 }

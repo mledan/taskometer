@@ -12,18 +12,15 @@
  */
 
 import { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
-import { addDays, format } from 'date-fns';
+import { format } from 'date-fns';
 import { getAdapter } from '../services/database';
-import { createTask, migrateLegacyTask, generateNextRecurrence, TASK_STATUSES } from '../models/Task';
-import { createCalendarSlot, getSlotStartDateTime } from '../models/CalendarSlot';
+import { createTask, generateNextRecurrence } from '../models/Task';
+import { createCalendarSlot } from '../models/CalendarSlot';
 import { createTag, DEFAULT_TAGS } from '../models/Tag';
-import { createTaskType, DEFAULT_TASK_TYPES, LEGACY_TASK_TYPES } from '../models/TaskType';
-import { createSchedule, createScheduleBlock, BLOCK_CATEGORIES } from '../models/Schedule';
+import { createTaskType, DEFAULT_TASK_TYPES } from '../models/TaskType';
+import { createSchedule } from '../models/Schedule';
 import { createAuditEntry, AUDIT_ACTIONS, ENTITY_TYPES, CHANGE_SOURCES } from '../models/AuditEntry';
-import { findOptimalTimeSlot, batchScheduleTasks } from '../utils/intelligentScheduler';
-import { batchMatchTasksToSlots } from '../utils/slotMatcher';
-import { getActiveSchedule as getLegacyActiveSchedule } from '../utils/scheduleTemplates';
-import { scheduleTask as engineScheduleTask, scheduleMultipleTasks as engineScheduleMultiple, applyEventOverride } from '../utils/schedulingEngine';
+import { scheduleTask, scheduleMultipleTasks, applyEngineResults, backfillUnscheduledTasks } from '../services/scheduler';
 import { log as telemetryLog, snapshotState } from '../services/telemetry';
 import {
   DEFAULT_WHEELS as SEED_WHEELS,
@@ -244,148 +241,9 @@ function resolveTemplateBlockTime(rawTime, isoTime, fallback) {
   return fallback;
 }
 
-const DEFAULT_DAY_SLOT_SOURCE_ID = 'default-day-slots';
-
 function getTaskIdentifier(task) {
   if (!task) return null;
   return task.id?.toString() || task.key?.toString() || null;
-}
-
-function getDefaultDaySlotsFromSettings(settings = {}) {
-  if (!Array.isArray(settings.defaultDaySlots)) {
-    return [];
-  }
-
-  return settings.defaultDaySlots.filter((slot) =>
-    slot &&
-    typeof slot.day === 'string' &&
-    typeof slot.startTime === 'string' &&
-    typeof slot.endTime === 'string'
-  );
-}
-
-function buildDefaultSlotId(template, date) {
-  const templateId = template.id ||
-    `${template.day}-${template.startTime}-${template.endTime}-${template.slotType || 'any'}`;
-  return `default-slot-${templateId}-${date}`;
-}
-
-function generateDefaultSlotsFromSettings(state, daysAhead = 21) {
-  const templateSlots = getDefaultDaySlotsFromSettings(state.settings);
-  if (templateSlots.length === 0) {
-    return [];
-  }
-
-  const existingIds = new Set((state.slots || []).map((slot) => slot.id));
-  const generated = [];
-
-  for (let offset = 0; offset < daysAhead; offset += 1) {
-    const targetDate = addDays(new Date(), offset);
-    const dateString = format(targetDate, 'yyyy-MM-dd');
-    const dayName = format(targetDate, 'EEEE').toLowerCase();
-
-    templateSlots
-      .filter((template) => template.day.toLowerCase() === dayName)
-      .forEach((template, index) => {
-        const slotId = buildDefaultSlotId(template, dateString);
-        if (existingIds.has(slotId)) {
-          return;
-        }
-
-        const generatedSlot = createCalendarSlot({
-          id: slotId,
-          date: dateString,
-          startTime: template.startTime,
-          endTime: template.endTime,
-          slotType: template.slotType || null,
-          allowedTags: Array.isArray(template.allowedTags) ? template.allowedTags : [],
-          label: template.label || `${template.slotType || 'Task'} slot`,
-          description: template.description || null,
-          color: template.color,
-          flexibility: template.flexibility || 'fixed',
-          sourceScheduleId: DEFAULT_DAY_SLOT_SOURCE_ID,
-          sourceBlockId: template.id || `${template.day}-${index}`,
-          isRecurring: false
-        });
-
-        generated.push(generatedSlot);
-        existingIds.add(slotId);
-      });
-  }
-
-  return generated;
-}
-
-/**
- * Backfill: after slots are created or freed, try to place all unscheduled
- * pending tasks using the unified scheduling engine.  Returns patched
- * { tasks, slots } or null when nothing changed.
- */
-function backfillUnscheduledTasks(state, timestamp) {
-  const unscheduled = state.tasks.filter(
-    t => t.status === 'pending' && !t.scheduledTime && !t.specificTime && !t.isTemplateBlock
-  );
-  if (unscheduled.length === 0) return null;
-
-  const unscheduledIds = new Set(
-    unscheduled.map(t => getTaskIdentifier(t)).filter(Boolean)
-  );
-
-  const stateForEngine = {
-    slots: state.slots,
-    tasks: state.tasks.filter(t => {
-      const id = getTaskIdentifier(t);
-      return id ? !unscheduledIds.has(id) : true;
-    }),
-    settings: state.settings,
-    taskTypes: state.taskTypes,
-  };
-
-  const results = engineScheduleMultiple(unscheduled, stateForEngine);
-  const scheduledMap = new Map();
-  const slotUpdates = new Map();
-
-  results.forEach(({ task, result }) => {
-    if (!result) return;
-    const taskId = getTaskIdentifier(task);
-    if (!taskId) return;
-    scheduledMap.set(taskId, {
-      scheduledTime: result.scheduledTime,
-      scheduledFor: result.scheduledTime,
-      specificTime: result.specificTime,
-      specificDay: result.specificDay,
-      scheduledSlotId: result.slotId || null,
-      metadata: {
-        ...(task.metadata || {}),
-        schedulingReason: result.reason,
-        schedulingConfidence: result.confidence,
-        scheduledLabel: result.label,
-        scheduledDate: result.date,
-        overflowed: result.overflowed || false,
-        overflowDaysAhead: result.overflowDaysAhead || 0,
-      },
-    });
-    if (result.slotId) {
-      slotUpdates.set(result.slotId, taskId);
-    }
-  });
-
-  if (scheduledMap.size === 0) return null;
-
-  const newTasks = state.tasks.map(task => {
-    const taskId = getTaskIdentifier(task);
-    const updates = scheduledMap.get(taskId);
-    if (!updates) return task;
-    return { ...task, ...updates, updatedAt: timestamp };
-  });
-
-  const newSlots = state.slots.map(slot => {
-    const assignedTaskId = slotUpdates.get(slot.id);
-    if (!assignedTaskId) return slot;
-    return { ...slot, assignedTaskId, updatedAt: timestamp };
-  });
-
-  return { tasks: newTasks, slots: newSlots };
 }
 
 function clearSlotAssignmentsForTaskIds(slots = [], taskIds = new Set(), timestamp) {
@@ -404,142 +262,6 @@ function clearSlotAssignmentsForTaskIds(slots = [], taskIds = new Set(), timesta
       updatedAt: timestamp
     };
   });
-}
-
-function scheduleTasksIntoSlots(state, tasksToSchedule = [], timestamp) {
-  if (!Array.isArray(tasksToSchedule) || tasksToSchedule.length === 0) {
-    return null;
-  }
-
-  const normalizedTasks = tasksToSchedule.map((task) => task || {}).map((task) => {
-    return getTaskIdentifier(task) ? task : createTask(task);
-  });
-
-  const schedulingIds = new Set(
-    normalizedTasks
-      .map((task) => getTaskIdentifier(task))
-      .filter(Boolean)
-  );
-
-  const generatedSlots = generateDefaultSlotsFromSettings(state, 21);
-  const slotPool = [...state.slots, ...generatedSlots];
-  if (slotPool.length === 0) {
-    return null;
-  }
-
-  const existingTasksForConflicts = state.tasks.filter((task) => {
-    const taskId = getTaskIdentifier(task);
-    return taskId ? !schedulingIds.has(taskId) : true;
-  });
-
-  const matches = batchMatchTasksToSlots(
-    normalizedTasks,
-    slotPool,
-    existingTasksForConflicts
-  );
-
-  const scheduledTaskMap = new Map();
-  const slotAssignmentMap = new Map();
-  const unscheduledTasks = [];
-
-  matches.forEach((result) => {
-    if (result.unscheduled || !result.slot) {
-      unscheduledTasks.push(result.task);
-      return;
-    }
-
-    const taskId = getTaskIdentifier(result.task);
-    if (!taskId) {
-      unscheduledTasks.push(result.task);
-      return;
-    }
-
-    const slotStart = getSlotStartDateTime(result.slot);
-    scheduledTaskMap.set(taskId, {
-      ...result.task,
-      scheduledTime: slotStart.toISOString(),
-      scheduledFor: slotStart.toISOString(),
-      specificTime: result.slot.startTime,
-      specificDay: format(new Date(`${result.slot.date}T00:00:00`), 'EEEE'),
-      scheduledSlotId: result.slot.id,
-      failureReason: null
-    });
-
-    slotAssignmentMap.set(result.slot.id, taskId);
-  });
-
-  if (scheduledTaskMap.size === 0) {
-    return null;
-  }
-
-  const updatedTasks = state.tasks.map((task) => {
-    const taskId = getTaskIdentifier(task);
-    if (!taskId) return task;
-    const scheduledTask = scheduledTaskMap.get(taskId);
-    if (!scheduledTask) return task;
-    return {
-      ...task,
-      ...scheduledTask,
-      updatedAt: timestamp
-    };
-  });
-
-  const updatedTaskIds = new Set(updatedTasks.map((task) => getTaskIdentifier(task)).filter(Boolean));
-  scheduledTaskMap.forEach((task, taskId) => {
-    if (updatedTaskIds.has(taskId)) {
-      return;
-    }
-    updatedTasks.push({
-      ...task,
-      updatedAt: timestamp
-    });
-  });
-
-  const slotsById = new Map(state.slots.map((slot) => [slot.id, slot]));
-  schedulingIds.forEach((taskId) => {
-    const previousTask = state.tasks.find((task) => getTaskIdentifier(task) === taskId);
-    const previousSlotId = previousTask?.scheduledSlotId;
-    if (!previousSlotId || !slotsById.has(previousSlotId)) {
-      return;
-    }
-    if (slotAssignmentMap.has(previousSlotId)) {
-      return;
-    }
-
-    const previousSlot = slotsById.get(previousSlotId);
-    slotsById.set(previousSlotId, {
-      ...previousSlot,
-      assignedTaskId: null,
-      updatedAt: timestamp
-    });
-  });
-
-  slotAssignmentMap.forEach((taskId, slotId) => {
-    if (slotsById.has(slotId)) {
-      const existingSlot = slotsById.get(slotId);
-      slotsById.set(slotId, {
-        ...existingSlot,
-        assignedTaskId: taskId,
-        updatedAt: timestamp
-      });
-      return;
-    }
-
-    const generatedSlot = generatedSlots.find((slot) => slot.id === slotId);
-    if (generatedSlot) {
-      slotsById.set(slotId, {
-        ...generatedSlot,
-        assignedTaskId: taskId,
-        updatedAt: timestamp
-      });
-    }
-  });
-
-  return {
-    tasks: updatedTasks,
-    slots: Array.from(slotsById.values()),
-    unscheduledTasks
-  };
 }
 
 // ============================================
@@ -587,8 +309,7 @@ function appReducer(state, action) {
       let newSlots = state.slots;
 
       if (state.settings.autoSchedule && !skipAutoSchedule && !newTask.scheduledTime && !newTask.specificTime) {
-        // Primary path: unified scheduling engine (handles all cases)
-        const engineResult = engineScheduleTask(newTask, {
+        const engineResult = scheduleTask(newTask, {
           slots: state.slots,
           tasks: state.tasks,
           settings: state.settings,
@@ -680,32 +401,6 @@ function appReducer(state, action) {
                 );
               }
             });
-          }
-        } else {
-          // Fallback: legacy slot-based scheduling
-          const slotScheduled = scheduleTasksIntoSlots(
-            { ...state, tasks: newTasks },
-            [newTask],
-            timestamp
-          );
-
-          if (slotScheduled) {
-            newTasks = slotScheduled.tasks;
-            newSlots = slotScheduled.slots;
-          } else {
-            const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
-            if (activeSchedule) {
-              const optimalSlot = findOptimalTimeSlot(newTask, activeSchedule, state.tasks, state.taskTypes);
-              if (optimalSlot) {
-                newTask = {
-                  ...newTask,
-                  scheduledTime: optimalSlot.scheduledFor,
-                  scheduledFor: optimalSlot.scheduledFor,
-                  specificTime: optimalSlot.specificTime
-                };
-                newTasks = [...state.tasks, newTask];
-              }
-            }
           }
         }
       }
@@ -1028,100 +723,25 @@ function appReducer(state, action) {
         return state;
       }
 
-      // Primary path: unified scheduling engine
       const schedulingIds = new Set(
-        tasksToSchedule
-          .map(task => task?.id?.toString() || task?.key?.toString() || null)
-          .filter(Boolean)
+        tasksToSchedule.map(task => getTaskIdentifier(task)).filter(Boolean)
       );
 
       const stateForEngine = {
         slots: state.slots,
         tasks: state.tasks.filter(task => {
-          const id = task?.id?.toString() || task?.key?.toString() || null;
+          const id = getTaskIdentifier(task);
           return id ? !schedulingIds.has(id) : true;
         }),
         settings: state.settings,
         taskTypes: state.taskTypes,
       };
 
-      const engineResults = engineScheduleMultiple(tasksToSchedule, stateForEngine);
-      const engineScheduledMap = new Map();
-      const slotUpdates = new Map();
+      const results = scheduleMultipleTasks(tasksToSchedule, stateForEngine);
+      const applied = applyEngineResults(state.tasks, state.slots, results, timestamp);
+      if (!applied) return state;
 
-      engineResults.forEach(({ task, result }) => {
-        if (!result) return;
-        const taskId = task?.id?.toString() || task?.key?.toString();
-        if (!taskId) return;
-        engineScheduledMap.set(taskId, {
-          scheduledTime: result.scheduledTime,
-          scheduledFor: result.scheduledTime,
-          specificTime: result.specificTime,
-          specificDay: result.specificDay,
-          scheduledSlotId: result.slotId || null,
-          metadata: {
-            ...(task.metadata || {}),
-            schedulingReason: result.reason,
-            schedulingConfidence: result.confidence,
-            scheduledLabel: result.label,
-            scheduledDate: result.date,
-          },
-        });
-        if (result.slotId) {
-          slotUpdates.set(result.slotId, taskId);
-        }
-      });
-
-      if (engineScheduledMap.size > 0) {
-        const newTasks = state.tasks.map(task => {
-          const taskId = task?.id?.toString() || task?.key?.toString();
-          const updates = engineScheduledMap.get(taskId);
-          if (!updates) return task;
-          return { ...task, ...updates, updatedAt: timestamp };
-        });
-
-        const newSlots = state.slots.map(slot => {
-          const assignedTaskId = slotUpdates.get(slot.id);
-          if (!assignedTaskId) return slot;
-          return { ...slot, assignedTaskId, updatedAt: timestamp };
-        });
-
-        return { ...state, tasks: newTasks, slots: newSlots, items: newTasks };
-      }
-
-      // Fallback: slot-based scheduling
-      const slotScheduled = scheduleTasksIntoSlots(state, tasksToSchedule, timestamp);
-      if (slotScheduled) {
-        return {
-          ...state,
-          tasks: slotScheduled.tasks,
-          slots: slotScheduled.slots,
-          items: slotScheduled.tasks
-        };
-      }
-
-      const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
-      if (!activeSchedule) {
-        return state;
-      }
-
-      const existingTasks = state.tasks.filter(task => {
-        const id = task?.id?.toString() || task?.key?.toString() || null;
-        return id ? !schedulingIds.has(id) : true;
-      });
-
-      const scheduledTasks = batchScheduleTasks(tasksToSchedule, activeSchedule, existingTasks, state.taskTypes);
-      const scheduledTaskMap = new Map(
-        scheduledTasks.map(task => [task?.id?.toString() || task?.key?.toString(), task])
-      );
-
-      const fallbackTasks = state.tasks.map(task => {
-        const id = task?.id?.toString() || task?.key?.toString();
-        const scheduled = scheduledTaskMap.get(id);
-        return scheduled || task;
-      });
-
-      return { ...state, tasks: fallbackTasks, items: fallbackTasks };
+      return { ...state, tasks: applied.tasks, slots: applied.slots, items: applied.tasks };
     }
 
     case ACTION_TYPES.RESCHEDULE_ALL_TASKS: {
@@ -1153,70 +773,11 @@ function appReducer(state, action) {
         taskTypes: state.taskTypes,
       };
 
-      const engineResults = engineScheduleMultiple(pendingTasks, stateForEngine);
-      const scheduledMap = new Map();
-      const slotUpdates = new Map();
+      const results = scheduleMultipleTasks(pendingTasks, stateForEngine);
+      const applied = applyEngineResults(state.tasks, clearedSlots, results, timestamp);
+      if (!applied) return state;
 
-      engineResults.forEach(({ task, result }) => {
-        if (!result) return;
-        const taskId = (task.id || task.key)?.toString();
-        if (!taskId) return;
-        scheduledMap.set(taskId, {
-          scheduledTime: result.scheduledTime,
-          scheduledFor: result.scheduledTime,
-          specificTime: result.specificTime,
-          specificDay: result.specificDay,
-          scheduledSlotId: result.slotId || null,
-          metadata: {
-            ...(task.metadata || {}),
-            schedulingReason: result.reason,
-            scheduledLabel: result.label,
-          },
-        });
-        if (result.slotId) {
-          slotUpdates.set(result.slotId, taskId);
-        }
-      });
-
-      if (scheduledMap.size > 0) {
-        const newTasks = state.tasks.map(task => {
-          const taskId = (task.id || task.key)?.toString();
-          const updates = scheduledMap.get(taskId);
-          if (!updates) return task;
-          return { ...task, ...updates, updatedAt: timestamp };
-        });
-
-        const newSlots = clearedSlots.map(slot => {
-          const assignedTaskId = slotUpdates.get(slot.id);
-          if (!assignedTaskId) return slot;
-          return { ...slot, assignedTaskId, updatedAt: timestamp };
-        });
-
-        return { ...state, tasks: newTasks, slots: newSlots, items: newTasks };
-      }
-
-      // Fallback paths
-      const slotScheduled = scheduleTasksIntoSlots(state, pendingTasks, timestamp);
-      if (slotScheduled) {
-        return {
-          ...state,
-          tasks: slotScheduled.tasks,
-          slots: slotScheduled.slots,
-          items: slotScheduled.tasks
-        };
-      }
-
-      const activeSchedule = state.activeSchedule || getLegacyActiveSchedule();
-      if (activeSchedule) {
-        const scheduledTasks = batchScheduleTasks(pendingTasks, activeSchedule, [], state.taskTypes);
-        const newTasks = state.tasks.map(item => {
-          const scheduledItem = scheduledTasks.find(s => s.key === item.key || s.id === item.id);
-          return scheduledItem || item;
-        });
-        return { ...state, tasks: newTasks, items: newTasks };
-      }
-
-      return state;
+      return { ...state, tasks: applied.tasks, slots: applied.slots, items: applied.tasks };
     }
 
     // ============================================

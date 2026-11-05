@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { MiniWheel } from './WheelView.jsx';
+import { useAppState } from '../context/AppContext.jsx';
+
+// Replace mode past this many days asks for an explicit confirmation.
+const CONFIRM_THRESHOLD = 7;
 
 /**
  * Painter modal — apply one wheel to a date range with day-of-week
@@ -40,6 +44,8 @@ export default function WheelPainter({ wheel, anchorDate, onClose, onApply }) {
   const [activeDow, setActiveDow] = useState(new Set([0, 1, 2, 3, 4])); // Mon-Fri default
   const [mode, setMode] = useState('replace');
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const dayOverrides = useAppState().settings?.dayOverrides || {};
 
   // Resolve the range bounds from the chosen preset.
   const { start, end } = useMemo(() => {
@@ -68,9 +74,12 @@ export default function WheelPainter({ wheel, anchorDate, onClose, onApply }) {
     };
   }, [range, customStart, customEnd, anchor]);
 
-  // Days that will actually be painted, after the day-of-week filter.
-  const plannedDates = useMemo(() => {
+  // Days that will actually be painted, after the day-of-week filter and
+  // minus sick/holiday/vacation overrides (which apply skips anyway — the
+  // counter must agree with what happens).
+  const { plannedDates, skippedCount } = useMemo(() => {
     const out = [];
+    let skipped = 0;
     const cur = new Date(start); cur.setHours(0, 0, 0, 0);
     const last = new Date(end); last.setHours(0, 0, 0, 0);
     while (cur.getTime() <= last.getTime()) {
@@ -82,11 +91,18 @@ export default function WheelPainter({ wheel, anchorDate, onClose, onApply }) {
         (dowFilter === 'weekends' && isWeekend) ||
         (dowFilter === 'custom' && activeDow.has(dow))
       );
-      if (passes) out.push(ymd(cur));
+      if (passes) {
+        const key = ymd(cur);
+        if (dayOverrides[key]) skipped += 1;
+        else out.push(key);
+      }
       cur.setDate(cur.getDate() + 1);
     }
-    return out;
-  }, [start, end, dowFilter, activeDow]);
+    return { plannedDates: out, skippedCount: skipped };
+  }, [start, end, dowFilter, activeDow, dayOverrides]);
+
+  const needsConfirm = mode === 'replace' && plannedDates.length > CONFIRM_THRESHOLD;
+  useEffect(() => { setConfirming(false); }, [mode, plannedDates.length]);
 
   const slotsForMini = (wheel?.blocks || []).map(b => ({
     startTime: b.startTime, endTime: b.endTime, color: b.color,
@@ -94,6 +110,7 @@ export default function WheelPainter({ wheel, anchorDate, onClose, onApply }) {
 
   const handleApply = async () => {
     if (busy || plannedDates.length === 0) return;
+    if (needsConfirm && !confirming) { setConfirming(true); return; }
     setBusy(true);
     try {
       await onApply({
@@ -144,7 +161,7 @@ export default function WheelPainter({ wheel, anchorDate, onClose, onApply }) {
               </div>
             </div>
           </div>
-          <button type="button" className="tm-btn tm-sm" onClick={onClose}>close</button>
+          <button type="button" className="tm-btn tm-sm" onClick={onClose}>Close</button>
         </div>
 
         {/* Range preset ─────────────────────────────────────────────── */}
@@ -247,7 +264,7 @@ export default function WheelPainter({ wheel, anchorDate, onClose, onApply }) {
           </div>
           <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginTop: 6 }}>
             {mode === 'replace'
-              ? 'Days you paint will be cleared first, then filled with this wheel\'s blocks.'
+              ? 'Days you paint will be cleared first, then filled with this schedule\'s blocks.'
               : 'New blocks layer on top — existing blocks are preserved.'}
           </div>
           <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', marginTop: 4 }}>
@@ -268,19 +285,48 @@ export default function WheelPainter({ wheel, anchorDate, onClose, onApply }) {
         }}>
           <div className="tm-mono tm-md" style={{ color: 'var(--ink)' }}>
             <strong>{plannedDates.length}</strong> day{plannedDates.length === 1 ? '' : 's'} will be painted
+            {skippedCount > 0 && (
+              <span style={{ color: 'var(--ink-mute)' }}>
+                {' '}· {skippedCount} skipped (sick / holiday / vacation)
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="tm-btn" onClick={onClose}>Cancel</button>
+            {confirming ? (
+              <button type="button" className="tm-btn" onClick={() => setConfirming(false)}>Back</button>
+            ) : (
+              <button type="button" className="tm-btn" onClick={onClose}>Cancel</button>
+            )}
             <button
               type="button"
               className="tm-btn tm-primary"
               onClick={handleApply}
               disabled={busy || plannedDates.length === 0}
             >
-              {busy ? 'painting…' : `Paint ${plannedDates.length} day${plannedDates.length === 1 ? '' : 's'} →`}
+              {busy
+                ? 'Painting…'
+                : confirming
+                  ? `Yes, replace ${plannedDates.length} days`
+                  : `Paint ${plannedDates.length} day${plannedDates.length === 1 ? '' : 's'} →`}
             </button>
           </div>
         </div>
+        {confirming && (
+          <div
+            role="alert"
+            className="tm-mono tm-sm"
+            style={{
+              marginTop: 10,
+              padding: '8px 10px',
+              border: '1.5px solid var(--orange)',
+              borderRadius: 8,
+              color: 'var(--ink)',
+            }}
+          >
+            Replace clears every existing block on these {plannedDates.length} days before painting.
+            Tasks already placed in those blocks lose their slot. This can't be undone.
+          </div>
+        )}
       </div>
     </div>
   );

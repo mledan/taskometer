@@ -398,42 +398,37 @@ export default function SpiralBoard({
 
   return (
     <div className="tm-board">
-      <form onSubmit={submitAdd} style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+      <form onSubmit={submitAdd} className="tm-spiral-add">
         <input
           ref={inputRef}
-          className="tm-flow-input"
+          className={`tm-flow-input${pending ? ' tm-pending' : ''}`}
           value={addText}
           onChange={(e) => setAddText(e.target.value)}
           placeholder={pending
             ? `name for ${fmtClock(pending.startMin)} ${dayLabel(pendingIdx)}…`
             : 'add a todo… "gym 6pm", or "[deep] write spec"'}
-          style={{
-            flex: 1, padding: '12px 14px', fontSize: 17, fontFamily: 'inherit',
-            background: 'var(--paper-warm)', border: `1px solid ${pending ? 'var(--orange)' : 'var(--rule)'}`,
-            borderRadius: 10, color: 'var(--ink)',
-          }}
         />
-        <button type="submit" className="tm-btn tm-primary" style={{ padding: '0 18px' }}>add</button>
-        {pending && <button type="button" className="tm-btn" onClick={() => setPending(null)} style={{ padding: '0 14px' }}>×</button>}
+        <button type="submit" className="tm-btn tm-primary">add</button>
+        {pending && <button type="button" className="tm-btn tm-spiral-cancel" onClick={() => setPending(null)}>×</button>}
       </form>
 
-      <div style={{ display: isNarrow ? 'block' : 'grid', gridTemplateColumns: isNarrow ? undefined : 'minmax(300px, 1fr) minmax(280px, 360px)', gap: 24, alignItems: 'start' }}>
-        <div style={{ position: 'relative', marginBottom: isNarrow ? 20 : 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+      <div className={`tm-spiral-layout${isNarrow ? ' tm-narrow' : ''}`}>
+        <div className="tm-spiral-stage">
+          <div className="tm-spiral-ctl">
             <button className="tm-btn tm-sm" onClick={() => setCenterDayMs(d => d - DAY_MS)} title="pan back one day">‹</button>
             <button className="tm-btn tm-sm" onClick={() => { setCenterDayMs(todayMs); setZoom(DEFAULT_PXPERDAY); }} title="reset to today">today</button>
             <button className="tm-btn tm-sm" onClick={() => setCenterDayMs(d => d + DAY_MS)} title="pan forward one day">›</button>
-            <span style={{ width: 12 }} />
+            <span className="tm-spiral-gap" />
             <button className="tm-btn tm-sm" onClick={() => zoom(1 / 1.5)} title="zoom out">−</button>
-            <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', minWidth: 64, textAlign: 'center' }}>{spanLabel(maxT)}</span>
+            <span className="tm-mono tm-sm tm-spiral-span">{spanLabel(maxT)}</span>
             <button className="tm-btn tm-sm" onClick={() => zoom(1.5)} title="zoom in">+</button>
-            {selectedLaterId && <span className="tm-mono tm-sm" style={{ color: 'var(--orange)' }}>click the spiral to place it</span>}
+            {selectedLaterId && <span className="tm-mono tm-sm tm-spiral-place-hint">click the spiral to place it</span>}
           </div>
 
           <svg
             ref={svgRef}
             viewBox={`0 0 ${VIEW} ${VIEW}`}
-            style={{ width: '100%', maxWidth: 600, display: 'block', margin: '0 auto', touchAction: 'none' }}
+            className="tm-spiral-svg"
             onClick={onBgClick}
           >
             {guides.map(g => (
@@ -534,7 +529,7 @@ export default function SpiralBoard({
             })()}
           </svg>
 
-          <div className="tm-mono tm-sm" style={{ marginTop: 6, color: 'var(--ink-mute)' }}>
+          <div className="tm-mono tm-sm tm-spiral-hint">
             each loop is a day. click the spiral to place · drag a block to move · scroll or pinch to zoom.
           </div>
         </div>
@@ -581,14 +576,14 @@ export default function SpiralBoard({
 
 function Section({ label, children }) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div className="tm-mono tm-md" style={{ letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 4 }}>{label}</div>
+    <div className="tm-spiral-section">
+      <div className="tm-mono tm-md tm-spiral-section-lbl">{label}</div>
       <div className="tm-card tm-flush">{children}</div>
     </div>
   );
 }
 function Empty({ children }) {
-  return <div className="tm-mono tm-sm" style={{ padding: '10px 12px', color: 'var(--ink-mute)' }}>{children}</div>;
+  return <div className="tm-mono tm-sm tm-spiral-empty">{children}</div>;
 }
 
 function TodoRow({
@@ -603,22 +598,22 @@ function TodoRow({
     : '';
   const dotColor = colorForTask ? colorForTask() : null;
   return (
-    <div style={{ padding: '4px 8px', borderBottom: '1px solid var(--rule-soft)', background: selected ? 'rgba(212,102,58,0.10)' : 'transparent' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44 }}>
-        <button onClick={onToggle} title="complete" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '6px 4px', color: done ? 'var(--orange)' : 'var(--ink-mute)' }}>{done ? '●' : '○'}</button>
-        {dotColor && <span aria-hidden style={{ width: 8, height: 8, borderRadius: 2, background: dotColor, flexShrink: 0 }} />}
+    <div className={`tm-spiral-row${selected ? ' tm-selected' : ''}`}>
+      <div className="tm-spiral-row-main">
+        <button onClick={onToggle} title="complete" className={`tm-spiral-toggle${done ? ' tm-done' : ''}`}>{done ? '●' : '○'}</button>
+        {dotColor && <span aria-hidden className="tm-spiral-dot" style={{ background: dotColor }} />}
         {editing ? (
           <input autoFocus value={editText} onChange={(e) => setEditText(e.target.value)} onBlur={onSaveRename}
             onKeyDown={(e) => { if (e.key === 'Enter') onSaveRename(); }}
-            style={{ flex: 1, font: 'inherit', fontSize: 16, border: 'none', background: 'transparent', color: 'var(--ink)', outline: 'none' }} />
+            className="tm-spiral-edit" />
         ) : (
-          <span onClick={onSelect} style={{ flex: 1, cursor: 'pointer', fontSize: 16, padding: '6px 0', textDecoration: done ? 'line-through' : 'none' }}>{t.text}</span>
+          <span onClick={onSelect} className={`tm-spiral-text${done ? ' tm-done' : ''}`}>{t.text}</span>
         )}
-        {timeLabel && <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{timeLabel}</span>}
-        <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)', minWidth: 30, textAlign: 'right' }}>{t.duration || 30}m</span>
+        {timeLabel && <span className="tm-mono tm-sm">{timeLabel}</span>}
+        <span className="tm-mono tm-sm tm-spiral-dur">{t.duration || 30}m</span>
       </div>
       {selected && (
-        <div style={{ display: 'flex', gap: 6, padding: '6px 0 8px', flexWrap: 'wrap' }}>
+        <div className="tm-spiral-actions">
           <Mini onClick={onShorter} title="15 min shorter">−15m</Mini>
           <Mini onClick={onLonger} title="15 min longer">+15m</Mini>
           {scheduled ? (
@@ -640,13 +635,8 @@ function TodoRow({
 }
 function Mini({ children, onClick, title, danger, primary }) {
   return (
-    <button onClick={onClick} title={title} className="tm-mono"
-      style={{
-        padding: '8px 12px', fontSize: 13, minHeight: 36, borderRadius: 7,
-        border: `1px solid ${primary ? 'var(--orange)' : 'var(--rule)'}`,
-        background: primary ? 'var(--orange)' : 'var(--paper)', cursor: 'pointer',
-        color: primary ? '#fff' : danger ? 'var(--danger, #C0492F)' : 'var(--ink-soft)',
-      }}>
+    <button onClick={onClick} title={title}
+      className={`tm-mono tm-mini${primary ? ' tm-mini-primary' : ''}${danger ? ' tm-mini-danger' : ''}`}>
       {children}
     </button>
   );

@@ -85,19 +85,11 @@ function readStoredUI() {
 
 export default function Taskometer() {
   const [scale, setScale] = useState(() => {
-    // One-time migration: anyone whose stored scale is the legacy default
-    // ('day') gets bumped onto the new spiral default. People who explicitly
-    // picked a different scale keep it.
     try {
-      const flag = localStorage.getItem('tm.spiralDefault.applied');
-      if (!flag) {
-        const saved = localStorage.getItem('tm.scale');
-        if (!saved || saved === 'day') localStorage.setItem('tm.scale', 'spiral');
-        localStorage.setItem('tm.spiralDefault.applied', '1');
-      }
+      const saved = localStorage.getItem('tm.scale');
+      if (SCALES.includes(saved)) return saved;
     } catch (_) {}
-    const saved = localStorage.getItem('tm.scale');
-    return SCALES.includes(saved) ? saved : 'spiral';
+    return 'day';
   });
   const [selectedDate, setSelectedDate] = useState(() => {
     // Allow deep-links from the year canvas: /app?date=YYYY-MM-DD

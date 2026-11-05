@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { scheduleTask, scheduleMultipleTasks, previewTaskSchedule } from './schedulingEngine.js';
+import { scheduleTask, scheduleMultipleTasks, previewTaskSchedule } from './scheduler.js';
 
 function makeSlot(overrides = {}) {
   return {

@@ -9,7 +9,7 @@
  * - `derived` is memoised view-models from the pure selectors.
  */
 
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppState, useAppReducer } from '../../context/AppContext';
 import { makeTaskometerAPI, evaluateRules } from './TaskometerAPI';
 import {
@@ -40,11 +40,11 @@ export function useTaskometerAPI() {
     [dispatch]
   );
 
-  const now = useMemo(() => new Date(), [
-    // Re-cut 'now' only when task/slot collections change — good enough
-    // for one render pass; a clock tick is the caller's job if they want it.
-    state.tasks, state.slots,
-  ]);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const derived = useMemo(() => {
     const tasks = state.tasks || [];

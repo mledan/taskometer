@@ -18,36 +18,36 @@ function setPath(path) {
   window.history.pushState({}, '', path);
 }
 
+// The welcome popup opens 400ms after the (lazy) app chunk mounts; the
+// first test to load that chunk also pays its transform cost.
+const awaitWelcome = () => screen.findByText(/Capture as you go/i, {}, { timeout: 4000 });
+
 beforeEach(() => {
   localStorage.clear();
-  // /app now defaults to the spiral shell. The tests below exercise the
-  // legacy full-chrome shell (welcome modal, account form, daily wrap, etc.);
-  // pin them to 'day' so they keep testing what they were written for.
-  localStorage.setItem('tm.spiralDefault.applied', '1');
-  localStorage.setItem('tm.scale', 'day');
 });
 
 afterEach(() => {
   setPath('/');
 });
 
+// Routes are React.lazy, so every assertion awaits the chunk.
 describe('routing', () => {
-  test('/ renders the landing page (not the app)', () => {
+  test('/ renders the landing page (not the app)', async () => {
     setPath('/');
     render(<App />);
     // Archetype-focused hero copy.
-    expect(screen.getByText(/Find your rhythm/i)).toBeInTheDocument();
-    // The active-wheel chip ("pick a wheel") only renders inside /app —
-    // its absence confirms we're on marketing.
+    expect(await screen.findByText(/Find your schedule/i)).toBeInTheDocument();
+    // The active-schedule chip only renders inside /app — its absence
+    // confirms we're on marketing.
     expect(screen.queryByText(/pick a wheel/i)).not.toBeInTheDocument();
   });
 
-  test('/teams renders the concept dashboard', () => {
+  test('/teams renders the concept dashboard', async () => {
     setPath('/teams');
     render(<App />);
     // "Concept preview" appears in both the banner and the footer; we
     // just need to confirm the page is reachable.
-    const matches = screen.getAllByText(/concept preview/i);
+    const matches = await screen.findAllByText(/concept preview/i);
     expect(matches.length).toBeGreaterThan(0);
     expect(screen.getByText(/Acme Engineering/i)).toBeInTheDocument();
     // Waitlist replaced the fake pricing tiers — confirm.
@@ -55,31 +55,31 @@ describe('routing', () => {
     expect(screen.queryByText(/\$8/)).not.toBeInTheDocument();
   });
 
-  test('/privacy renders the privacy policy', () => {
+  test('/privacy renders the privacy policy', async () => {
     setPath('/privacy');
     render(<App />);
-    expect(screen.getByText(/feature-usage telemetry/i)).toBeInTheDocument();
+    expect(await screen.findByText(/feature-usage telemetry/i)).toBeInTheDocument();
     expect(screen.getByText(/nothing leaves your browser/i)).toBeInTheDocument();
   });
 
-  test('/terms renders the terms of service', () => {
+  test('/terms renders the terms of service', async () => {
     setPath('/terms');
     render(<App />);
-    expect(screen.getByText(/The short version/i)).toBeInTheDocument();
+    expect(await screen.findByText(/The short version/i)).toBeInTheDocument();
     expect(screen.getByText(/Acceptable use/i)).toBeInTheDocument();
   });
 
-  test('/share renders the share landing page', () => {
+  test('/share renders the share landing page', async () => {
     setPath('/share');
     render(<App />);
     // Without a #w= fragment we show the empty/error state.
-    expect(screen.getByText(/someone shared a wheel/i)).toBeInTheDocument();
+    expect(await screen.findByText(/someone shared a schedule/i)).toBeInTheDocument();
   });
 
-  test('/pricing renders the three plan cards', () => {
+  test('/pricing renders the three plan cards', async () => {
     setPath('/pricing');
     render(<App />);
-    expect(screen.getByText(/Simple, honest pricing/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Simple, honest pricing/i)).toBeInTheDocument();
     // "Free" appears as both a tier name and the price-of-free; getAllBy
     // is the right matcher. Pro and Team only appear once each.
     expect(screen.getAllByText('Free').length).toBeGreaterThan(0);
@@ -89,45 +89,66 @@ describe('routing', () => {
     expect(screen.getByText(/Why we charge/i)).toBeInTheDocument();
   });
 
-  test('/app renders the actual product (welcome modal on first load)', () => {
+  test('/app renders the actual product (welcome popup on first load)', async () => {
     setPath('/app');
     render(<App />);
-    expect(screen.getByText(/Welcome to taskometer/i)).toBeInTheDocument();
+    // The welcome popup opens after a short grace period for Clerk's mirror.
+    expect(await awaitWelcome()).toBeInTheDocument();
   });
 
-  test('/app/year renders the annual canvas', () => {
+  test('/app defaults to the day scale for new users', async () => {
+    setPath('/app');
+    render(<App />);
+    await awaitWelcome();
+    expect(localStorage.getItem('tm.scale')).toBe('day');
+  });
+
+  test('/app/year renders the annual canvas', async () => {
     setPath('/app/year');
     render(<App />);
-    expect(screen.getByText(String(new Date().getFullYear()))).toBeInTheDocument();
+    expect(await screen.findByText(String(new Date().getFullYear()))).toBeInTheDocument();
     expect(screen.getByText(/^Rhythms$/)).toBeInTheDocument();
     expect(screen.getByText(/^Exceptions$/)).toBeInTheDocument();
     expect(screen.getByText(/No rhythms yet/i)).toBeInTheDocument();
   });
 
-  test('/app accepts a ?date= deep link', () => {
+  test('/app accepts a ?date= deep link', async () => {
     setPath('/app?date=2026-04-15');
     render(<App />);
     // April 15 2026 is a Wednesday — its label appears in multiple
     // places (header date nav, daily wrap card, etc). One match is
     // enough to confirm the deep link took effect.
-    const matches = screen.getAllByText(/wed.*apr.*15/i);
+    const matches = await screen.findAllByText(/wed.*apr.*15/i);
     expect(matches.length).toBeGreaterThan(0);
   });
 
-  test('Cmd+K opens the command palette', () => {
+  test('Cmd+K opens the command palette', async () => {
     setPath('/');
     render(<App />);
+    await screen.findByText(/Find your schedule/i);
     fireEvent.keyDown(window, { key: 'k', metaKey: true });
     expect(screen.getByPlaceholderText(/Type a command/i)).toBeInTheDocument();
     expect(screen.getByText(/Go to Year canvas/i)).toBeInTheDocument();
+    // App-only actions are not offered on marketing routes.
+    expect(screen.queryByText(/Capture task/i)).not.toBeInTheDocument();
+  });
+
+  test('Cmd+K inside /app offers app actions', async () => {
+    setPath('/app');
+    render(<App />);
+    await awaitWelcome();
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    expect(screen.getByText(/Capture task/i)).toBeInTheDocument();
+    expect(screen.getByText(/Paint today/i)).toBeInTheDocument();
+    expect(screen.getByText(/Toggle dark mode/i)).toBeInTheDocument();
   });
 });
 
 describe('SEC-1 — no password collection', () => {
-  test('the signup form has no password input', () => {
+  test('the signup form has no password input', async () => {
     setPath('/app');
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /save a profile/i }));
 
     // Robust structural assertion: no password input should exist
     // anywhere in the rendered tree.
@@ -140,12 +161,21 @@ describe('SEC-1 — no password collection', () => {
 });
 
 describe('UX-1 — guest data persistence', () => {
-  test('rendering /app does NOT wipe arbitrary localStorage keys', () => {
+  test('rendering /app does NOT wipe arbitrary localStorage keys', async () => {
     // A key the app does not touch — proves the load path doesn't blanket-clear.
     localStorage.setItem('user-data-do-not-touch', 'preserved');
     setPath('/app');
     render(<App />);
+    await awaitWelcome();
     expect(localStorage.getItem('user-data-do-not-touch')).toBe('preserved');
+  });
+
+  test('choosing "continue without one" persists a guest marker', async () => {
+    setPath('/app');
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: /continue without one/i }));
+    const auth = JSON.parse(localStorage.getItem('taskometer.auth'));
+    expect(auth?.mode).toBe('guest');
   });
 
   test('runStorageMigrations moves legacy smartcircle.* keys to taskometer.*', () => {

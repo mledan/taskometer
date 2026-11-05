@@ -547,12 +547,12 @@ export function MiniWheel({
         stroke={emptyColor}
         strokeWidth={thickness}
       />
-      {wedges.map((w) => {
+      {wedges.map((w, i) => {
         const d = arc(w.startH, w.endH);
         if (!d) return null;
         return (
           <path
-            key={w.id}
+            key={w.id ?? `${w.startH}-${i}`}
             d={d}
             fill="none"
             stroke={w.color}
@@ -1069,12 +1069,12 @@ function WheelSvg({
   const fillFor = (slot, wedge) => {
     const typeColor = slot.color || resolveTypeColor(taskTypes, slot.slotType);
     const isSelected = selectedSlotId && slot.id === selectedSlotId;
-    if (typeColor) return hexWithAlpha(typeColor, isSelected ? 0.65 : 0.28);
+    if (typeColor) return hexWithAlpha(typeColor, isSelected ? 0.72 : 0.45);
     if (wedge?.current) return 'var(--orange-pale)';
     if (wedge?.kind === 'hot') return 'var(--orange-pale)';
     if (wedge?.kind === 'light') return 'var(--sage-pale)';
-    if (wedge?.kind === 'rest') return '#EAE4DA';
-    if (wedge?.kind === 'soft') return '#F3EFE5';
+    if (wedge?.kind === 'rest') return 'var(--wedge-rest)';
+    if (wedge?.kind === 'soft') return 'var(--wedge-soft)';
     return 'var(--paper)';
   };
 
@@ -1540,10 +1540,11 @@ function WheelSvg({
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fontFamily="JetBrains Mono, monospace"
-                  fontSize={isMajor ? 12 : 11}
-                  fill="var(--ink-mute)"
+                  fontSize={isMajor ? 13 : 11}
+                  fontWeight={isMajor ? 500 : 400}
+                  fill={isMajor ? 'var(--ink-soft)' : 'var(--ink-mute)'}
                   letterSpacing={0.5}
-                  opacity={isMajor ? 1 : 0.75}
+                  opacity={isMajor ? 1 : 0.8}
                 >
                   {fmt(h)}
                 </text>

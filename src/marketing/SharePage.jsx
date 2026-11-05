@@ -109,7 +109,7 @@ export default function SharePage() {
 
       <section className="mk-hero" style={{ paddingTop: 60, paddingBottom: 40 }}>
         <div className="mk-hero-text">
-          <div className="mk-mono mk-eyebrow">someone shared a wheel with you</div>
+          <div className="mk-mono mk-eyebrow">someone shared a schedule with you</div>
           {error ? (
             <>
               <h1 className="mk-h1" style={{ fontSize: 56 }}>Hmm.</h1>
@@ -119,7 +119,7 @@ export default function SharePage() {
           ) : !wheel ? (
             <>
               <h1 className="mk-h1" style={{ fontSize: 56 }}>Loading…</h1>
-              <p className="mk-lede">Decoding the wheel from the link.</p>
+              <p className="mk-lede">Decoding the schedule from the link.</p>
             </>
           ) : (
             <>
@@ -150,7 +150,7 @@ export default function SharePage() {
                 <a href="/app" className="tm-btn tm-ghost mk-cta">Open the app without saving</a>
               </div>
               <div className="mk-mono mk-fineprint">
-                Saving stores a copy of this wheel in your browser's localStorage.
+                Saving stores a copy of this schedule in your browser's localStorage.
                 Nothing is sent to a server.
               </div>
             </>

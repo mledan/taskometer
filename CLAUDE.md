@@ -45,9 +45,13 @@ load via [main.jsx](src/main.jsx). Do not introduce new
 
 - `/` → marketing landing
 - `/teams` → teams concept demo (clearly labelled as concept)
+- `/pricing` → plans page (Stripe checkout when configured)
+- `/share` → landing for a shared schedule link (`#w=…` fragment)
 - `/privacy`, `/terms` → legal pages
-- `/app/*` → the actual app
-- `/api/*` → Vercel serverless functions (`/api/waitlist` exists)
+- `/app` → the actual app
+- `/app/year` → year canvas
+- `/api/*` → Vercel serverless functions (`waitlist`, `telemetry`,
+  `checkout-session`, `stripe-webhook`, `comments`, `v2/*`)
 
 Routing is pathname-based in [App.jsx](src/App.jsx). No router
 library — keep it that way unless we add five+ routes.
@@ -63,7 +67,9 @@ library — keep it that way unless we add five+ routes.
 
 ## Architecture notes
 
-- Single React app, code-split by route
+- Single React app. Every route in [App.jsx](src/App.jsx) is
+  `React.lazy`, and Clerk (`auth/ClerkShell.jsx`) only wraps `/app/*`,
+  so marketing visitors never download the app or `@clerk/*`.
 - Data layer is `services/api/TaskometerAPI.js` — a localStorage
   adapter pretending to be an API. When backend ships, swap the
   adapter; keep the surface stable.
@@ -75,10 +81,15 @@ library — keep it that way unless we add five+ routes.
 
 ## What we don't do (yet)
 
-- No backend, no auth, no sync
-- No analytics provider — telemetry is in-browser only
-  ([services/telemetry.js](src/services/telemetry.js))
-- No paid plans live; the Teams page is a concept preview
+- No sync. Planning data is localStorage-only. Clerk auth is optional
+  (off without `VITE_CLERK_PUBLISHABLE_KEY`) and only mirrors a profile.
+- No third-party analytics. Telemetry
+  ([services/telemetry.js](src/services/telemetry.js)) keeps an
+  in-browser ring buffer and, on deployed hosts only, posts anonymous
+  feature events to our own `/api/telemetry` (Vercel function logs). No
+  personal data, no IP/UA stored. Privacy page discloses this.
+- No paid plans live; Stripe checkout exists but is gated behind env
+  config. The Teams page is a concept preview.
 
 These are conscious gaps. When closing one, update Privacy and
 Terms in the same PR.

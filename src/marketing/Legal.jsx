@@ -13,45 +13,50 @@ import './marketing.css';
 
 export function Privacy() {
   return (
-    <LegalShell title="Privacy" subtitle="Updated 2026-04-30">
-      <Section heading="What we collect">
+    <LegalShell title="Privacy" subtitle="Updated 2026-11-04">
+      <Section heading="Where your data lives">
         <p>
-          Today, <strong>nothing leaves your browser</strong>. Taskometer is a
-          single-page app that stores everything — wheels, blocks, tasks,
-          settings — in your browser's <code>localStorage</code> on the
-          device you're using.
+          Your planning data — schedules, blocks, tasks, settings — is
+          stored in your browser's <code>localStorage</code> on the
+          device you're using. Of that data, <strong>nothing leaves your
+          browser</strong>: we have no database of your plans and can't
+          read them because we never receive them.
         </p>
         <p>
-          We don't run a backend. We don't have a database. We can't read
-          your data because we never receive it.
+          The only things we do receive are the anonymous feature-usage
+          events described below and, if you choose to sign in or pay,
+          what Clerk and Stripe hold on our behalf.
         </p>
       </Section>
 
       <Section heading="What we don't collect">
         <ul>
-          <li>No accounts, no passwords, no email lists.</li>
+          <li>No passwords — sign-in, when you opt into it, is handled by Clerk.</li>
+          <li>No email lists. No newsletter unless you join the waitlist.</li>
           <li>No third-party analytics scripts. No Google, Meta, Mixpanel, etc.</li>
-          <li>No cookies (other than what your browser may set on its own).</li>
+          <li>No tracking cookies (other than what your browser may set on its own).</li>
           <li>No advertising, no ad targeting, ever.</li>
-          <li>No content of your schedules, rhythms, or tasks — those stay in your browser.</li>
-          <li>No IP-address logging, no user agents stored.</li>
+          <li>No content of your schedules or tasks — those stay in your browser.</li>
+          <li>No IP-address logging, no user agents stored by us.</li>
         </ul>
       </Section>
 
       <Section heading="What we collect — feature-usage telemetry">
         <p>
-          When you use the app on the deployed site, we log a small set
-          of <strong>feature-usage events</strong> to our server logs:
-          which feature was triggered (e.g. <code>rhythm:added</code>,
-          <code>wheel:applied</code>, <code>task:add</code>), a timestamp,
-          and a per-tab session id that lives only in your browser's
-          <code>sessionStorage</code>.
+          When you use the app on the deployed site, we send a small set
+          of <strong>feature-usage events</strong> to our own
+          <code>/api/telemetry</code> endpoint, which writes them to our
+          server logs. Each event is: which feature was triggered
+          (e.g. <code>rhythm:added</code>, <code>wheel:applied</code>,{' '}
+          <code>task:add</code>), a timestamp, and a per-tab session id
+          that lives only in your browser's <code>sessionStorage</code>.
+          No third-party analytics service is involved.
         </p>
         <p>
-          We do <strong>not</strong> log the contents of your schedules,
-          rhythms, or tasks. We don't log your IP address, user agent,
-          or any personal identifier. Logs are written to Vercel function
-          logs and rotate automatically.
+          We do <strong>not</strong> log the contents of your schedules
+          or tasks. We don't log your IP address, user agent, or any
+          personal identifier. Logs are written to Vercel function logs
+          and rotate automatically.
         </p>
         <p>
           The same in-memory ring buffer is still available in DevTools

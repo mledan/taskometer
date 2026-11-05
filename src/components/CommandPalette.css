@@ -4,7 +4,7 @@
   position: fixed;
   inset: 0;
   z-index: 500;
-  background: rgba(0, 0, 0, 0.32);
+  background: var(--scrim);
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -18,21 +18,22 @@
 
 .cp-modal {
   width: min(560px, 92vw);
-  background: var(--paper, #FAF3EB);
-  border: 1.5px solid var(--ink, #1F1A14);
-  border-radius: 14px;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
+  background: var(--paper);
+  border: var(--bw) solid var(--ink);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  font-family: var(--font-sans);
 }
 
 .cp-input {
   border: none;
   outline: none;
   font-family: inherit;
-  font-size: 18px;
-  padding: 16px 20px;
+  font-size: var(--fs-4);
+  padding: var(--space-4) 20px;
   background: transparent;
   color: var(--ink);
   border-bottom: 1px dashed var(--rule);
@@ -49,30 +50,30 @@
 
 .cp-item {
   padding: 9px 14px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: var(--fs-2);
   color: var(--ink);
 }
 .cp-item-active {
-  background: var(--orange-pale, #FBE9DD);
-  outline: 1.5px solid var(--orange, #D4663A);
+  background: var(--orange-pale);
+  outline: var(--bw) solid var(--orange);
 }
 .cp-item-label { flex: 1; }
 .cp-item-hint {
   color: var(--ink-mute);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
 }
 .cp-item-shortcut {
-  margin-left: 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  margin-left: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   border: 1px solid var(--rule);
   color: var(--ink-mute);
 }
@@ -81,16 +82,16 @@
   padding: 20px;
   text-align: center;
   color: var(--ink-mute);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
 }
 
 .cp-foot {
   display: flex;
-  gap: 16px;
-  padding: 8px 14px;
+  gap: var(--space-4);
+  padding: var(--space-2) 14px;
   border-top: 1px dashed var(--rule);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
   color: var(--ink-mute);
 }

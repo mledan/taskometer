@@ -42,14 +42,14 @@ export default function Landing() {
       <section className="mk-hero">
         <div className="mk-hero-text">
           <h1 className="mk-h1">
-            Find your rhythm.<br/>
+            Find your schedule.<br/>
             <span className="mk-h1-accent">Find your people.</span>
           </h1>
           <p className="mk-lede">
             Pick the archetype that sounds like you — Early Bird, Night
             Owl, Parent, Freelancer — and start with a day schedule that
             already makes sense. Tweak it. Share it. See how others on
-            the same rhythm structure their days.
+            the same schedule structure their days.
           </p>
           <div className="mk-cta-row">
             <a href="/app" className="tm-btn tm-primary mk-cta">
@@ -60,7 +60,7 @@ export default function Landing() {
             </a>
           </div>
           <div className="mk-mono mk-fineprint">
-            free forever for solo · team plans for shared rhythms
+            free forever for solo · team plans for shared schedules
           </div>
         </div>
 
@@ -119,7 +119,7 @@ export default function Landing() {
         <div className="mk-section-head">
           <h2 className="mk-h2">Pick the archetype that's you.</h2>
           <p className="mk-mono mk-section-sub">
-            Eight rhythms, one click each. Tweak everything afterwards. Famous-people
+            Eight schedules, one click each. Tweak everything afterwards. Famous-people
             schedules (Buffett, Mozart, Kafka) live as a curated easter egg inside the app.
           </p>
         </div>
@@ -166,7 +166,7 @@ export default function Landing() {
       <section className="mk-section mk-teams-teaser">
         <div>
           <div className="mk-mono mk-eyebrow">For teams</div>
-          <h2 className="mk-h2">Your team's rhythm, in one schedule.</h2>
+          <h2 className="mk-h2">Your team's day, in one schedule.</h2>
           <p className="mk-lede">
             Shared schedules. Outlook two-way sync. A dashboard showing where
             the team's time actually went. No more "Tuesday is no-meeting
