@@ -1,4 +1,3 @@
-import React from 'react';
 import WheelView from '../WheelView.jsx';
 import BlockBoard from '../BlockBoard.jsx';
 import SpiralBoard from '../SpiralBoard.jsx';
@@ -39,9 +38,10 @@ export default function DayScreen({
   showQuickStart,
   onQuickStart,
 }) {
-  const { handleToggle, handleDelete, handleTaskMoveToSlot, handleAddTask } = actions;
+  const { handleToggle, handleDelete, handleTaskMoveToSlot, handleAddTask, handlePlaceOnDate } = actions;
   const slots = state.slots || [];
   const tasks = state.tasks || [];
+  const daySlots = slots.filter(s => s.date === viewKey);
 
   const sideColumn = (
     <aside className="tm-dash-side">
@@ -56,12 +56,10 @@ export default function DayScreen({
       <InboxPanel
         tasks={filteredDerived.backlog || []}
         rowHandlers={{ onToggle: handleToggle, onDelete: handleDelete }}
-        onScheduleToDate={(taskId, dateKey) => {
-          const [y, m, d] = dateKey.split('-').map(Number);
-          const dt = new Date(y, (m || 1) - 1, d || 1, 9, 0, 0, 0);
-          api.tasks.reschedule(taskId, dt.toISOString(), null);
-          telemetryLog('ui:inbox-schedule-to-date', { date: dateKey });
-        }}
+        daySlots={daySlots}
+        dayKey={viewKey}
+        onPlaceInSlot={handleTaskMoveToSlot}
+        onPlaceOnDate={handlePlaceOnDate}
       />
       <ComingUp
         tasks={tasks}

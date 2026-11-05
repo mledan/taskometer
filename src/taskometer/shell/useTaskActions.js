@@ -4,6 +4,7 @@ import { findScheduleTarget } from '../../services/scheduling.js';
 import { emit, EVENTS } from '../../services/events.js';
 import { log as telemetryLog } from '../../services/telemetry.js';
 import { formatYMD } from '../../utils/time.js';
+import { parseCapture } from '../quickAdd.js';
 
 const NO_RECURRENCE = { frequency: 'none', interval: 1, daysOfWeek: [], dayOfMonth: null, endDate: null, occurrences: null };
 
@@ -43,16 +44,69 @@ export function useTaskActions({ api, state, viewKey, selectedSlot, selectedSlot
     setEditingTaskId(null);
   }, [api]);
 
-  // Capture: text in, unscheduled task out. Lands in the inbox.
-  const handleQuickCapture = useCallback((text) => {
-    const t = (text || '').trim();
-    if (!t) return;
-    telemetryLog('task:add', { text: t.slice(0, 40), kind: 'inbox' });
-    return api.tasks.add({
-      text: t, status: 'pending', priority: 'medium', recurrence: NO_RECURRENCE,
-      autoSchedule: false,
-    });
-  }, [api]);
+  // Resolve "some block on `dateKey`" into concrete scheduling fields.
+  // Materializes a rhythm slot if that's what fits. Falls back to 9:00
+  // on that day so the task never silently lands on another date.
+  const placeOnDate = useCallback(async (dateKey, { duration = 30, taskType = null } = {}) => {
+    const target = findScheduleTarget({ taskType, duration, state, preferDate: dateKey, lookAheadDays: 1 });
+    if (target) {
+      let slotId;
+      if (target.kind === 'rhythm') {
+        const created = await api.slots.add(target.slotShape);
+        slotId = created.id;
+        telemetryLog('rhythm:materialized-on-place', { rhythmId: target.rhythm.id, date: target.date });
+      } else {
+        slotId = target.slot.id;
+      }
+      const iso = isoAt(target.date, target.startMin);
+      return { scheduledSlotId: slotId, scheduledTime: iso, scheduledFor: iso };
+    }
+    const iso = isoAt(dateKey, 9 * 60);
+    return { scheduledSlotId: null, scheduledTime: iso, scheduledFor: iso };
+  }, [api, state]);
+
+  // Capture: one line in. Time or day known → scheduled; otherwise the inbox.
+  const handleQuickCapture = useCallback(async (text) => {
+    const parsed = parseCapture(text);
+    if (!parsed.text) return;
+    const base = { text: parsed.text, status: 'pending', priority: 'medium', recurrence: NO_RECURRENCE, autoSchedule: false };
+    if (parsed.durationMin) base.duration = parsed.durationMin;
+    if (parsed.tags.length) base.tags = parsed.tags;
+
+    if (parsed.startMin != null) {
+      const dateKey = parsed.dateKey || viewKey;
+      const iso = isoAt(dateKey, parsed.startMin);
+      const slot = (state.slots || []).find(s => {
+        if (s.date !== dateKey) return false;
+        const [sh, sm] = (s.startTime || '00:00').split(':').map(Number);
+        const [eh, em] = (s.endTime || '00:00').split(':').map(Number);
+        const start = (sh || 0) * 60 + (sm || 0);
+        let end = (eh || 0) * 60 + (em || 0);
+        if (end <= start) end += 24 * 60;
+        return parsed.startMin >= start && parsed.startMin < end;
+      });
+      telemetryLog('task:add', { text: parsed.text.slice(0, 40), kind: 'capture-time', date: dateKey });
+      emit(EVENTS.TASK_ADDED, { slotId: slot?.id || null });
+      return api.tasks.add({ ...base, scheduledSlotId: slot?.id || null, scheduledTime: iso, scheduledFor: iso });
+    }
+    if (parsed.dateKey) {
+      const placement = await placeOnDate(parsed.dateKey, { duration: base.duration || 30 });
+      telemetryLog('task:add', { text: parsed.text.slice(0, 40), kind: 'capture-day', date: parsed.dateKey, slotId: placement.scheduledSlotId });
+      emit(EVENTS.TASK_ADDED, { slotId: placement.scheduledSlotId });
+      return api.tasks.add({ ...base, ...placement });
+    }
+    telemetryLog('task:add', { text: parsed.text.slice(0, 40), kind: 'inbox' });
+    return api.tasks.add(base);
+  }, [api, state, viewKey, placeOnDate]);
+
+  // Tap-to-place: an inbox task onto the next open block of a day.
+  const handlePlaceOnDate = useCallback(async (taskId, dateKey) => {
+    const task = (state.tasks || []).find(t => t.id === taskId);
+    if (!task || !dateKey) return;
+    const placement = await placeOnDate(dateKey, { duration: task.duration || 30 });
+    await api.tasks.update(taskId, placement);
+    telemetryLog('task:place-on-date', { id: taskId, date: dateKey, slotId: placement.scheduledSlotId });
+  }, [api, state, placeOnDate]);
 
   // Full add: [tag] routing first, then the scheduler walks forward
   // up to 60 days for a real fit.
@@ -204,6 +258,7 @@ export function useTaskActions({ api, state, viewKey, selectedSlot, selectedSlot
     handleQuickCapture,
     handleAddTask,
     handleTaskMoveToSlot,
+    handlePlaceOnDate,
     addTasksToInbox,
     addTasksAutoScheduled,
   };
