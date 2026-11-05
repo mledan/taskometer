@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { SignInButton, SignUpButton } from '@clerk/clerk-react';
 import { CLERK_ENABLED } from '../services/auth.js';
+import { storage } from '../services/storage.js';
 
 const STORAGE_KEY = 'taskometer.auth';
 
 export function readAuth() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = storage.getRaw(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch (_) {
     return null;
@@ -14,12 +15,12 @@ export function readAuth() {
 }
 
 export function writeAuth(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (_) {}
+  try { storage.setRaw(STORAGE_KEY, JSON.stringify(data)); } catch (_) { /* ignore */ }
   emitAuthChange();
 }
 
 export function clearAuth() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+  try { storage.remove(STORAGE_KEY); } catch (_) { /* ignore */ }
   emitAuthChange();
 }
 
@@ -31,7 +32,7 @@ export function clearAuth() {
 export const AUTH_EVENT = 'taskometer:auth-changed';
 function emitAuthChange() {
   if (typeof window !== 'undefined') {
-    try { window.dispatchEvent(new Event(AUTH_EVENT)); } catch (_) {}
+    try { window.dispatchEvent(new Event(AUTH_EVENT)); } catch (_) { /* ignore */ }
   }
 }
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { MiniWheel } from '../taskometer/WheelView.jsx';
 import { FAMOUS_WHEELS } from '../defaults/famousWheels';
 import { ARCHETYPES, ARCHETYPE_WHEELS } from '../defaults/scheduleArchetypes';

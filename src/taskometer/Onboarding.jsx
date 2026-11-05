@@ -1,45 +1,46 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { EVENTS } from '../services/events.js';
+import { storage } from '../services/storage.js';
 
 const DONE_KEY = 'taskometer.onboarding.done';
 const LIVE_KEY = 'taskometer.onboarding.live';
 const STEP_KEY = 'taskometer.onboarding.step';
 
 export function hasSeenOnboarding() {
-  try { return localStorage.getItem(DONE_KEY) === '1'; } catch (_) { return false; }
+  try { return storage.getRaw(DONE_KEY) === '1'; } catch (_) { return false; }
 }
 
 /** Has the user started the tour but not finished it? Used by App.jsx
  *  to decide whether to mount the overlay across route changes. */
 export function isOnboardingLive() {
-  try { return localStorage.getItem(LIVE_KEY) === '1'; } catch (_) { return false; }
+  try { return storage.getRaw(LIVE_KEY) === '1'; } catch (_) { return false; }
 }
 
 /** Begin the tour. Called from anywhere — sets the live flag and
  *  resets to step 0 so re-running starts fresh. */
 export function startOnboarding() {
   try {
-    localStorage.setItem(LIVE_KEY, '1');
-    localStorage.setItem(STEP_KEY, '0');
-  } catch (_) {}
+    storage.setRaw(LIVE_KEY, '1');
+    storage.setRaw(STEP_KEY, '0');
+  } catch (_) { /* ignore */ }
 }
 
 function markSeen() {
   try {
-    localStorage.setItem(DONE_KEY, '1');
-    localStorage.removeItem(LIVE_KEY);
-    localStorage.removeItem(STEP_KEY);
-  } catch (_) {}
+    storage.setRaw(DONE_KEY, '1');
+    storage.remove(LIVE_KEY);
+    storage.remove(STEP_KEY);
+  } catch (_) { /* ignore */ }
 }
 
 function readStep() {
   try {
-    const raw = localStorage.getItem(STEP_KEY);
+    const raw = storage.getRaw(STEP_KEY);
     return raw ? Math.max(0, Math.min(parseInt(raw, 10) || 0, 99)) : 0;
   } catch (_) { return 0; }
 }
 function writeStep(i) {
-  try { localStorage.setItem(STEP_KEY, String(i)); } catch (_) {}
+  try { storage.setRaw(STEP_KEY, String(i)); } catch (_) { /* ignore */ }
 }
 
 // Tour script — capture, plan, repeat.
@@ -189,7 +190,6 @@ export default function Onboarding({ onClose, signals = {} }) {
   const baselineRef = React.useRef({});
   React.useEffect(() => {
     baselineRef.current = { ...signals };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i]);
   React.useEffect(() => {
     if (!step.awaitSignal) return;
@@ -209,7 +209,6 @@ export default function Onboarding({ onClose, signals = {} }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i, isLast]);
 
   const finish = () => {

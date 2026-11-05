@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import SchedulePickerBody from './SchedulePicker.jsx';
 import ScheduleManager from './ScheduleManager.jsx';
 import RoutinesTab from './RoutinesTab.jsx';

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 
 function ymd(d) {
   const m = d.getMonth() + 1;

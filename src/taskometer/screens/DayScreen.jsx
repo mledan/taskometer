@@ -1,5 +1,5 @@
 import WheelView from '../WheelView.jsx';
-import BlockBoard from '../BlockBoard.jsx';
+import LooseEnds from '../BlockBoard.jsx';
 import DailyWrap from '../DailyWrap.jsx';
 import RightNow from '../RightNow.jsx';
 import { InboxPanel } from '../Inbox.jsx';
@@ -13,8 +13,10 @@ import { log as telemetryLog } from '../../services/telemetry.js';
 import { formatYMD, hoursLeftToday } from '../../utils/time.js';
 
 /**
- * One day, three lenses. Wheel and spiral are the same helix at t=0 and
- * t=1; blocks is the day as a list. All share the side column.
+ * One day, three lenses, one stage. Wheel and spiral are the same helix
+ * at t=0 and t=1; blocks is that helix dropped into a column. The stage
+ * stays mounted across lens changes so the schedule morphs instead of
+ * being swapped out. All three share the side column.
  */
 export default function DayScreen({
   lens,
@@ -100,41 +102,40 @@ export default function DayScreen({
 
       <div className="tm-dash">
         <div className="tm-dash-main">
-          {lens === 'blocks' ? (
-            <BlockBoard
+          <WheelView
+            selectedDate={selectedDate}
+            wedges={derived.wedges}
+            nowTask={derived.nowTask}
+            upcoming={filteredDerived.upcoming}
+            pushed={filteredDerived.pushed}
+            slots={slots}
+            allTasks={filteredState.tasks || []}
+            taskTypes={state.taskTypes || []}
+            todayTasks={filteredDerived.todayTasks}
+            wheels={derived.wheels}
+            dayAssignments={derived.dayAssignments}
+            dayOverrides={derived.dayOverrides}
+            resolveDay={derived.resolveDay}
+            api={api}
+            rowHandlers={rowHandlers}
+            onNavigate={() => {}}
+            onOpenWheels={() => onOpenLibrary('schedules')}
+            selectedSlotId={selectedSlotId}
+            onSelectWedge={(slot) => {
+              onSelectWedge(slot);
+              if (slot) emit(EVENTS.SLOT_SELECTED, { slotId: slot.id });
+            }}
+            lens={lens}
+            onPickDate={onPickDate}
+          />
+          {lens === 'blocks' && (
+            <LooseEnds
               tasks={filteredState.tasks || []}
               slots={slots}
               date={selectedDate}
               api={api}
               rowHandlers={rowHandlers}
               onPlaceOnDate={handlePlaceOnDate}
-            />
-          ) : (
-            <WheelView
-              selectedDate={selectedDate}
-              wedges={derived.wedges}
-              nowTask={derived.nowTask}
-              upcoming={filteredDerived.upcoming}
-              pushed={filteredDerived.pushed}
-              slots={slots}
-              allTasks={filteredState.tasks || []}
-              taskTypes={state.taskTypes || []}
-              todayTasks={filteredDerived.todayTasks}
-              wheels={derived.wheels}
-              dayAssignments={derived.dayAssignments}
-              dayOverrides={derived.dayOverrides}
-              resolveDay={derived.resolveDay}
-              api={api}
-              rowHandlers={rowHandlers}
-              onNavigate={() => {}}
-              onOpenWheels={() => onOpenLibrary('schedules')}
-              selectedSlotId={selectedSlotId}
-              onSelectWedge={(slot) => {
-                onSelectWedge(slot);
-                if (slot) emit(EVENTS.SLOT_SELECTED, { slotId: slot.id });
-              }}
-              unrolled={lens === 'spiral'}
-              onPickDate={onPickDate}
             />
           )}
           <DailyWrap

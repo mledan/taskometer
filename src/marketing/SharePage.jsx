@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MiniWheel } from '../taskometer/WheelView.jsx';
 import { readSharedWheelFromHash } from '../services/wheelShare.js';
 import '../taskometer/taskometer.css';
 import './marketing.css';
+import { storage } from '../services/storage.js';
 
 /**
  * Per-wheel comment thread. The thread key is the share-fragment hash
@@ -26,12 +27,12 @@ function threadKeyFromHash() {
 
 function readLocalThread(key) {
   try {
-    const raw = localStorage.getItem(COMMENT_KEY_PREFIX + key);
+    const raw = storage.getRaw(COMMENT_KEY_PREFIX + key);
     return raw ? JSON.parse(raw) : [];
   } catch (_) { return []; }
 }
 function writeLocalThread(key, list) {
-  try { localStorage.setItem(COMMENT_KEY_PREFIX + key, JSON.stringify(list)); } catch (_) {}
+  try { storage.setRaw(COMMENT_KEY_PREFIX + key, JSON.stringify(list)); } catch (_) { /* ignore */ }
 }
 
 /**
@@ -76,7 +77,7 @@ export default function SharePage() {
     try {
       // Read the existing settings blob, append the wheel, write back.
       // Mirrors the shape used by services/api/TaskometerAPI's wheels.add.
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = storage.getRaw(STORAGE_KEY);
       const settings = raw ? JSON.parse(raw) : {};
       const wheels = Array.isArray(settings.wheels) ? settings.wheels : [];
       const id = `shared_${Date.now().toString(36)}`;
@@ -88,7 +89,7 @@ export default function SharePage() {
         category: 'Shared',
       });
       settings.wheels = wheels;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      storage.setRaw(STORAGE_KEY, JSON.stringify(settings));
       setSaved(true);
       // Brief delay so the user sees the success state before redirecting.
       setTimeout(() => { window.location.href = '/app'; }, 700);
@@ -214,7 +215,7 @@ export default function SharePage() {
 function Comments() {
   const [thread, setThread] = useState([]);
   const [name, setName] = useState(() => {
-    try { return localStorage.getItem('taskometer.comments.name') || ''; } catch (_) { return ''; }
+    try { return storage.getRaw('taskometer.comments.name') || ''; } catch (_) { return ''; }
   });
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -271,7 +272,7 @@ function Comments() {
     setThread(prev => [...prev, optimistic]);
     setBody('');
 
-    try { localStorage.setItem('taskometer.comments.name', optimistic.name); } catch (_) {}
+    try { storage.setRaw('taskometer.comments.name', optimistic.name); } catch (_) { /* ignore */ }
 
     if (mode === 'api') {
       try {

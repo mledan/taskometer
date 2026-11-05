@@ -10,7 +10,7 @@ export const ZOOM_LABELS = {
 
 export const LENS_META = {
   wheel: { label: 'Wheel', glyph: '◎', hint: 'the 24-hour wheel' },
-  blocks: { label: 'Blocks', glyph: '≡', hint: 'the day as a list of blocks' },
+  blocks: { label: 'Blocks', glyph: '≡', hint: 'the helix dropped into a list of blocks' },
   spiral: { label: 'Spiral', glyph: '֎', hint: 'the wheel unrolled: one turn per day' },
 };
 

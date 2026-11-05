@@ -10,7 +10,7 @@ import {
   resolveTypeColor,
 } from './Composers.jsx';
 import HelixView, { HelixControls } from './helix/HelixView.jsx';
-import { useMorph } from './helix/useMorph.js';
+import { useLensRoute } from './helix/useMorph.js';
 import { buildDayLayers } from './helix/layers.js';
 import {
   DAY_MIN, DEFAULT_LEN_MIN, MIN_LEN_MIN,
@@ -38,7 +38,7 @@ export default function WheelView({
   selectedDate,
   selectedSlotId,
   onSelectWedge,
-  unrolled = false,
+  lens = 'wheel',
   allTasks = [],
   onPickDate,
 }) {
@@ -46,8 +46,10 @@ export default function WheelView({
     onToggle, onDelete, onEdit, onSaveEdit, editingTaskId,
     onSeriesComplete, onSeriesDelete, onSeriesBump,
   } = rowHandlers;
-  // t: 0 = flat wheel, 1 = helix. The lens drives the target; the slider overrides.
-  const [t, setT] = useMorph(unrolled ? 1 : 0);
+  // (t, u): t unrolls the wheel into the helix, u drops the helix into a
+  // column. The lens picks the target; the route always passes through
+  // the helix so the schedule never jumps. The slider overrides t.
+  const { t, u, setT } = useLensRoute(lens);
   const [days, setDays] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia?.('(max-width: 760px)').matches ? 3 : DEFAULT_HELIX_DAYS
   ));
@@ -122,8 +124,8 @@ export default function WheelView({
   const effectiveWedges = isToday ? wedges : wedgesFromSlots(viewSlots);
 
   const layers = useMemo(
-    () => (t > 0 ? buildDayLayers({ slots, tasks: allTasks, baseDate: viewDate, days, todayKey: realTodayKey }) : []),
-    [t > 0, slots, allTasks, viewKey, days, realTodayKey],
+    () => (t > 0 || u > 0 ? buildDayLayers({ slots, tasks: allTasks, baseDate: viewDate, days, todayKey: realTodayKey }) : []),
+    [t > 0 || u > 0, slots, allTasks, viewKey, days, realTodayKey],
   );
 
   // Single-selection: expansion holds at most one slot id at a time so
@@ -364,6 +366,7 @@ export default function WheelView({
           onTaskMoveTo={rowHandlers?.onTaskMoveTo}
           center={center}
           t={t}
+          u={u}
           days={days}
           layers={layers}
           onPickDate={onPickDate}
@@ -380,7 +383,7 @@ export default function WheelView({
       </div>
 
       <div className="tm-wheel-toolbar">
-        <HelixControls t={t} onT={setT} days={days} onDays={setDays} />
+        {lens !== 'blocks' && <HelixControls t={t} onT={setT} days={days} onDays={setDays} />}
         <span className="tm-mono tm-sm tm-wheel-count">
           {viewSlots.length} block{viewSlots.length === 1 ? '' : 's'}
           {isToday ? '' : ` · ${viewDate.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase()}`}
@@ -405,9 +408,11 @@ export default function WheelView({
           </button>
         )}
         <span className="tm-mono tm-sm tm-wheel-hint">
-          {t > 0
-            ? 'each turn is a day · click a turn to open it · drop a task on any day’s block'
-            : 'click a block for its tasks and handles · drag to move · click the empty ring to add'}
+          {u > 0.5
+            ? 'the day as a list · click a block for its tasks · drag a block or its handles to move it'
+            : t > 0
+              ? 'each turn is a day · click a turn to open it · drop a task on any day’s block'
+              : 'click a block for its tasks and handles · drag to move · click the empty ring to add'}
         </span>
       </div>
 

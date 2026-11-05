@@ -26,7 +26,7 @@ browser, no backend today.
 | **capture** | Typing a task into the always-visible input. The parser reads duration, time, day and `#tags`; a known *when* schedules, otherwise the task parks in the **inbox**. | `Inbox.jsx`, `quickAdd.js` |
 | **place** | Putting an inbox task into a block — by drag, or by the Place menu (next open block, a block on the day in view, any date). | `PlaceMenu.jsx`, `useTaskActions` |
 | **zoom** | How much time the app shows: day › week › month › quarter › year › life. `[` / `]` step it. | `nav/ZoomNav`, `nav/viewState.js` |
-| **lens** | How a single day is drawn at day zoom: wheel, spiral (the same ring unrolled into a helix of days), or blocks (a list). | `nav/LensToggle`, `screens/DayScreen` |
+| **lens** | How a single day is drawn at day zoom: wheel, spiral (the same ring unrolled into a helix of days), or blocks (that helix dropped into a column). One SVG stage morphs between all three; it never unmounts on a lens change. | `nav/LensToggle`, `screens/DayScreen`, `helix/` |
 | **library** | The one drawer for everything that comes from outside the user's own day: schedules, routines, paths, packs. | `library/LibraryDrawer.jsx` |
 
 If you find user-visible copy using "wheel", "shape", "rhythm", or
@@ -105,7 +105,10 @@ library — keep it that way unless we add five+ routes.
     `CalendarScreen` for month/quarter/year, `LifeScreen`).
   - `nav/` — zoom ladder, lens toggle, breadcrumb, view-state migration.
   - `library/` — the Library drawer and its tabs.
-  - `helix/` — the wheel ⟷ spiral geometry shared by the day lenses.
+  - `helix/` — the one stage for all three day lenses. `geometry.js` is
+    the ring ⟷ helix projection (`t`), `pose.js` adds the column (`u`)
+    and blends the three; `useMorph.js` routes lens changes through the
+    helix (unroll, then drop) so the schedule morphs instead of swapping.
   - Styles: `taskometer.css` (wheel + core), `screens.css` (week /
     calendar / life / rails), `capture.css` (capture + Place menu),
     `shell.css` (header at phone widths). Tokens live in

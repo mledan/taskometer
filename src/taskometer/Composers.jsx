@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TASK_PRIORITIES } from '../models/Task';
 import { log as telemetryLog } from '../services/telemetry.js';
 
@@ -294,7 +294,6 @@ export function SlotComposer({
         setDurationMin(slotSpanMin(initial.startTime, initial.endTime));
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial?.id, initial?.startTime, initial?.endTime, initial?.date]);
 
   // When the user edits times in 'end' mode, keep duration in sync for preview

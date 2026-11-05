@@ -18,7 +18,8 @@ its own thing since.
 - **Zoom** — day › week › month › quarter › year › life. Paint a
   schedule across any range from any zoom.
 - **Lens** — see a day as a wheel, as that wheel unrolled into a helix
-  of days, or as a plain list of blocks.
+  of days, or as that helix dropped into a column of blocks. Switching
+  morphs one picture into the next; the schedule never leaves the page.
 - **Library** — starter schedules, famous routines, paths and task
   packs, behind one door.
 

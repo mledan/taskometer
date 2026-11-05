@@ -1,4 +1,3 @@
-import React from 'react';
 import { ZOOMS, ZOOM_LABELS } from './viewState.js';
 
 export default function ZoomNav({ zoom, onChange }) {

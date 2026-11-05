@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SignInButton, SignUpButton, useClerk } from '@clerk/clerk-react';
 import { readAuth, writeAuth, clearAuth } from './WelcomePopup.jsx';
 import { CLERK_ENABLED } from '../services/auth.js';
+import { storage } from '../services/storage.js';
 
 /**
  * Account modal. Two faces:
@@ -79,13 +80,9 @@ export default function AccountPanel({
     try {
       // Wipe profile and any taskometer-* data, mirror of guest reset
       clearAuth();
-      const tmKeys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && (k.startsWith('taskometer-') || k.startsWith('smartcircle.') || k === 'state')) tmKeys.push(k);
-      }
-      for (const k of tmKeys) localStorage.removeItem(k);
-    } catch (_) {}
+      const tmKeys = storage.keys().filter(k => k.startsWith('taskometer-') || k.startsWith('smartcircle.') || k === 'state');
+      for (const k of tmKeys) storage.remove(k);
+    } catch (_) { /* ignore */ }
     window.location.reload();
   };
 

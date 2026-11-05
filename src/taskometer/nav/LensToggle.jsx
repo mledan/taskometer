@@ -1,4 +1,3 @@
-import React from 'react';
 import { LENSES, LENS_META } from './viewState.js';
 
 export default function LensToggle({ lens, onChange }) {

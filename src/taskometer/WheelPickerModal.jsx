@@ -1,4 +1,3 @@
-import React from 'react';
 import SchedulePickerBody from './library/SchedulePicker.jsx';
 
 // Thin modal wrapper around the schedule picker. The Library drawer
