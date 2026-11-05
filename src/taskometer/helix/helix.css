@@ -1,0 +1,41 @@
+/* The helix: one SVG that is the wheel at t=0 and the day-spiral at t=1 */
+.tm-helix { display: block; }
+.tm-helix text { font-family: var(--font-sans); }
+.tm-helix .tm-helix-label { font-size: 18px; font-weight: 500; }
+.tm-helix .tm-helix-label-live { font-size: 22px; font-weight: 600; font-style: italic; }
+.tm-helix .tm-helix-turn-label { font-size: 13px; font-weight: 500; }
+.tm-helix .tm-helix-day-label,
+.tm-helix .tm-helix-hour,
+.tm-helix .tm-helix-gauge,
+.tm-helix .tm-helix-kicker,
+.tm-helix .tm-helix-sub,
+.tm-helix .tm-helix-chip { font-family: var(--font-mono); }
+.tm-helix .tm-helix-hour { font-size: 11px; letter-spacing: .5px; }
+.tm-helix .tm-helix-hour-major { font-size: 13px; font-weight: 500; }
+.tm-helix .tm-helix-day-label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.tm-helix .tm-helix-gauge { font-size: 10px; }
+.tm-helix .tm-helix-chip { font-size: 10.5px; }
+.tm-helix .tm-helix-kicker { font-size: 9.5px; letter-spacing: 1.5px; }
+.tm-helix .tm-helix-sub { font-size: 10.5px; }
+.tm-helix .tm-helix-title { font-size: 21px; font-weight: 600; }
+.tm-helix .tm-helix-title-long { font-size: 17px; }
+.tm-helix .tm-helix-task { font-size: 12px; }
+.tm-helix-turn { transition: opacity .2s; }
+.tm-helix-unrolled .tm-helix-label { font-size: 14px; }
+.tm-helix-unrolled .tm-helix-label-live { font-size: 16px; }
+.tm-helix-unrolled .tm-helix-title { font-size: 15px; }
+.tm-helix-unrolled .tm-helix-title-long { font-size: 13px; }
+
+/* Flat ↔ helix controls */
+.tm-helix-ctl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.tm-helix-ctl input[type="range"] {
+  width: 120px;
+  accent-color: var(--orange);
+}
+.tm-helix-days { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: var(--space-2); }
+.tm-helix-days .tm-mono { min-width: 52px; text-align: center; }

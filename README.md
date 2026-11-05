@@ -1,62 +1,41 @@
 # taskometer
 
-A web-based task meter for tracking your progress, built with React. This is a web-adapted version of [todometer](https://github.com/cassidoo/todometer) by [Cassidy Williams](https://github.com/cassidoo).
+A local-first day planner. Paint a 24-hour schedule of blocks (sleep,
+work, play), paint it onto days or ranges, capture tasks in one line,
+and place them into blocks. Runs in the browser, keeps your data in
+your browser.
 
-![todometer](assets/screenshot.png)
+Started life as a web port of [todometer](https://github.com/cassidoo/todometer)
+by [Cassidy Williams](https://github.com/cassidoo); it has grown into
+its own thing since.
 
-## Features
+## How it works
 
-- 📊 Visual meter-based task tracking
-- 🌐 Access from any browser
-- 📱 Mobile-friendly interface
-- 🔔 Web notifications for reminders
-- 💾 Browser-based storage
+- **Capture** — type `gym 6pm`, `call mom tomorrow 20m`, `#deep draft
+  pricing`. Known *when* → scheduled; otherwise it waits in the inbox.
+- **Place** — drag an inbox task onto a block, or tap *place* for the
+  next open block, a block on the day in view, or any date.
+- **Zoom** — day › week › month › quarter › year › life. Paint a
+  schedule across any range from any zoom.
+- **Lens** — see a day as a wheel, as that wheel unrolled into a helix
+  of days, or as a plain list of blocks.
+- **Library** — starter schedules, famous routines, paths and task
+  packs, behind one door.
 
 ## Development
 
-- Clone the repo:
-
 ```bash
-$ git clone https://github.com/mledan/taskometer.git
+npm install
+npm run dev
 ```
 
-- Go to the project directory and install dependencies:
+- `npm run build` — production build (Vercel runs the same)
+- `npm test` — vitest
+- `npm run lint` — eslint; direct `localStorage` use is an error, go
+  through `src/services/storage.js`
 
-```bash
-$ cd taskometer && npm install
-```
+See [CLAUDE.md](CLAUDE.md) for the glossary and architecture notes.
 
-To start the development server:
+## License
 
-```bash
-$ npm run dev
-```
-
-To build for production:
-
-```bash
-$ npm run build
-```
-
-To preview the production build:
-
-```bash
-$ npm run preview
-```
-
-## Contributing
-
-So you want to contribute? Yay! Great! Fun!
-I love seeing new PRs for todometer. That being said, not every pull request will be merged. The general guidelines I'll follow are:
-
-- Does it make developing todometer easier?
-- Does it help other platforms (Windows, Mac, Linux) work better?
-- Does it fix a bug?
-- Does it break anything?
-- Does it stick to the original goal of todometer (a _simple_, meter-based to-do list)
-- Does it reduce the build size?
-- Is it necessary?
-
-Regarding that last point, I don't expect all pull requests to be absolutely necessary. New features are good. That being said, if the new features make the app unnecessarily complex in some way without bringing value to the users, it won't be merged.
-
-Please don't be hurt if your PR isn't merged. You're lovely for working on it. If you are thinking about working on something, feel free to make an issue beforehand so that you can make sure it'll be worth your time!
+MIT — see [LICENSE](LICENSE).

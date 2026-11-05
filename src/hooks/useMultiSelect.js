@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { storage } from '../services/storage.js';
 
 /**
  * Multi-select hook for date pickers / calendar grids. Tracks a Set of
@@ -25,24 +26,13 @@ function ymd(d) {
 const SESSION_PREFIX = 'taskometer.multiselect.';
 
 function readSession(key) {
-  try {
-    if (typeof sessionStorage === 'undefined') return null;
-    const raw = sessionStorage.getItem(SESSION_PREFIX + key);
-    if (!raw) return null;
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : null;
-  } catch (_) { return null; }
+  const arr = storage.session.get(SESSION_PREFIX + key);
+  return Array.isArray(arr) ? arr : null;
 }
 
 function writeSession(key, set) {
-  try {
-    if (typeof sessionStorage === 'undefined') return;
-    if (!set || set.size === 0) {
-      sessionStorage.removeItem(SESSION_PREFIX + key);
-    } else {
-      sessionStorage.setItem(SESSION_PREFIX + key, JSON.stringify([...set]));
-    }
-  } catch (_) { /* quota or restricted env */ }
+  if (!set || set.size === 0) storage.session.remove(SESSION_PREFIX + key);
+  else storage.session.set(SESSION_PREFIX + key, [...set]);
 }
 
 export function useMultiSelect(storageKey = null) {

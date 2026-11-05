@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useCallback, useState } from 'react';
+import { storage } from '../services/storage.js';
 
 // Default shortcuts configuration
 export const DEFAULT_SHORTCUTS = {
@@ -48,15 +49,8 @@ export function useKeyboardShortcuts(handlers = {}, options = {}) {
   } = options;
 
   const [shortcuts, setShortcuts] = useState(() => {
-    try {
-      const saved = localStorage.getItem(SHORTCUTS_KEY);
-      if (saved) {
-        return { ...DEFAULT_SHORTCUTS, ...JSON.parse(saved) };
-      }
-    } catch (e) {
-      console.error('Failed to load shortcuts:', e);
-    }
-    return DEFAULT_SHORTCUTS;
+    const saved = storage.get(SHORTCUTS_KEY);
+    return saved && typeof saved === 'object' ? { ...DEFAULT_SHORTCUTS, ...saved } : DEFAULT_SHORTCUTS;
   });
 
   const [keySequence, setKeySequence] = useState([]);
@@ -140,12 +134,7 @@ export function useKeyboardShortcuts(handlers = {}, options = {}) {
       delete updated[key];
       updated[newKey] = shortcut;
 
-      try {
-        localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to save shortcuts:', e);
-      }
-
+      storage.set(SHORTCUTS_KEY, updated);
       return updated;
     });
   }, []);
@@ -153,11 +142,7 @@ export function useKeyboardShortcuts(handlers = {}, options = {}) {
   // Reset shortcuts to defaults
   const resetShortcuts = useCallback(() => {
     setShortcuts(DEFAULT_SHORTCUTS);
-    try {
-      localStorage.removeItem(SHORTCUTS_KEY);
-    } catch (e) {
-      console.error('Failed to reset shortcuts:', e);
-    }
+    storage.remove(SHORTCUTS_KEY);
   }, []);
 
   // Get shortcuts grouped by category

@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { AUTH_EVENT } from '../WelcomePopup.jsx';
+import { storage } from '../../services/storage.js';
 
+// taskometer.auth is current; smartcircle.auth is the legacy key migrated on first load.
 function readSafeAuth() {
-  try {
-    // taskometer.auth is current; smartcircle.auth is the legacy key
-    // migrated on first load. Read both for the overlap window.
-    return JSON.parse(localStorage.getItem('taskometer.auth') || localStorage.getItem('smartcircle.auth') || 'null');
-  } catch (_) { return null; }
+  return storage.get('taskometer.auth') ?? storage.get('smartcircle.auth') ?? null;
 }
 
 /**

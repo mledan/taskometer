@@ -23,10 +23,21 @@ browser, no backend today.
 | **assignment** | A `dayAssignments[YMD] = wheelId` mapping — which schedule a calendar day uses. | `settings.dayAssignments` |
 | **override** | A day flagged sick / holiday / vacation. Skips schedule painting. | `settings.dayOverrides` |
 | **paint** | The user gesture of applying a schedule to one day or a range. Always say "paint", never "apply" or "assign" in user-facing copy. | All UI strings |
+| **capture** | Typing a task into the always-visible input. The parser reads duration, time, day and `#tags`; a known *when* schedules, otherwise the task parks in the **inbox**. | `Inbox.jsx`, `quickAdd.js` |
+| **place** | Putting an inbox task into a block — by drag, or by the Place menu (next open block, a block on the day in view, any date). | `PlaceMenu.jsx`, `useTaskActions` |
+| **zoom** | How much time the app shows: day › week › month › quarter › year › life. `[` / `]` step it. | `nav/ZoomNav`, `nav/viewState.js` |
+| **lens** | How a single day is drawn at day zoom: wheel, spiral (the same ring unrolled into a helix of days), or blocks (a list). | `nav/LensToggle`, `screens/DayScreen` |
+| **library** | The one drawer for everything that comes from outside the user's own day: schedules, routines, paths, packs. | `library/LibraryDrawer.jsx` |
 
 If you find user-visible copy using "wheel", "shape", "rhythm", or
 "circle" for a schedule, fix it on the way through. Code-level uses
 (`wheelId`, `WheelView`, etc.) stay — only UI text changes.
+
+Every surface is one of four verbs on one loop — **Capture** (input,
+inbox), **Place** (wheel, blocks, week, calendar zooms, library), **Do**
+(the wheel hub, Right now), **Reflect** (daily wrap, time breakdown,
+coming up, snoozed). When adding a surface, say which verb it serves;
+if it's none of them, it probably doesn't belong.
 
 ## Storage keys
 
@@ -34,12 +45,21 @@ All persistence goes under `taskometer.*` or `taskometer-*`:
 
 - `taskometer.auth` — local profile (no password — see Privacy)
 - `taskometer.onboarding.done` — one-shot tour flag
+- `taskometer-theme` — light / dark / system
+- `taskometer-shortcuts` — custom key bindings
+- `taskometer.multiselect.*` — per-tab calendar selections (sessionStorage)
 - `taskometer-*` — adapter keys for tasks, slots, settings (see services/api)
-- `tm.scale`, `tm.ui` — UI prefs (acceptable legacy prefix; do not add new ones)
+- `tm.ui` — UI prefs incl. `zoom` and `lens` (acceptable legacy prefix; do
+  not add new ones). `tm.scale` was migrated into it and removed.
 
 Legacy `smartcircle.*` keys are migrated to `taskometer.*` on first
 load via [main.jsx](src/main.jsx). Do not introduce new
 `smartcircle.*` keys.
+
+**Never call `localStorage` / `sessionStorage` directly.** Go through
+[services/storage.js](src/services/storage.js) (`storage.get/set/remove`,
+`getRaw/setRaw`, `storage.session.*`). ESLint enforces this as an error
+everywhere except the adapter and migrations.
 
 ## Routes
 
@@ -61,6 +81,7 @@ library — keep it that way unless we add five+ routes.
 - `npm run dev` for local development
 - `npm run build` to verify a production build (Vercel runs the same)
 - `npm test` for vitest
+- `npm run lint` — the storage rule above is the one that must stay at zero
 - CI runs build + tests on push and PRs to main
 - Pushing to `main` deploys to production via Vercel
 - Don't push to main without a passing CI run
@@ -74,10 +95,25 @@ library — keep it that way unless we add five+ routes.
   adapter pretending to be an API. When backend ships, swap the
   adapter; keep the surface stable.
 - `services/api/derive.js` is pure — derivations from state. Tests
-  here.
-- `taskometer/` is the product UI
+  here. `services/scheduler.js` is the one scheduler (don't add another).
+- `context/AppContext.jsx` is the reducer; `AppContext.test.jsx` covers
+  it — extend those tests when you touch an action.
+- `taskometer/` is the product UI:
+  - `Taskometer.jsx` is the shell (header, event wiring, screen switch)
+    and should stay small; `shell/*` hooks hold paint/task/auth actions.
+  - `screens/` — one component per zoom (`DayScreen`, `WeekScreen`,
+    `CalendarScreen` for month/quarter/year, `LifeScreen`).
+  - `nav/` — zoom ladder, lens toggle, breadcrumb, view-state migration.
+  - `library/` — the Library drawer and its tabs.
+  - `helix/` — the wheel ⟷ spiral geometry shared by the day lenses.
+  - Styles: `taskometer.css` (wheel + core), `screens.css` (week /
+    calendar / life / rails), `capture.css` (capture + Place menu),
+    `shell.css` (header at phone widths). Tokens live in
+    `styles/variables.css`; no hex in components.
 - `marketing/` is the marketing site (landing, teams, legal)
 - `components/` is shared chrome (errors, notifications, shortcuts)
+- Chrome and palette talk to the shell through `tm:*` window events
+  (`tm:capture-focus`, `tm:set-scale`, `tm:open-library`, …).
 
 ## What we don't do (yet)
 

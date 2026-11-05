@@ -32,6 +32,8 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import { log as telemetryLog } from '../services/telemetry.js';
 import { formatYMD } from '../utils/time.js';
 import './taskometer.css';
+import './shell.css';
+import { storage } from '../services/storage.js';
 
 /**
  * The app shell: header (library chip, zoom ladder, lens toggle, date
@@ -43,20 +45,14 @@ const DEFAULT_UI = { palette: 'warm', rules: 'lines', notifications: false, ...D
 const CALENDAR_ZOOMS = new Set(['month', 'quarter', 'year']);
 
 function readStoredUI() {
-  let stored = {};
-  try {
-    const raw = localStorage.getItem('tm.ui') || localStorage.getItem('tm.tweaks');
-    if (raw) stored = JSON.parse(raw) || {};
-  } catch (_) { /* fall through to defaults */ }
-  try {
-    // Legacy `tm.scale` → zoom/lens, once.
-    const legacy = localStorage.getItem('tm.scale');
-    if (legacy !== null) {
-      const migrated = migrateLegacyScale(legacy);
-      if (migrated && !stored.zoom) stored = { ...stored, ...migrated };
-      localStorage.removeItem('tm.scale');
-    }
-  } catch (_) { /* restricted storage */ }
+  let stored = storage.get('tm.ui') || storage.get('tm.tweaks') || {};
+  // Legacy `tm.scale` → zoom/lens, once.
+  const legacy = storage.getRaw('tm.scale');
+  if (legacy !== null) {
+    const migrated = migrateLegacyScale(legacy);
+    if (migrated && !stored.zoom) stored = { ...stored, ...migrated };
+    storage.remove('tm.scale');
+  }
   const ui = { ...DEFAULT_UI, ...stored };
   // Phones get the one-handed lens until the user picks one themselves.
   if (!stored.lens && typeof window !== 'undefined' && window.matchMedia?.('(max-width: 760px)').matches) ui.lens = 'blocks';
@@ -116,7 +112,7 @@ export default function Taskometer() {
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem('tm.ui', JSON.stringify(ui)); } catch (_) { /* restricted storage */ }
+    storage.set('tm.ui', ui);
   }, [ui]);
   useEffect(() => { telemetryLog('ui:view', { zoom, lens }); }, [zoom, lens]);
 

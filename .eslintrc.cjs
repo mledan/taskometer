@@ -42,13 +42,9 @@ module.exports = {
 	rules: {
 		"no-unused-vars": ["error", { args: "none" }],
 		"react/prop-types": "off",
-		...storageRules("warn"),
+		...storageRules("error"),
 	},
 	overrides: [
-		{
-			files: ["src/services/**", "src/context/**"],
-			rules: storageRules("error"),
-		},
 		{
 			files: [
 				"src/services/storage.js",

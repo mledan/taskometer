@@ -1,6 +1,4 @@
 // Schedule Template System
-// All data stored in browser localStorage for now
-import { ENHANCED_FAMOUS_SCHEDULES } from './enhancedTemplates.js';
 
 export const SCHEDULE_PERIODS = {
   DAILY: 'daily',
@@ -286,33 +284,3 @@ export function formatTime(date) {
 }
 
 // Storage functions
-export function saveScheduleToLocalStorage(schedule) {
-  const schedules = getSchedulesFromLocalStorage();
-  const index = schedules.findIndex(s => s.id === schedule.id);
-  
-  if (index >= 0) {
-    schedules[index] = schedule;
-  } else {
-    schedules.push(schedule);
-  }
-  
-  localStorage.setItem('taskometer-schedules', JSON.stringify(schedules));
-  return schedule;
-}
-
-export function getSchedulesFromLocalStorage() {
-  const stored = localStorage.getItem('taskometer-schedules');
-  return stored ? JSON.parse(stored) : [];
-}
-
-export function getActiveSchedule() {
-  const activeId = localStorage.getItem('taskometer-active-schedule');
-  if (!activeId) return null;
-  
-  const schedules = [...FAMOUS_SCHEDULES, ...ENHANCED_FAMOUS_SCHEDULES, ...getSchedulesFromLocalStorage()];
-  return schedules.find(s => s.id === activeId) || null;
-}
-
-export function setActiveSchedule(scheduleId) {
-  localStorage.setItem('taskometer-active-schedule', scheduleId);
-}

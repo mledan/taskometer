@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import WheelPickerModal from './WheelPickerModal.jsx';
 import { TaskRow } from './shared.jsx';
 import SleepCycleHint from './SleepCycleHint.jsx';
@@ -9,11 +9,15 @@ import {
   TaskRowEditor,
   resolveTypeColor,
 } from './Composers.jsx';
+import HelixView, { HelixControls } from './helix/HelixView.jsx';
+import { useMorph } from './helix/useMorph.js';
+import { buildDayLayers } from './helix/layers.js';
+import {
+  DAY_MIN, DEFAULT_LEN_MIN, MIN_LEN_MIN,
+  hhmmToMin, minToHHMM, clamp, snapMin, slotSpan, isOvernightSlot, fmtMinutes, fmtHr, fmtClock, ymd,
+} from './helix/slotMath.js';
 
-const SNAP_MIN = 15;          // snap resolution in minutes
-const DEFAULT_LEN_MIN = 60;   // length for click-to-create
-const MIN_LEN_MIN = 15;       // smallest allowed arc
-const DAY_MIN = 24 * 60;
+const DEFAULT_HELIX_DAYS = 5;
 
 export default function WheelView({
   wedges,
@@ -34,11 +38,19 @@ export default function WheelView({
   selectedDate,
   selectedSlotId,
   onSelectWedge,
+  unrolled = false,
+  allTasks = [],
+  onPickDate,
 }) {
   const {
     onToggle, onDelete, onEdit, onSaveEdit, editingTaskId,
     onSeriesComplete, onSeriesDelete, onSeriesBump,
   } = rowHandlers;
+  // t: 0 = flat wheel, 1 = helix. The lens drives the target; the slider overrides.
+  const [t, setT] = useMorph(unrolled ? 1 : 0);
+  const [days, setDays] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia?.('(max-width: 760px)').matches ? 3 : DEFAULT_HELIX_DAYS
+  ));
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [typeMgrOpen, setTypeMgrOpen] = useState(false);
@@ -108,6 +120,11 @@ export default function WheelView({
   // re-synthesise wedges from viewSlots so the SVG shows that day's
   // shape, not today's.
   const effectiveWedges = isToday ? wedges : wedgesFromSlots(viewSlots);
+
+  const layers = useMemo(
+    () => (t > 0 ? buildDayLayers({ slots, tasks: allTasks, baseDate: viewDate, days, todayKey: realTodayKey }) : []),
+    [t > 0, slots, allTasks, viewKey, days, realTodayKey],
+  );
 
   // Single-selection: expansion holds at most one slot id at a time so
   // clicking a new wedge collapses any previously-opened one. Toggling
@@ -331,14 +348,13 @@ export default function WheelView({
       )}
 
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-        <div data-onboard="wheel" style={{ display: 'inline-flex' }}>
-        <WheelSvg
+        <div data-onboard="wheel" className="tm-helix-stage">
+        <HelixView
           wedges={effectiveWedges}
           slots={viewSlots}
           taskTypes={taskTypes}
           nowHour={isToday ? nowHour : -1}
           tasksBySlotId={tasksBySlotId}
-          stats={computeStats(nowTask, upcoming, pushed)}
           onWedgeCommit={handleWedgeCommit}
           onWedgeClick={handleWedgeClick}
           onEmptyHourClick={handleEmptyHourClick}
@@ -347,6 +363,10 @@ export default function WheelView({
           editingSlotId={editingSlotId}
           onTaskMoveTo={rowHandlers?.onTaskMoveTo}
           center={center}
+          t={t}
+          days={days}
+          layers={layers}
+          onPickDate={onPickDate}
         />
         </div>
         {viewSlots.length === 0 && (
@@ -360,6 +380,7 @@ export default function WheelView({
       </div>
 
       <div className="tm-wheel-toolbar">
+        <HelixControls t={t} onT={setT} days={days} onDays={setDays} />
         <span className="tm-mono tm-sm tm-wheel-count">
           {viewSlots.length} block{viewSlots.length === 1 ? '' : 's'}
           {isToday ? '' : ` · ${viewDate.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase()}`}
@@ -384,7 +405,9 @@ export default function WheelView({
           </button>
         )}
         <span className="tm-mono tm-sm tm-wheel-hint">
-          click a block for its tasks and handles · drag to move · click the empty ring to add
+          {t > 0
+            ? 'each turn is a day · click a turn to open it · drop a task on any day’s block'
+            : 'click a block for its tasks and handles · drag to move · click the empty ring to add'}
         </span>
       </div>
 
@@ -573,59 +596,6 @@ export function MiniWheel({
 }
 
 /**
- * Renders short task labels stacked vertically inside a wedge so the user
- * can read what's actually scheduled in each block without expanding it.
- * Falls back to the count badge upstream when there are no tasks for the
- * slot (the parent renders that path conditionally).
- */
-function WedgeTaskChips({ slotId, tasksBySlotId, cx, startY, maxChips = 3 }) {
-  if (!tasksBySlotId || typeof tasksBySlotId.get !== 'function') return null;
-  const entries = tasksBySlotId.get(slotId) || [];
-  if (entries.length === 0) return null;
-  const visible = entries.slice(0, maxChips);
-  const overflow = entries.length - visible.length;
-  return (
-    <g style={{ pointerEvents: 'none' }}>
-      {visible.map((entry, i) => {
-        const t = entry.task || entry;
-        const text = (t.text || t.title || 'task').slice(0, 18);
-        const done = t.status === 'completed';
-        return (
-          <text
-            key={t.id || t.key || i}
-            x={cx}
-            y={startY + i * 13}
-            fontFamily="JetBrains Mono"
-            fontSize={10.5}
-            fill={done ? 'var(--ink-mute)' : 'var(--ink-soft)'}
-            textAnchor="middle"
-            style={{
-              textDecoration: done ? 'line-through' : 'none',
-              pointerEvents: 'none',
-            }}
-          >
-            {text}
-          </text>
-        );
-      })}
-      {overflow > 0 && (
-        <text
-          x={cx}
-          y={startY + visible.length * 13}
-          fontFamily="JetBrains Mono"
-          fontSize={10}
-          fill="var(--orange)"
-          textAnchor="middle"
-          style={{ pointerEvents: 'none' }}
-        >
-          +{overflow} more
-        </text>
-      )}
-    </g>
-  );
-}
-
-/**
  * Inline panel shown below the wheel when one or more wedges are expanded.
  * Replaces the old long vertical slot-list — the wheel itself is now the
  * primary slot view, and this is where you go deep on a specific block.
@@ -746,12 +716,6 @@ function ExpandedWedgePanel({
 // Helpers
 // -------------------------------------------------------------------------
 
-function ymd(d) {
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  return `${d.getFullYear()}-${m < 10 ? '0' + m : m}-${day < 10 ? '0' + day : day}`;
-}
-
 // Shape-compatible with deriveWheelWedges but without task counts or the
 // `current` flag — used when the wheel is showing a day other than today
 // so the SVG reflects that day's blocks rather than today's.
@@ -808,56 +772,6 @@ function fmtTimeRange(iso, dur) {
   const d = new Date(iso);
   const end = new Date(d.getTime() + dur * 60 * 1000);
   return `${fmtClock(d)}–${fmtClock(end)}`;
-}
-
-function fmtClock(d) {
-  const h = d.getHours();
-  const hr = ((h % 12) || 12);
-  const ampm = h < 12 ? 'a' : 'p';
-  const m = d.getMinutes();
-  return m ? `${hr}:${m < 10 ? '0' + m : m}${ampm}` : `${hr}${ampm}`;
-}
-
-function fmtHr(h) {
-  const base = Math.floor(h) % 24;
-  const mins = Math.round((h - Math.floor(h)) * 60);
-  const hr = ((base % 12) || 12);
-  const ampm = base < 12 ? 'a' : 'p';
-  return mins ? `${hr}:${mins < 10 ? '0' + mins : mins}${ampm}` : `${hr}${ampm}`;
-}
-
-function computeStats(nowTask, upcoming, pushed) {
-  const total = (upcoming?.length || 0) + (pushed?.length || 0) + (nowTask ? 1 : 0);
-  const done = 0;
-  return { total, done, pushed: pushed?.length || 0 };
-}
-
-function hhmmToMin(s) {
-  if (!s) return 0;
-  const [h, m] = s.split(':').map(Number);
-  return (h || 0) * 60 + (m || 0);
-}
-
-function minToHHMM(min) {
-  const m = ((Math.round(min) % DAY_MIN) + DAY_MIN) % DAY_MIN;
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  return `${pad(h)}:${pad(mm)}`;
-}
-
-function pad(n) { return n < 10 ? `0${n}` : `${n}`; }
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-function snapMin(min) { return Math.round(min / SNAP_MIN) * SNAP_MIN; }
-
-function isOvernightSlot(slot) {
-  return hhmmToMin(slot.endTime) <= hhmmToMin(slot.startTime);
-}
-
-function slotSpan(slot) {
-  const sMin = hhmmToMin(slot.startTime);
-  const eRaw = hhmmToMin(slot.endTime);
-  const eMin = eRaw <= sMin ? eRaw + DAY_MIN : eRaw;
-  return { sMin, eMin };
 }
 
 /**
@@ -918,13 +832,6 @@ function overflowsSlot(entry, slot) {
   return over > 0 ? over : 0;
 }
 
-function fmtMinutes(mins) {
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
-
 function findFirstFreeGap(slots, lengthMin) {
   // Produces the first gap of at least lengthMin after 00:00. Ignores overnight slots' second half.
   const occupied = slots
@@ -943,726 +850,4 @@ function findFirstFreeGap(slots, lengthMin) {
     return { startMin: cursor, endMin: cursor + lengthMin };
   }
   return null;
-}
-
-// -------------------------------------------------------------------------
-// Interactive wheel SVG
-// -------------------------------------------------------------------------
-
-function WheelSvg({
-  wedges,
-  slots,
-  taskTypes,
-  nowHour,
-  stats,
-  tasksBySlotId,
-  onWedgeCommit,
-  onWedgeClick,
-  onEmptyHourClick,
-  onNudgeEdge,
-  editingSlotId,
-  selectedSlotId,
-  onTaskMoveTo,
-  center,
-}) {
-  const cx = 320, cy = 320, rOuter = 295, rInner = 110;
-  const labelR = (rOuter + rInner) / 2;
-  const svgRef = useRef(null);
-
-  const [drag, setDrag] = useState(null);
-  const dragRef = useRef(null);
-  useEffect(() => { dragRef.current = drag; }, [drag]);
-
-  const [hoverHandle, setHoverHandle] = useState(null); // {slotId, which}
-  // Wedge currently being hovered with a task-drag — used to highlight
-  // the drop target while the user is dragging a task between slots.
-  const [dropHoverSlotId, setDropHoverSlotId] = useState(null);
-
-  const wedgeById = (id) => wedges.find(w => w.id === id);
-
-  const ang = (h) => (h / 24) * 360 - 90;
-  const polar = (h, r) => {
-    const a = ang(h) * Math.PI / 180;
-    return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
-  };
-
-  const wedgePath = (startH, endH) => {
-    // arc from startH to endH; clip into [0,24]; caller handles splitting overnight
-    const sH = Math.max(0, startH);
-    const eH = Math.min(24, endH);
-    if (eH <= sH) return '';
-    const [x0, y0] = polar(sH, rOuter);
-    const [x1, y1] = polar(eH, rOuter);
-    const [x2, y2] = polar(eH, rInner);
-    const [x3, y3] = polar(sH, rInner);
-    const large = (eH - sH) > 12 ? 1 : 0;
-    return `M${x0} ${y0} A${rOuter} ${rOuter} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${rInner} ${rInner} 0 ${large} 0 ${x3} ${y3} Z`;
-  };
-
-  /**
-   * Donut-band path between two radii — used for task occupancy fills
-   * inside a wedge. `bandInner` and `bandOuter` are absolute radii in
-   * the same units as rInner/rOuter.
-   */
-  const bandPath = (startH, endH, bandInner, bandOuter) => {
-    const sH = Math.max(0, startH);
-    const eH = Math.min(24, endH);
-    if (eH <= sH) return '';
-    const [x0, y0] = polar(sH, bandOuter);
-    const [x1, y1] = polar(eH, bandOuter);
-    const [x2, y2] = polar(eH, bandInner);
-    const [x3, y3] = polar(sH, bandInner);
-    const large = (eH - sH) > 12 ? 1 : 0;
-    return `M${x0} ${y0} A${bandOuter} ${bandOuter} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${bandInner} ${bandInner} 0 ${large} 0 ${x3} ${y3} Z`;
-  };
-
-  /**
-   * Same overnight-aware splitting as renderWedgeShape but returns a
-   * single path string for a band. Tasks rarely cross midnight inside a
-   * single slot, so we can flatten back to one path.
-   */
-  const wedgePathBand = (startH, endH, bandInner, bandOuter) => {
-    let s = startH, e = endH;
-    const shift = Math.floor(s / 24);
-    s -= shift * 24;
-    e -= shift * 24;
-    const segs = [[s, Math.min(24, e)]];
-    if (e > 24) segs.push([0, e - 24]);
-    if (e < 0) segs.push([e + 24, 24]);
-    return segs
-      .map(([a, b]) => bandPath(a, b, bandInner, bandOuter))
-      .filter(Boolean)
-      .join(' ');
-  };
-
-  const hourTicks = [];
-  for (let h = 0; h < 24; h++) {
-    const isMajor = h % 6 === 0;
-    const isMid = h % 3 === 0;
-    const [x1, y1] = polar(h, rOuter);
-    const [x2, y2] = polar(h, rOuter + (isMajor ? 10 : isMid ? 8 : 6));
-    hourTicks.push(
-      <line
-        key={h}
-        x1={x1}
-        y1={y1}
-        x2={x2}
-        y2={y2}
-        stroke="var(--ink)"
-        strokeWidth={isMajor ? 1.6 : isMid ? 1.2 : 1}
-        strokeLinecap="round"
-        opacity={isMajor ? 1 : isMid ? 0.85 : 0.7}
-      />,
-    );
-  }
-
-  const fillFor = (slot, wedge) => {
-    const typeColor = slot.color || resolveTypeColor(taskTypes, slot.slotType);
-    const isSelected = selectedSlotId && slot.id === selectedSlotId;
-    if (typeColor) return `color-mix(in oklab, ${typeColor} var(${isSelected ? '--wedge-mix-selected' : '--wedge-mix'}), var(--paper))`;
-    if (wedge?.current) return 'var(--orange-pale)';
-    if (wedge?.kind === 'hot') return 'var(--orange-pale)';
-    if (wedge?.kind === 'light') return 'var(--sage-pale)';
-    if (wedge?.kind === 'rest') return 'var(--wedge-rest)';
-    if (wedge?.kind === 'soft') return 'var(--wedge-soft)';
-    return 'var(--paper)';
-  };
-
-  const strokeFor = (slot, wedge, isCurrent, isEditing) => {
-    if (isEditing) return 'var(--orange)';
-    const isSelected = selectedSlotId && slot.id === selectedSlotId;
-    if (isSelected) return 'var(--ink)';
-    const typeColor = slot.color || resolveTypeColor(taskTypes, slot.slotType);
-    if (typeColor && !isCurrent) return `color-mix(in oklab, ${typeColor} var(--wedge-edge-mix), var(--ink))`;
-    return isCurrent ? 'var(--ink)' : 'var(--rule)';
-  };
-
-  const pointerToHour = (ev) => {
-    const svg = svgRef.current;
-    if (!svg) return null;
-    const rect = svg.getBoundingClientRect();
-    const scale = rect.width / 440;
-    const sx = rect.left + (cx / 440) * rect.width;
-    const sy = rect.top + (cy / 440) * rect.height;
-    const dx = ev.clientX - sx;
-    const dy = ev.clientY - sy;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const rInnerPx = rInner * scale;
-    const rOuterPx = rOuter * scale;
-    const angleFromTop = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
-    const normalized = ((angleFromTop % 360) + 360) % 360;
-    const hour = (normalized / 360) * 24;
-    return { hour, dist, rInnerPx, rOuterPx };
-  };
-
-  // Snap a raw pointer "min" value to the interpretation closest to `near`.
-  // Allows handles to wrap across midnight without jumping half a day.
-  const nearestMin = (rawMin, near) => {
-    const candidates = [rawMin, rawMin + DAY_MIN, rawMin - DAY_MIN, rawMin + 2 * DAY_MIN];
-    let best = rawMin, bestDist = Infinity;
-    for (const c of candidates) {
-      const d = Math.abs(c - near);
-      if (d < bestDist) { bestDist = d; best = c; }
-    }
-    return best;
-  };
-
-  const commitDrag = useCallback(async (d) => {
-    if (!d) return;
-    await onWedgeCommit(d.id, {
-      startMin: ((d.startMin % DAY_MIN) + DAY_MIN) % DAY_MIN,
-      endMinUnwrapped: d.endMin,
-    });
-  }, [onWedgeCommit]);
-
-  useEffect(() => {
-    if (!drag) return undefined;
-
-    const move = (ev) => {
-      const info = pointerToHour(ev);
-      if (!info) return;
-      const rawMin = snapMin(Math.round(info.hour * 60));
-      setDrag(prev => {
-        if (!prev) return prev;
-        if (prev.mode === 'start') {
-          const snapped = nearestMin(rawMin, prev.origStartMin);
-          const maxStart = prev.endMin - MIN_LEN_MIN;
-          const minStart = prev.endMin - DAY_MIN + MIN_LEN_MIN;
-          const s = clamp(snapped, minStart, maxStart);
-          return { ...prev, startMin: s };
-        }
-        if (prev.mode === 'end') {
-          const snapped = nearestMin(rawMin, prev.origEndMin);
-          const minEnd = prev.startMin + MIN_LEN_MIN;
-          const maxEnd = prev.startMin + DAY_MIN;
-          const e = clamp(snapped, minEnd, maxEnd);
-          return { ...prev, endMin: e };
-        }
-        // move: shift by delta; wrap origin too so wedge can cross midnight
-        const snapped = nearestMin(rawMin, prev.originMin);
-        const delta = snapped - prev.originMin;
-        const length = prev.origEndMin - prev.origStartMin;
-        const s = prev.origStartMin + delta;
-        const e = s + length;
-        return { ...prev, startMin: s, endMin: e };
-      });
-    };
-
-    const up = () => {
-      const current = dragRef.current;
-      setDrag(null);
-      if (current) commitDrag(current);
-    };
-
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
-    };
-  }, [drag?.id, drag?.mode]);
-
-  const onWedgePointerDown = (ev, slot) => {
-    if (ev.button !== 0) return;
-    ev.stopPropagation();
-    ev.preventDefault();
-    try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch (_) { /* capture unsupported */ }
-    const info = pointerToHour(ev);
-    if (!info) return;
-    const { sMin, eMin } = slotSpan(slot);
-    const origin = snapMin(Math.round(info.hour * 60));
-    // If origin is outside the current span, shift to nearest representation
-    const originInSpan = nearestMin(origin, (sMin + eMin) / 2);
-    setDrag({
-      id: slot.id,
-      mode: 'move',
-      originMin: originInSpan,
-      startMin: sMin,
-      endMin: eMin,
-      origStartMin: sMin,
-      origEndMin: eMin,
-    });
-  };
-
-  const onHandlePointerDown = (ev, slot, which) => {
-    ev.stopPropagation();
-    ev.preventDefault();
-    try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch (_) { /* capture unsupported */ }
-    const info = pointerToHour(ev);
-    if (!info) return;
-    const { sMin, eMin } = slotSpan(slot);
-    const raw = snapMin(Math.round(info.hour * 60));
-    const near = which === 'start' ? sMin : eMin;
-    const origin = nearestMin(raw, near);
-    setDrag({
-      id: slot.id,
-      mode: which,
-      originMin: origin,
-      startMin: sMin,
-      endMin: eMin,
-      origStartMin: sMin,
-      origEndMin: eMin,
-    });
-  };
-
-  const onRingPointerDown = (ev) => {
-    const info = pointerToHour(ev);
-    if (!info) return;
-    if (info.dist < info.rInnerPx || info.dist > info.rOuterPx) return;
-    onEmptyHourClick(info.hour);
-  };
-
-  // Compute render geometry (use live drag values when active)
-  const renderGeom = slots.map(slot => {
-    const isDraggingThis = drag && drag.id === slot.id;
-    const { sMin: baseS, eMin: baseE } = slotSpan(slot);
-    const startMin = isDraggingThis ? drag.startMin : baseS;
-    const endMin = isDraggingThis ? drag.endMin : baseE;
-    const startH = startMin / 60;
-    const endH = endMin / 60;
-    const wedge = wedgeById(slot.id);
-    const isCurrent = wedge?.current && !isDraggingThis;
-    const isEditing = editingSlotId === slot.id;
-    return { slot, wedge, startMin, endMin, startH, endH, isCurrent, isEditing, isDragging: isDraggingThis };
-  });
-
-  const [nxEnd, nyEnd] = polar(nowHour, rOuter - 4);
-
-  // Render wedge paths allowing overnight split (start<0 or end>24)
-  const renderWedgeShape = (startH, endH, fill, stroke, strokeW, slotId, onDown, onClick) => {
-    // Normalize so startH falls in [0, 24). Compute up to two visible segments.
-    const raw = [];
-    let s = startH, e = endH;
-    // Shift into a frame where start is in [0, 24)
-    const shift = Math.floor(s / 24);
-    s -= shift * 24;
-    e -= shift * 24;
-    // Now s in [0,24). Segment 1: [s, min(24, e)].
-    raw.push([s, Math.min(24, e)]);
-    if (e > 24) raw.push([0, e - 24]);
-    if (e < 0) raw.push([e + 24, 24]);
-
-    return raw.map((seg, i) => {
-      const path = wedgePath(seg[0], seg[1]);
-      if (!path) return null;
-      const isHovered = dropHoverSlotId === slotId;
-      return (
-        <path
-          key={`${slotId}-seg${i}`}
-          d={path}
-          fill={fill}
-          stroke={isHovered ? 'var(--orange)' : stroke}
-          strokeWidth={isHovered ? 3 : strokeW}
-          onPointerDown={onDown}
-          onClick={onClick}
-          onDragOver={(ev) => {
-            // Accept task-row drops. The dataTransfer is read on drop;
-            // here we only need to indicate the wedge is willing.
-            if (!ev.dataTransfer.types.includes('text/task-id')) return;
-            ev.preventDefault();
-            ev.dataTransfer.dropEffect = 'move';
-            if (dropHoverSlotId !== slotId) setDropHoverSlotId(slotId);
-          }}
-          onDragLeave={() => {
-            if (dropHoverSlotId === slotId) setDropHoverSlotId(null);
-          }}
-          onDrop={(ev) => {
-            const taskId = ev.dataTransfer.getData('text/task-id');
-            setDropHoverSlotId(null);
-            if (taskId && onTaskMoveTo) {
-              ev.preventDefault();
-              onTaskMoveTo(taskId, slotId);
-            }
-          }}
-          style={{ cursor: drag ? 'grabbing' : 'grab' }}
-        />
-      );
-    });
-  };
-
-  return (
-    <svg
-      ref={svgRef}
-      width="100%"
-      height="680"
-      viewBox="-20 -20 680 680"
-      style={{ maxWidth: 720, touchAction: 'none', userSelect: 'none' }}
-    >
-      <circle
-        cx={cx}
-        cy={cy}
-        r={rOuter}
-        fill="var(--paper)"
-        stroke="none"
-        onPointerDown={onRingPointerDown}
-        style={{ cursor: 'crosshair' }}
-      />
-      <circle
-        cx={cx}
-        cy={cy}
-        r={rInner}
-        fill="var(--paper)"
-        stroke="none"
-      />
-
-      {renderGeom.map(({ slot, wedge, startH, endH, startMin, endMin, isCurrent, isEditing, isDragging }) => {
-        const label = slot.label || slot.slotType || 'block';
-        const stroke = strokeFor(slot, wedge, isCurrent, isEditing);
-        const isSelected = selectedSlotId && slot.id === selectedSlotId;
-        const strokeW = isEditing || isDragging ? 3 : isSelected ? 3.2 : isCurrent ? 2.6 : 1.6;
-        const fill = fillFor(slot, wedge);
-        const midH = (startH + endH) / 2;
-        const [lx, ly] = polar(((midH % 24) + 24) % 24, labelR);
-
-        // Handles: always place on [0, 24) frame
-        const sNorm = ((startMin % DAY_MIN) + DAY_MIN) % DAY_MIN / 60;
-        const eNorm = ((endMin % DAY_MIN) + DAY_MIN) % DAY_MIN / 60;
-        const [sxH, syH] = polar(sNorm, (rOuter + rInner) / 2);
-        const [exH, eyH] = polar(eNorm === 0 && endMin !== 0 ? 24 : eNorm, (rOuter + rInner) / 2);
-        const isOvernight = endMin > DAY_MIN;
-
-        // Task occupancy fills: one filled inner band per scheduled task,
-        // sized to its duration and positioned at its scheduled time. Lets
-        // the user see how packed a block is at a glance.
-        const slotTasks = tasksBySlotId?.get?.(slot.id) || [];
-        const slotStartMin = (() => {
-          const [h, m] = (slot.startTime || '00:00').split(':').map(Number);
-          return (h || 0) * 60 + (m || 0);
-        })();
-        const slotEndMinRaw = (() => {
-          const [h, m] = (slot.endTime || '00:00').split(':').map(Number);
-          return (h || 0) * 60 + (m || 0);
-        })();
-        const slotEndMin = slotEndMinRaw <= slotStartMin ? slotEndMinRaw + DAY_MIN : slotEndMinRaw;
-        const slotDoneMin = slotTasks
-          .filter(e => e.task?.status === 'completed')
-          .reduce((acc, e) => acc + ((e.task?.duration) || 30), 0);
-        const slotPlannedMin = slotTasks
-          .reduce((acc, e) => acc + ((e.task?.duration) || 30), 0);
-        const slotSpan = slotEndMin - slotStartMin;
-        const taskBands = slotTasks.map((entry, idx) => {
-          const ts = new Date(entry.start);
-          const startMin = ts.getHours() * 60 + ts.getMinutes();
-          // Normalize into the wedge's frame so overnight slots line up.
-          const norm = startMin < slotStartMin ? startMin + DAY_MIN : startMin;
-          const taskStartH = norm / 60;
-          const dur = entry.task?.duration || 30;
-          const taskEndH = (norm + dur) / 60;
-          const isDone = entry.task?.status === 'completed';
-          // Color: full slot color when planned, half-mute when done so
-          // completed work reads as "checked off" without losing its place.
-          return {
-            key: entry.task?.id || `t${idx}`,
-            startH: taskStartH,
-            endH: Math.min(slotEndMin / 60, taskEndH),
-            color: slot.color || 'var(--ink)',
-            isDone,
-          };
-        });
-
-        // Inner band sits just inside the wedge perimeter at rInner,
-        // claiming the inner ~14px ring as a "tasks gauge".
-        const taskBandInner = rInner + 2;
-        const taskBandOuter = rInner + 16;
-
-        return (
-          <g key={slot.id}>
-            {renderWedgeShape(
-              startH,
-              endH,
-              fill,
-              stroke,
-              strokeW,
-              slot.id,
-              (ev) => onWedgePointerDown(ev, slot),
-              (ev) => { ev.stopPropagation(); if (!isDragging) onWedgeClick(slot.id); }
-            )}
-
-            {/* Faint full-band background so the gauge ring reads even
-                when the wedge is empty. */}
-            {slotTasks.length > 0 && (
-              <path
-                d={wedgePathBand(startH, endH, taskBandInner, taskBandOuter)}
-                fill="rgba(0,0,0,0.06)"
-                stroke="none"
-                style={{ pointerEvents: 'none' }}
-              />
-            )}
-
-            {/* Per-task filled segments — one band per task. */}
-            {taskBands.map(band => {
-              const d = wedgePathBand(band.startH, band.endH, taskBandInner, taskBandOuter);
-              if (!d) return null;
-              return (
-                <path
-                  key={`fill-${band.key}`}
-                  d={d}
-                  fill={band.color}
-                  fillOpacity={band.isDone ? 0.55 : 0.95}
-                  stroke="var(--ink)"
-                  strokeOpacity={band.isDone ? 0.25 : 0.5}
-                  strokeWidth={0.6}
-                  style={{ pointerEvents: 'none' }}
-                />
-              );
-            })}
-
-            {/* Compact "Xm / Ym" gauge readout at slot midpoint, below the
-                label. Only shown when there's actually scheduled time. */}
-            {slotPlannedMin > 0 && (endH - startH) >= 1.2 && (() => {
-              const midH = (startH + endH) / 2;
-              const [gx, gy] = polar(((midH % 24) + 24) % 24, rInner + 26);
-              return (
-                <text
-                  x={gx}
-                  y={gy}
-                  fontFamily="JetBrains Mono"
-                  fontSize="10"
-                  fill="var(--ink-mute)"
-                  textAnchor="middle"
-                  style={{ pointerEvents: 'none' }}
-                >
-                  {fmtMinutes(slotDoneMin)} / {fmtMinutes(slotPlannedMin)}
-                  {slotPlannedMin > slotSpan ? ' ⚠' : ''}
-                </text>
-              );
-            })()}
-            <text
-              x={lx}
-              y={ly - 2}
-              fontFamily="Inter"
-              fontSize={isCurrent || isEditing ? 22 : 18}
-              fill="var(--ink)"
-              textAnchor="middle"
-              fontStyle={isCurrent || isEditing ? 'italic' : 'normal'}
-              fontWeight={isCurrent || isEditing ? 600 : 500}
-              paintOrder="stroke"
-              stroke={fill}
-              strokeWidth={4}
-              strokeLinejoin="round"
-              style={{ pointerEvents: 'none' }}
-            >
-              {label}{isOvernight ? ' ↷' : ''}
-            </text>
-            <WedgeTaskChips
-              slotId={slot.id}
-              tasksBySlotId={tasksBySlotId}
-              fallbackCount={wedge?.count}
-              cx={lx}
-              startY={ly + 14}
-              maxChips={(endH - startH) >= 1.5 ? 3 : (endH - startH) >= 0.75 ? 2 : 1}
-            />
-            {!tasksBySlotId?.get?.(slot.id)?.length && wedge?.count ? (
-              <text
-                x={lx}
-                y={ly + 14}
-                fontFamily="JetBrains Mono"
-                fontSize="10"
-                fill="var(--ink-mute)"
-                textAnchor="middle"
-                style={{ pointerEvents: 'none' }}
-              >
-                {wedge.count} task{wedge.count > 1 ? 's' : ''}
-              </text>
-            ) : null}
-
-            {/* Resize handles (with ±15m nudges) only on the block the
-                user picked — twelve pairs of white dots were noise. */}
-            {(isSelected || isEditing || isDragging) && (
-              <>
-                <HandleWithNudge
-                  cx={sxH}
-                  cy={syH}
-                  slotId={slot.id}
-                  which="start"
-                  hover={hoverHandle}
-                  setHover={setHoverHandle}
-                  onDown={(ev) => onHandlePointerDown(ev, slot, 'start')}
-                  onNudge={onNudgeEdge}
-                />
-                <HandleWithNudge
-                  cx={exH}
-                  cy={eyH}
-                  slotId={slot.id}
-                  which="end"
-                  hover={hoverHandle}
-                  setHover={setHoverHandle}
-                  onDown={(ev) => onHandlePointerDown(ev, slot, 'end')}
-                  onNudge={onNudgeEdge}
-                />
-              </>
-            )}
-          </g>
-        );
-      })}
-
-      <circle cx={cx} cy={cy} r={rOuter} fill="none" stroke="var(--ink)" strokeWidth="2" pointerEvents="none" />
-      <circle cx={cx} cy={cy} r={rInner} fill="none" stroke="var(--ink)" strokeWidth="2" pointerEvents="none" />
-      {hourTicks}
-
-      {(() => {
-        const labelR = rOuter + 22;
-        const fmt = (h) => {
-          const hr = (h % 12) || 12;
-          const ampm = h < 12 ? 'a' : 'p';
-          return `${hr}${ampm}`;
-        };
-        return (
-          <g pointerEvents="none">
-            {[0, 3, 6, 9, 12, 15, 18, 21].map((h) => {
-              const a = (h / 24) * 2 * Math.PI - Math.PI / 2;
-              const x = cx + Math.cos(a) * labelR;
-              const y = cy + Math.sin(a) * labelR;
-              const isMajor = h % 6 === 0;
-              return (
-                <text
-                  key={h}
-                  x={x}
-                  y={y}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontFamily="JetBrains Mono, monospace"
-                  fontSize={isMajor ? 13 : 11}
-                  fontWeight={isMajor ? 500 : 400}
-                  fill={isMajor ? 'var(--ink-soft)' : 'var(--ink-mute)'}
-                  letterSpacing={0.5}
-                  opacity={isMajor ? 1 : 0.8}
-                >
-                  {fmt(h)}
-                </text>
-              );
-            })}
-          </g>
-        );
-      })()}
-
-      <line x1={cx} y1={cy} x2={nxEnd} y2={nyEnd} stroke="var(--orange)" strokeWidth="2" opacity="0.5" pointerEvents="none" />
-      <circle cx={nxEnd} cy={nyEnd} r="5" fill="var(--orange)" pointerEvents="none" />
-
-      {/* The hub is the Do surface: what block you're in, how long it has
-          left, the task that's up, and what comes next. */}
-      {center && !drag && (
-        <g pointerEvents="none">
-          {center.color && (
-            <circle cx={cx} cy={cy} r={rInner - 6} fill="none" stroke={center.color} strokeWidth="2" opacity="0.6" />
-          )}
-          {center.kicker && (
-            <text x={cx} y={cy - 30} fontFamily="JetBrains Mono" fontSize="9.5" letterSpacing="1.5" fill="var(--ink-mute)" textAnchor="middle">
-              {center.kicker.toUpperCase()}
-            </text>
-          )}
-          <text x={cx} y={cy - 6} fontFamily="Inter" fontSize={center.title.length > 12 ? 17 : 21} fontWeight="600" fill="var(--ink)" textAnchor="middle">
-            {center.title.slice(0, 18)}
-          </text>
-          {center.sub && (
-            <text x={cx} y={cy + 12} fontFamily="JetBrains Mono" fontSize="10.5" fill="var(--ink-mute)" textAnchor="middle">
-              {center.sub}
-            </text>
-          )}
-          {center.task && (
-            <text x={cx} y={cy + 32} fontFamily="Inter" fontSize="12" fill="var(--ink-soft)" textAnchor="middle">
-              ▸ {center.task.slice(0, 24)}{center.task.length > 24 ? '…' : ''}
-            </text>
-          )}
-          {center.next && (
-            <text x={cx} y={cy + (center.task ? 50 : 32)} fontFamily="JetBrains Mono" fontSize="9.5" fill="var(--ink-mute)" textAnchor="middle">
-              {center.next}
-            </text>
-          )}
-        </g>
-      )}
-
-
-      {drag && (() => {
-        const s = ((drag.startMin % DAY_MIN) + DAY_MIN) % DAY_MIN;
-        const e = ((drag.endMin % DAY_MIN) + DAY_MIN) % DAY_MIN;
-        const crosses = drag.endMin > DAY_MIN;
-        return (
-          <g pointerEvents="none">
-            <rect x={cx - 72} y={cy + 38} width={144} height={20} rx={6} fill="var(--paper)" stroke="var(--orange)" strokeWidth="1" />
-            <text x={cx} y={cy + 52} fontFamily="JetBrains Mono" fontSize="11" fill="var(--orange)" textAnchor="middle">
-              {minToHHMM(s)}–{minToHHMM(e)}{crosses ? ' +1d' : ''}
-            </text>
-          </g>
-        );
-      })()}
-    </svg>
-  );
-}
-
-function HandleWithNudge({ cx, cy, slotId, which, hover, setHover, onDown, onNudge }) {
-  const isHover = hover && hover.slotId === slotId && hover.which === which;
-  const HIT_R = 36; // generous hover radius that encloses both chips
-  const enter = () => setHover({ slotId, which });
-  const leave = () => setHover(null);
-  return (
-    <g onPointerEnter={enter} onPointerLeave={leave}>
-      {/* Outer hit-area — invisible, large enough to cover the chips so the
-          hover doesn't drop when the user moves to click one. */}
-      <circle
-        cx={cx}
-        cy={cy - (isHover ? 10 : 0)}
-        r={HIT_R}
-        fill="transparent"
-        onPointerEnter={enter}
-        style={{ cursor: 'ew-resize' }}
-      />
-      <circle
-        cx={cx}
-        cy={cy}
-        r={isHover ? 8 : 6}
-        fill={isHover ? 'var(--orange-pale)' : 'var(--paper)'}
-        stroke="var(--ink)"
-        strokeWidth="1.4"
-        style={{ cursor: 'ew-resize' }}
-        onPointerDown={onDown}
-        onPointerEnter={enter}
-      />
-      {isHover && (
-        <g onPointerEnter={enter}>
-          <NudgeChip
-            cx={cx - 20}
-            cy={cy - 20}
-            label="−15"
-            onClick={(ev) => { ev.stopPropagation(); onNudge(slotId, which, -15); }}
-          />
-          <NudgeChip
-            cx={cx + 20}
-            cy={cy - 20}
-            label="+15"
-            onClick={(ev) => { ev.stopPropagation(); onNudge(slotId, which, +15); }}
-          />
-        </g>
-      )}
-    </g>
-  );
-}
-
-function NudgeChip({ cx, cy, label, onClick }) {
-  return (
-    <g style={{ cursor: 'pointer' }} onClick={onClick} onPointerDown={(ev) => ev.stopPropagation()}>
-      <rect
-        x={cx - 14}
-        y={cy - 9}
-        width={28}
-        height={18}
-        rx={9}
-        fill="var(--paper)"
-        stroke="var(--orange)"
-        strokeWidth="1.2"
-      />
-      <text
-        x={cx}
-        y={cy + 4}
-        fontFamily="JetBrains Mono"
-        fontSize="10"
-        fill="var(--orange)"
-        textAnchor="middle"
-      >
-        {label}
-      </text>
-    </g>
-  );
 }
