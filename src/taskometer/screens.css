@@ -1,6 +1,17 @@
 /* Week / month / quarter / year / life screens */
 
-.tm-screen { display: flex; flex-direction: column; gap: var(--space-4); }
+.tm-screen { display: flex; flex-direction: column; gap: var(--space-4); animation: tm-fadeUp .35s ease both; }
+
+/* Arriving at the week: the seven days settle in one after another, each
+   carrying its schedule, so the zoom reads as the wheel becoming wheels. */
+@keyframes tm-settle {
+  from { opacity: 0; transform: translateY(10px) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+.tm-week-day { animation: tm-settle .4s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+@media (prefers-reduced-motion: reduce) {
+  .tm-screen, .tm-week-day { animation: none; }
+}
 
 /* Week strip */
 .tm-week-strip {

@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { resolveTypeColor } from './Composers.jsx';
-import { MiniWheel } from './WheelView.jsx';
 import { useMultiSelect } from '../hooks/useMultiSelect.js';
 import SelectionBar from '../components/SelectionBar.jsx';
 
@@ -888,7 +887,6 @@ function MonthCalendar({
 
   const todayKey = ymd(new Date());
   const cellPad = compact ? 4 : 8;
-  const dayFontSize = compact ? 11 : 13;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

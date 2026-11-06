@@ -1,4 +1,3 @@
-import React from 'react';
 
 /** Shared across calendar zooms: drag paints a schedule, or blanks the range. */
 export default function PaintMaterialToolbar({ material, setMaterial }) {

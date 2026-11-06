@@ -42,6 +42,8 @@ module.exports = {
 	rules: {
 		"no-unused-vars": ["error", { args: "none" }],
 		"react/prop-types": "off",
+		// Apostrophes in copy are fine; the escaping this asks for only hurts readability.
+		"react/no-unescaped-entities": "off",
 		...storageRules("error"),
 	},
 	overrides: [

@@ -128,6 +128,7 @@ export default function WeekCanvas({
               role="listitem"
               tabIndex={0}
               className={cls}
+              style={{ '--i': i }}
               onClick={() => { if (!lassoActive) onPickDate?.(d); }}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPickDate?.(d); } }}
               onMouseDown={(e) => {

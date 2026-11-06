@@ -1,4 +1,3 @@
-import React from 'react';
 
 /**
  * Sticky pill that floats at the bottom of the viewport while a multi-

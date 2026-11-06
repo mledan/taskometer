@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { STARTER_SCHEDULES } from '../services/api/TaskometerAPI';
 import { buildScheduleShareURL } from '../services/scheduleShare';
 import { useTheme, THEMES } from '../context/ThemeContext.jsx';
@@ -38,7 +38,7 @@ export default function SettingsPanel({
     if (scheduleTypes.length === 0) return;
     const link = buildScheduleShareURL(scheduleTypes);
     if (!link) return;
-    try { await navigator.clipboard.writeText(link); } catch (_) {}
+    try { await navigator.clipboard.writeText(link); } catch (_) { /* ignore */ }
     setShareCopied(true);
     setTimeout(() => setShareCopied(false), 2500);
   };

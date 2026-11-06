@@ -315,8 +315,7 @@ export const ENHANCED_FAMOUS_SCHEDULES = [
 ];
 
 // Template application functions
-export function applyTemplateToDateRange(template, startDate, endDate, options = {}) {
-  const { overrideExisting = false, mergeWithExisting = true } = options;
+export function applyTemplateToDateRange(template, startDate, endDate) {
   const scheduledBlocks = [];
   
   const currentDate = new Date(startDate);

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { listRhythms, listExceptions, dateIsExcepted } from '../services/rhythms.js';
 import { pendingRhythmSlotsForDate } from '../services/rhythmsToSlots.js';
 import { log as telemetryLog } from '../services/telemetry.js';

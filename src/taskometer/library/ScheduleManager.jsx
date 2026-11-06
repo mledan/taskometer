@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { STARTER_WHEELS } from '../../services/api/TaskometerAPI';
 import { resolveTypeColor } from '../Composers.jsx';
 import { MiniWheel } from '../WheelView.jsx';

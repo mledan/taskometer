@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MiniWheel } from './WheelView.jsx';
 import { useAppState } from '../context/AppContext.jsx';
 

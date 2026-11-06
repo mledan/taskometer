@@ -39,3 +39,13 @@
 }
 .tm-helix-days { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: var(--space-2); }
 .tm-helix-days .tm-mono { min-width: 52px; text-align: center; }
+
+/* Column pose: the same SVG once the helix has dropped into a list */
+.tm-helix .tm-helix-row-label { font-size: 15px; font-weight: 600; }
+.tm-helix .tm-helix-row-time { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .02em; }
+.tm-helix-column .tm-helix-hour { font-size: 10px; }
+.tm-helix-column .tm-helix-hour-major { font-size: 11px; }
+.tm-helix-column .tm-helix-chip { font-size: 11px; }
+.tm-helix-column .tm-helix-turn-label { font-size: 12px; }
+.tm-helix-column .tm-helix-day-label { font-size: 10px; }
+.tm-helix-column .tm-helix-label-live { font-style: normal; font-size: 15px; }

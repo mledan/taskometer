@@ -185,9 +185,10 @@ export function getAuditDescription(entry) {
   switch (entry.action) {
     case AUDIT_ACTIONS.CREATE:
       return `Created ${entry.entityType} "${entityName}"`;
-    case AUDIT_ACTIONS.UPDATE:
+    case AUDIT_ACTIONS.UPDATE: {
       const fields = entry.changedFields.join(', ');
       return `Updated ${entry.entityType} "${entityName}" (${fields || 'properties'})`;
+    }
     case AUDIT_ACTIONS.DELETE:
       return `Deleted ${entry.entityType} "${entityName}"`;
     case AUDIT_ACTIONS.TASK_COMPLETE:

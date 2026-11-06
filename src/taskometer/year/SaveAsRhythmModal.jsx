@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { addRhythm, listRhythms, findRhythmConflicts } from '../../services/rhythms.js';
 
 /**

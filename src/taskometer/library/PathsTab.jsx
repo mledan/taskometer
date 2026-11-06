@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { MiniWheel } from '../WheelView.jsx';
 import { PATHS } from '../../defaults/paths';
 import { TASK_PACKS } from '../../defaults/taskPacks';

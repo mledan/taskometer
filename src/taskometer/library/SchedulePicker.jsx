@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MiniWheel } from '../WheelView.jsx';
 import { FAMOUS_WHEELS } from '../../defaults/famousWheels';
 import { ARCHETYPES, ARCHETYPE_WHEELS } from '../../defaults/scheduleArchetypes';

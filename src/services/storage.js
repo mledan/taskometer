@@ -3,6 +3,7 @@
  * services/database/** goes through here (ESLint enforces it).
  *
  *   storage.get(key) / set(key, value) / remove(key)   JSON values
+ *   storage.keys()                                      every key in the area
  *   storage.getRaw(key) / setRaw(key, string)           plain strings
  *   storage.session.getRaw / setRaw / remove            per-tab (sessionStorage)
  *
@@ -31,6 +32,14 @@ function makeArea(kind) {
     },
     remove(key) {
       try { area(kind)?.removeItem(key); } catch (_) { /* noop */ }
+    },
+    /** Every key in this area (for clearing a namespace). */
+    keys() {
+      try {
+        const a = area(kind);
+        if (!a) return [];
+        return Array.from({ length: a.length }, (_, i) => a.key(i)).filter(k => k != null);
+      } catch (_) { return []; }
     },
     get(key) {
       try {

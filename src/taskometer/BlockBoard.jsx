@@ -1,7 +1,5 @@
 import { useMemo } from 'react';
-import SleepCycleHint from './SleepCycleHint.jsx';
 import PlaceMenu from './PlaceMenu.jsx';
-import { isSleepSlot } from '../services/sleepCycles.js';
 import { fmtDuration } from './quickAdd';
 
 function ymd(d) {
@@ -41,16 +39,12 @@ function isOverdue(task, now) {
 }
 
 /**
- * BlockBoard — the day as a list, built to work one-handed.
- *
- *   1. What did I miss? (overdue)
- *   2. What's in each block today?
- *   3. What's still loose? (inbox)
- *
- * Every row has one placement control (the shared PlaceMenu) instead of
- * a date input, a time input, a select and a button.
+ * LooseEnds — what the column can't show: tasks that missed their block
+ * (overdue) and tasks scheduled today that match no block. The blocks
+ * themselves are drawn by the stage; the inbox lives in the side column.
+ * Every row has one placement control (the shared PlaceMenu).
  */
-export default function BlockBoard({
+export default function LooseEnds({
   tasks = [],
   slots = [],
   date,
@@ -71,17 +65,13 @@ export default function BlockBoard({
     [slots, dateKey],
   );
 
-  const { overdue, scheduledByDay, inbox } = useMemo(() => {
+  const { overdue, scheduledByDay } = useMemo(() => {
     const overdue = [];
     const scheduledByDay = new Map();
-    const inbox = [];
 
     for (const t of tasks) {
       if (!t || t.status === 'cancelled') continue;
-      if (!t.scheduledTime) {
-        if (t.status !== 'completed') inbox.push(t);
-        continue;
-      }
+      if (!t.scheduledTime) continue;
       const dt = new Date(t.scheduledTime);
       if (Number.isNaN(dt.getTime())) continue;
       const dKey = ymd(dt);
@@ -95,7 +85,7 @@ export default function BlockBoard({
     }
 
     overdue.sort((a, b) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime());
-    return { overdue, scheduledByDay, inbox };
+    return { overdue, scheduledByDay };
   }, [tasks, dateKey, isToday, todayKey]);
 
   const tasksForDay = scheduledByDay.get(dateKey) || [];
@@ -133,10 +123,8 @@ export default function BlockBoard({
     return { ordered, loose: looseScheduled };
   }, [tasksForDay, daySlots]);
 
-  const sleepSlots = useMemo(() => daySlots.filter(isSleepSlot), [daySlots]);
-
   const rowProps = { api, daySlots, dateKey, rowHandlers, onPlaceOnDate };
-  const nothing = overdue.length === 0 && slotGroups.ordered.length === 0 && slotGroups.loose.length === 0 && inbox.length === 0;
+  if (overdue.length === 0 && slotGroups.loose.length === 0) return null;
 
   return (
     <div className="tm-blocks">
@@ -148,50 +136,12 @@ export default function BlockBoard({
         </Section>
       )}
 
-      {slotGroups.ordered.length > 0 && (
-        <Section
-          title={`${isToday ? 'Today' : fmtRelDay(dateKey, todayKey)} · ${tasksForDay.length} task${tasksForDay.length === 1 ? '' : 's'}`}
-          accent="var(--ink)"
-          subtitle="by block. tap move to put a task somewhere else."
-        >
-          {slotGroups.ordered.map(({ slot, tasks: slotTasks }) => (
-            <SlotGroup key={slot.id} slot={slot} tasks={slotTasks} {...rowProps} />
-          ))}
-          {slotGroups.loose.length > 0 && (
-            <SlotGroup key="loose" slot={null} tasks={slotGroups.loose} {...rowProps} />
-          )}
-        </Section>
-      )}
-
-      {inbox.length > 0 && (
-        <Section title={`Inbox · ${inbox.length}`} accent="var(--sage-deep)" subtitle="unscheduled. tap place to give each one a block.">
-          {inbox.map(t => (
-            <TaskRow key={t.id || t.key} task={t} isInbox {...rowProps} />
+      {slotGroups.loose.length > 0 && (
+        <Section title={`Outside any block · ${slotGroups.loose.length}`} accent="var(--ink)" subtitle="scheduled today but no block holds them. tap move to pick one.">
+          {slotGroups.loose.map(t => (
+            <TaskRow key={t.id || t.key} task={t} {...rowProps} />
           ))}
         </Section>
-      )}
-
-      {sleepSlots.length > 0 && (
-        <Section title={`Sleep · ${sleepSlots.length} block${sleepSlots.length === 1 ? '' : 's'}`} accent={sleepSlots[0].color || 'var(--lilac)'} subtitle="cycle-aware wake / bedtime suggestions.">
-          {sleepSlots.map(s => (
-            <div key={s.id} className="tm-blocks-group" style={{ '--group-color': s.color || 'var(--lilac)' }}>
-              <div className="tm-blocks-group-head">
-                <span className="tm-blocks-group-name">{s.label || s.slotType || 'sleep'}</span>
-                <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{s.startTime}–{s.endTime}</span>
-              </div>
-              <SleepCycleHint slot={s} />
-            </div>
-          ))}
-        </Section>
-      )}
-
-      {nothing && (
-        <div className="tm-card tm-dashed tm-blocks-empty">
-          <div className="tm-blocks-empty-title">Nothing to act on</div>
-          <div className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>
-            nothing overdue, nothing scheduled for {isToday ? 'today' : fmtRelDay(dateKey, todayKey)}, inbox empty.
-          </div>
-        </div>
       )}
     </div>
   );
@@ -203,21 +153,6 @@ function Section({ title, accent, subtitle, tone, children }) {
       <div className="tm-blocks-title">{title}</div>
       {subtitle && <div className="tm-mono tm-sm tm-blocks-sub">{subtitle}</div>}
       <div style={{ display: 'flex', flexDirection: 'column' }}>{children}</div>
-    </div>
-  );
-}
-
-function SlotGroup({ slot, tasks, ...rowProps }) {
-  return (
-    <div className="tm-blocks-group" style={{ '--group-color': slot?.color || 'var(--ink-mute)' }}>
-      <div className="tm-blocks-group-head">
-        <span className="tm-blocks-group-name">{slot ? (slot.label || slot.slotType || 'block') : 'unmatched'}</span>
-        {slot && <span className="tm-mono tm-sm" style={{ color: 'var(--ink-mute)' }}>{slot.startTime}–{slot.endTime}</span>}
-      </div>
-      {slot && isSleepSlot(slot) && <SleepCycleHint slot={slot} compact />}
-      {tasks.map(t => (
-        <TaskRow key={t.id || t.key} task={t} {...rowProps} />
-      ))}
     </div>
   );
 }

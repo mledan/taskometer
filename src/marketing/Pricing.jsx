@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { PLANS, PLAN_ORDER, planIsCheckoutReady, formatPrice } from '../config/plans.js';
 import { CLERK_ENABLED } from '../services/auth.js';
 import { startCheckout } from './checkout.js';

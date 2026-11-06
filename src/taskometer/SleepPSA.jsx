@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 
 const DAY = 24 * 60;
 function hhmmToMin(s) {
